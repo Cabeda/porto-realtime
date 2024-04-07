@@ -30,6 +30,9 @@ export default async function handler(req: any, res: any): Promise<any> {
       "Sec-Fetch-Mode": "cors",
       "Sec-Fetch-Site": "cross-site",
       "Sec-GPC": "1",
+      next: {
+        revalidate: 3600 * 24 * 7 , // 1 week
+      },
     },
     body: JSON.stringify({
       query:
