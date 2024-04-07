@@ -71,6 +71,7 @@ export default async function handler(req: any, res: any): Promise<any> {
           ) {
             stop(id: $id_0) {
               id
+              name
               ...F2
             }
           }

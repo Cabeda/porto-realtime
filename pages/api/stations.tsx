@@ -35,6 +35,7 @@ export default async function handler(req: any, res: any): Promise<any> {
       query:
         `query Request {
           stops	{
+            id
             code
             desc
             lat
