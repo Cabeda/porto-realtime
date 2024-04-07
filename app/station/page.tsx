@@ -3,6 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import useSWR from "swr";
+import liveImage from "./live.svg";
+import Image from "next/image";
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -52,7 +54,9 @@ function SearchStation() {
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
         <div className="flex items-center justify-between">
           <div className="flex items-center justify-between">
-            <h1 className="text-4xl font-bold">{station.data.stop.name} ({id})</h1>
+            <h1 className="text-4xl font-bold">
+              {station.data.stop.name} ({id})
+            </h1>
           </div>
         </div>
         <div className="grid grid-flow-row mt-4">
@@ -73,13 +77,14 @@ function SearchStation() {
                       item.realtimeDeparture
                     );
                     return (
-                        <tr
+                      <tr
                         key={index}
-                        className={`md:table-row block md:table-row rounded-lg shadow mb-4 p-4 ${
-                          item.realtimeState === 'UPDATED' ? 'bg-green-100' : ''
-                        } ${diff <= 1 ? "animate-pulse" : ""}`}
+                        className={`md:table-row block md:table-row rounded-lg shadow mb-4 p-4`}
                       >
                         <td className="block md:table-cell">
+                          {item.realtimeState === "UPDATED" && (
+                              <Image src={liveImage} alt="Live" className={`h-6 w-6 ${diff <= 5 ? "animate-pulse" : ""}`} />
+                          )}
                           <strong className="md:hidden">Leaves: </strong>
                           {diff > 10
                             ? convertToTime(item.realtimeDeparture)
