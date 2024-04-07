@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
+import Image from "next/image";
+import star from "./star-white.svg";
+import { useRouter } from "next/navigation";
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -21,6 +24,8 @@ export default function Home() {
     return [];
   });
   const [location, setLocation] = useState({ latitude: 0, longitude: 0 });
+
+  const router = useRouter();
 
   // Inside your component
   useEffect(() => {
@@ -92,7 +97,7 @@ export default function Home() {
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
         <div className="grid grid-flow-row mt-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Closest Stations</h2>
+            <h2 className="text-2xl font-bold pt-12 pb-4">Closest Stations</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {stations &&
@@ -116,14 +121,14 @@ export default function Home() {
                           ]);
                         }}
                       >
-                        Make Favorite
+                        <Image src={star} alt="Favorite" width={24} height={24} />
                       </button>
                     </Link>
                   </div>
                 )
               )}
           </div>
-          <h2 className="text-2xl font-bold">Favorite Stations</h2>
+          <h2 className="text-2xl font-bold pt-12 pb-4">Favorite Stations</h2>
           <div className="grid gap-4">
             {favoriteStations &&
               favoriteStations.map((favoriteStation: any) => (
@@ -148,12 +153,13 @@ export default function Home() {
                       );
                     }}
                     >
-                    Remove Favorite
+                    -
                   </button>
                 </div>
               ))}
           </div>
-          <h2 className="text-2xl font-bold">All Stations</h2>
+
+          <h2 className="text-2xl font-bold pt-12 pb-4">All Stations</h2>
           <input
             type="text"
             value={filter}
@@ -178,13 +184,14 @@ export default function Home() {
                       className="mt-2 p-2 bg-blue-500 text-white rounded"
                       onClick={(e) => {
                         e.preventDefault();
+                        e.preventDefault();
                         setFavoriteStations([
                           ...(favoriteStations || []), // Initialize as empty array if null
                           station,
                         ]);
                       }}
                     >
-                      Make Favorite
+                      <Image src={star} className="fill-current text-white" alt="Favorite" width={24} height={24} />
                     </button>
                   </div>
                 </Link>

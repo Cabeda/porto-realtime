@@ -3,8 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import useSWR from "swr";
-import liveImage from "./live.svg";
+import liveWhite from "./live-white.svg";
 import Image from "next/image";
+import router from "next/navigation";
+import Link from "next/link";
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -50,6 +52,12 @@ function SearchStation() {
   if (!station) return <div>Loading...</div>;
 
   return (
+    <>
+      <Link href="/">
+      <button onClick={() => router} className="fixed top-0 left-0 mt-4 ml-4">
+      Back
+    </button>
+    </Link>
     <main className="flex min-h-screen flex-col items-center justify-between p-8">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
         <div className="flex items-center justify-between">
@@ -82,9 +90,6 @@ function SearchStation() {
                         className={`md:table-row block md:table-row rounded-lg shadow mb-4 p-4`}
                       >
                         <td className="block md:table-cell">
-                          {item.realtimeState === "UPDATED" && (
-                              <Image src={liveImage} alt="Live" className={`h-6 w-6 ${diff <= 5 ? "animate-pulse" : ""}`} />
-                          )}
                           <strong className="md:hidden">Leaves: </strong>
                           {diff > 10
                             ? convertToTime(item.realtimeDeparture)
@@ -99,8 +104,22 @@ function SearchStation() {
                           {item.trip.route.longName}
                         </td>
                         <td className="block md:table-cell">
-                          <strong className="md:hidden">Realtime: </strong>
-                          {item.realtimeState}
+                          {/* <strong className="md:hidden">Realtime: </strong>
+                          {item.realtimeState} */}
+                          {item.realtimeState === "UPDATED" && (
+                            <div
+                              className={`h-6 w-6 text-white ${
+                                diff <= 5 ? "animate-pulse" : ""
+                              }`}
+                            >
+                              <Image
+                                src={liveWhite}
+                                alt="Live"
+                                width={24}
+                                height={24}
+                              />
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -112,6 +131,7 @@ function SearchStation() {
         </div>
       </div>
     </main>
+    </>
   );
 }
 
