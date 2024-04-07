@@ -52,7 +52,7 @@ function SearchStation() {
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
         <div className="flex items-center justify-between">
           <div className="flex items-center justify-between">
-            <h1 className="text-4xl font-bold">{station.data.stop.name}</h1>
+            <h1 className="text-4xl font-bold">{station.data.stop.name} ({id})</h1>
           </div>
         </div>
         <div className="grid grid-flow-row mt-4">
