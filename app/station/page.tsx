@@ -48,7 +48,7 @@ function SearchStation() {
   if (!station) return <div>Loading...</div>;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+    <main className="flex min-h-screen flex-col items-center justify-between p-8">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
         <div className="flex items-center justify-between">
           <div className="flex items-center justify-between">
@@ -75,7 +75,7 @@ function SearchStation() {
                     return (
                         <tr
                         key={index}
-                        className={`md:table-row block md:table-row bg-white rounded-lg shadow mb-4 p-4 ${
+                        className={`md:table-row block md:table-row rounded-lg shadow mb-4 p-4 ${
                           item.realtimeState === 'UPDATED' ? 'bg-green-100' : ''
                         } ${diff <= 1 ? "animate-pulse" : ""}`}
                       >

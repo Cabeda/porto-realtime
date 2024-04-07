@@ -83,7 +83,7 @@ export default function Home() {
   if (!stations) return <div>Loading...</div>;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+    <main className="flex min-h-screen flex-col items-center justify-between p-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center justify-between">
           <h1 className="text-4xl font-bold">Porto Explore</h1>
