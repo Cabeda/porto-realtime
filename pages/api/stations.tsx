@@ -1,3 +1,5 @@
+import next from "next";
+
 interface Stop {
   code: string;
   desc: string;
@@ -16,6 +18,9 @@ export default async function handler(req: any, res: any): Promise<any> {
     "https://otp.services.porto.digital/otp/routers/default/index/graphql";
   const options = {
     method: "POST",
+    next: {
+      revalidate: 604800,
+    },
     headers: {
       Accept: "*/*",
       "Accept-Language": "en-US,en;q=0.5",
@@ -30,13 +35,9 @@ export default async function handler(req: any, res: any): Promise<any> {
       "Sec-Fetch-Mode": "cors",
       "Sec-Fetch-Site": "cross-site",
       "Sec-GPC": "1",
-      next: {
-        revalidate: 3600 * 24 * 7 , // 1 week
-      },
     },
     body: JSON.stringify({
-      query:
-        `query Request {
+      query: `query Request {
           stops	{
             id
             code
