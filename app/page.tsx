@@ -13,28 +13,52 @@ const fetcher = async (url: string) => {
 };
 
 export default function Home() {
-
   const [favoriteStations, setFavoriteStations] = useState<string[]>(() => {
-    const savedFavorites = localStorage.getItem("favoriteStations");
-    return savedFavorites ? JSON.parse(savedFavorites) : [];
+    if (typeof window !== "undefined") {
+      const savedFavorites = localStorage.getItem("favoriteStations");
+      return savedFavorites ? JSON.parse(savedFavorites) : [];
+    }
+    return [];
   });
   const [location, setLocation] = useState({ latitude: 0, longitude: 0 });
 
   // Inside your component
   useEffect(() => {
-    localStorage.setItem("favoriteStations", JSON.stringify(favoriteStations));
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      });
+    } else {
+      console.log("Geolocation is not supported by this browser.");
+    }
+  }, []);
+
+  // Inside your component
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "favoriteStations",
+        JSON.stringify(favoriteStations)
+      );
+    }
   }, [favoriteStations]);
 
   // Initialize favorites from local storage
   useState(() => {
-    const savedFavorites = localStorage.getItem("favorites");
-    return savedFavorites ? JSON.parse(savedFavorites) : [];
+    if (typeof window !== "undefined") {
+      const savedFavorites = localStorage.getItem("favorites");
+      return savedFavorites ? JSON.parse(savedFavorites) : [];
+    }
   });
 
-  const { data: stations, error: stationsError } = useSWR(
-    "/api/stations",
-    fetcher
-  );
+  const {
+    data: stations,
+    error: stationsError,
+    isLoading: boolean,
+  } = useSWR("/api/stations", fetcher);
 
   const [filter, setFilter] = useState("");
 
@@ -78,9 +102,7 @@ export default function Home() {
                     key={`closest-${closeStation.id}`}
                     className="p-4 border border-gray-200 rounded-md"
                   >
-                    <Link
-                      href={`/station?gtfsId=${closeStation.gtfsId}`}
-                    >
+                    <Link href={`/station?gtfsId=${closeStation.gtfsId}`}>
                       <h3 className="text-xl font-bold">{closeStation.name}</h3>
                       <p>{closeStation.gtfsId}</p>
                       <p>{closeStation.distance.toFixed(2)} km</p>
@@ -109,10 +131,25 @@ export default function Home() {
                   key={`favorite-${favoriteStation.id}`}
                   className="p-4 border border-gray-300 rounded-md hover:bg-gray-100"
                 >
+                  <Link href={`/station?gtfsId=${favoriteStation.gtfsId}`}>
+
                   <h3 className="text-xl font-bold">{favoriteStation.name}</h3>
                   <p>{favoriteStation.gtfsId}</p>
                   <p>{favoriteStation.name}</p>
-                  {/* Add more elements as needed */}
+                  </Link>
+                  <button
+                    className="mt-2 p-2 bg-red-500 text-white rounded"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setFavoriteStations(
+                        favoriteStations.filter(
+                          (station) => station !== favoriteStation
+                        )
+                      );
+                    }}
+                    >
+                    Remove Favorite
+                  </button>
                 </div>
               ))}
           </div>
@@ -130,22 +167,25 @@ export default function Home() {
                 station.name.toLowerCase().includes(filter.toLowerCase())
               )
               .map((station: any) => (
-                <Link key={station.id} href={`/station?gtfsId=${station.gtfsId}`}>
+                <Link
+                  key={station.id}
+                  href={`/station?gtfsId=${station.gtfsId}`}
+                >
                   <div className="p-4 border border-gray-300 rounded-md hover:bg-gray-100">
                     <p>{station.name}</p>
                     <p>{station.gtfsId}</p>
                     <button
-                        className="mt-2 p-2 bg-blue-500 text-white rounded"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setFavoriteStations([
-                            ...(favoriteStations || []), // Initialize as empty array if null
-                            station,
-                          ]);
-                        }}
-                      >
-                        Make Favorite
-                      </button>
+                      className="mt-2 p-2 bg-blue-500 text-white rounded"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setFavoriteStations([
+                          ...(favoriteStations || []), // Initialize as empty array if null
+                          station,
+                        ]);
+                      }}
+                    >
+                      Make Favorite
+                    </button>
                   </div>
                 </Link>
               ))}
