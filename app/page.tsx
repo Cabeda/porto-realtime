@@ -73,7 +73,7 @@ export default function Home() {
         distance: Math.sqrt(
           Math.pow(station.lat - location.latitude, 2) +
             Math.pow(station.lon - location.longitude, 2)
-        ),
+        ) * 100,
       }))
       .sort((a: any, b: any) => a.distance - b.distance)
       .slice(0, 5);
