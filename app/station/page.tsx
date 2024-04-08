@@ -104,13 +104,12 @@ function SearchStation() {
                           {item.trip.route.longName}
                         </td>
                         <td className="block md:table-cell">
-                          {/* <strong className="md:hidden">Realtime: </strong>
-                          {item.realtimeState} */}
+                          {item.realtimeState}
                           {item.realtimeState === "UPDATED" && (
                             <div
-                              className={`h-6 w-6 text-white ${
-                                diff <= 5 ? "animate-pulse" : ""
-                              }`}
+                            className={`h-6 w-6 text-white ${
+                              diff <= 5 ? "animate-pulse" : ""
+                            }`}
                             >
                               <Image
                                 src={liveWhite}
@@ -118,6 +117,7 @@ function SearchStation() {
                                 width={24}
                                 height={24}
                               />
+                            <strong className="md:hidden">Realtime: </strong>
                             </div>
                           )}
                         </td>
