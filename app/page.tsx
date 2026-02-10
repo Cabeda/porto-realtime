@@ -9,6 +9,7 @@ import { logger } from "@/lib/logger";
 import { MapSkeleton } from "@/components/LoadingSkeletons";
 import { storage } from "@/lib/storage";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
+import { OnboardingFlow } from "@/components/OnboardingFlow";
 
 interface Bus {
   id: string;
@@ -693,16 +694,39 @@ function MapPageContent() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
-  const [showStops, setShowStops] = useState(false);
-  const [showStopsInitialized, setShowStopsInitialized] = useState(false);
-  const [showRoutes, setShowRoutes] = useState(true); // Show routes by default
+  const [showStops, setShowStops] = useState(() => {
+    // Load from localStorage, default to false if not set
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("showStops");
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
+  const [showRoutes, setShowRoutes] = useState(() => {
+    // Load from localStorage, default to true if not set
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("showRoutes");
+      return saved ? JSON.parse(saved) : true;
+    }
+    return true;
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
-  const [showRouteFilter, setShowRouteFilter] = useState(false); // Collapsible route filter
+  const [showRouteFilter, setShowRouteFilter] = useState(() => {
+    // Load from localStorage, default to false (collapsed) if not set
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("showRouteFilter");
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
   const [lastRefreshTime, setLastRefreshTime] = useState(0); // Track last manual refresh
   const [lastDataTime, setLastDataTime] = useState<number | null>(null); // When data was last received
   const [timeSinceUpdate, setTimeSinceUpdate] = useState<string>(""); // "Updated Xs ago"
   const [isDataStale, setIsDataStale] = useState(false); // True when showing cached/stale data
+  const [showOnboarding, setShowOnboarding] = useState(false); // Onboarding flow
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [showLocationSuccess, setShowLocationSuccess] = useState(false); // Success toast for location
   
   // Get highlighted station from URL params (e.g., /?station=2:BRRS2)
   const highlightedStationId = searchParams?.get("station");
@@ -755,13 +779,7 @@ function MapPageContent() {
     }
   );
 
-  // Auto-enable stops display once data is loaded (only on initial load)
-  useEffect(() => {
-    if (stopsData?.data?.stops && !showStopsInitialized) {
-      setShowStops(true);
-      setShowStopsInitialized(true);
-    }
-  }, [stopsData, showStopsInitialized]);
+  // Stops are hidden by default - user must manually enable via toggle button
 
   // Track when bus data was last received
   useEffect(() => {
@@ -795,32 +813,52 @@ function MapPageContent() {
   const handleLocateMe = () => {
     setIsLocating(true);
     setLocationError(null);
-
+    
+    // Check if geolocation is supported
     if (!navigator.geolocation) {
-      setLocationError(translations.map.geolocationNotSupported);
+      setLocationError("Localização não suportada neste navegador");
       setIsLocating(false);
       return;
     }
-
+    
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         setUserLocation([latitude, longitude]);
         setIsLocating(false);
+        logger.log(`Location acquired: ${latitude}, ${longitude} (accuracy: ${position.coords.accuracy}m)`);
+        
+        // Show success toast
+        setShowLocationSuccess(true);
+        setTimeout(() => setShowLocationSuccess(false), 3000);
       },
       (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          logger.log(translations.map.locationPermissionDenied);
-        } else {
-          setLocationError(translations.map.unableToGetLocation);
-        }
         setIsLocating(false);
-        logger.error("Geolocation error:", error);
+        
+        // More detailed error messages for different error codes
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationError("Permissão de localização negada. Verifique as definições do navegador.");
+            logger.error("Geolocation permission denied");
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setLocationError("Localização indisponível. Verifique o GPS/Wi-Fi.");
+            logger.error("Geolocation position unavailable");
+            break;
+          case error.TIMEOUT:
+            setLocationError("Tempo esgotado ao obter localização. Tente novamente.");
+            logger.error("Geolocation timeout");
+            break;
+          default:
+            setLocationError(translations.map.unableToGetLocation);
+            logger.error("Geolocation error:", error);
+        }
       },
       {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0,
+        // More lenient settings for better Android/Firefox compatibility
+        enableHighAccuracy: false, // Use network location first (faster, more reliable)
+        timeout: 15000, // 15 seconds (was 5s - too short for Android GPS)
+        maximumAge: 60000, // Accept 1-minute-old cached location (reduce GPS delays)
       }
     );
   };
@@ -847,8 +885,15 @@ function MapPageContent() {
   useEffect(() => {
     setIsMounted(true);
 
-    // Automatically request user location on page load
-    handleLocateMe();
+    // Check if user has completed onboarding before
+    const onboardingCompleted = localStorage.getItem('onboarding-completed');
+    if (!onboardingCompleted) {
+      setShowOnboarding(true);
+    } else {
+      setHasCompletedOnboarding(true);
+      // Don't auto-request location - let user trigger it manually
+      // This prevents Firefox/Android permission issues on page load
+    }
   }, []);
 
   // Persist selected routes to localStorage whenever they change
@@ -864,6 +909,27 @@ function MapPageContent() {
       localStorage.setItem("favoriteRoutes", JSON.stringify(favoriteRoutes));
     }
   }, [favoriteRoutes]);
+
+  // Persist showStops toggle to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("showStops", JSON.stringify(showStops));
+    }
+  }, [showStops]);
+
+  // Persist showRoutes toggle to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("showRoutes", JSON.stringify(showRoutes));
+    }
+  }, [showRoutes]);
+
+  // Persist showRouteFilter (panel expanded state) to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("showRouteFilter", JSON.stringify(showRouteFilter));
+    }
+  }, [showRouteFilter]);
 
   // Get unique routes from bus data
   const availableRoutes = data?.buses 
@@ -921,8 +987,45 @@ function MapPageContent() {
     );
   };
 
+  const handleOnboardingComplete = (routes: string[], locationGranted: boolean) => {
+    // Save selected routes as both selected and favorites
+    if (routes.length > 0) {
+      setSelectedRoutes(routes);
+      setFavoriteRoutes(routes);
+    }
+
+    // If location was granted, trigger location request
+    if (locationGranted) {
+      // Location already granted during onboarding, just update state
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation([latitude, longitude]);
+        },
+        (error) => {
+          logger.error("Geolocation error:", error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        }
+      );
+    }
+
+    // Mark onboarding as completed
+    localStorage.setItem('onboarding-completed', 'true');
+    setShowOnboarding(false);
+    setHasCompletedOnboarding(true);
+  };
+
   if (!isMounted) {
     return <MapSkeleton />;
+  }
+
+  // Show onboarding for first-time users
+  if (showOnboarding && availableRoutes.length > 0) {
+    return <OnboardingFlow availableRoutes={availableRoutes} onComplete={handleOnboardingComplete} />;
   }
 
   return (
@@ -981,13 +1084,26 @@ function MapPageContent() {
         <button
           onClick={handleLocateMe}
           disabled={isLocating}
-          className="absolute bottom-6 right-4 z-[1001] w-12 h-12 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-full shadow-lg border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          title={translations.map.centerMapTitle}
+          className={`absolute bottom-20 right-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:cursor-not-allowed sm:bottom-6 ${
+            isLocating
+              ? "bg-blue-500 border-blue-600 animate-pulse"
+              : userLocation
+                ? "bg-blue-500 hover:bg-blue-600 border-blue-600 text-white"
+                : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
+          }`}
+          style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          title={
+            isLocating 
+              ? "A obter localização..." 
+              : userLocation 
+                ? "Atualizar localização" 
+                : "Obter a minha localização"
+          }
         >
           {isLocating ? (
-            <span className="animate-spin text-xl">🔄</span>
+            <span className="text-xl text-white">⏳</span>
           ) : (
-            <span className="text-xl">📍</span>
+            <span className={`text-xl ${userLocation ? "text-white" : ""}`}>📍</span>
           )}
         </button>
 
@@ -1123,6 +1239,17 @@ function MapPageContent() {
         {locationError && (
           <div className="absolute top-28 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
             <p className="text-yellow-800 dark:text-yellow-200 text-sm">{locationError}</p>
+          </div>
+        )}
+
+        {showLocationSuccess && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1001] bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 shadow-lg max-w-md animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">✓</span>
+              <p className="text-green-800 dark:text-green-200 text-sm font-medium">
+                Localização obtida com sucesso
+              </p>
+            </div>
           </div>
         )}
 
