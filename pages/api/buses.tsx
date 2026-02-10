@@ -25,11 +25,95 @@ interface FiwareResponse {
   [key: string]: any;
 }
 
+interface OTPRoute {
+  gtfsId: string;
+  shortName: string;
+  longName: string;
+  patterns: Array<{ headsign: string }>;
+}
+
+interface OTPResponse {
+  data: {
+    routes: OTPRoute[];
+  };
+}
+
+// Cache for route destinations (in-memory cache)
+let routeDestinationsCache: Map<string, string[]> | null = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+async function fetchRouteDestinations(): Promise<Map<string, string[]>> {
+  const now = Date.now();
+  
+  // Return cached data if still valid
+  if (routeDestinationsCache && (now - cacheTimestamp) < CACHE_DURATION) {
+    return routeDestinationsCache;
+  }
+
+  try {
+    const response = await fetch(
+      "https://otp.services.porto.digital/otp/routers/default/index/graphql",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://explore.porto.pt",
+        },
+        body: JSON.stringify({
+          query: `query { routes { gtfsId shortName longName patterns { headsign } } }`,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`OTP API returned ${response.status}`);
+    }
+
+    const data: OTPResponse = await response.json();
+    const routeMap = new Map<string, string[]>();
+
+    // Build a map of route shortName -> possible destinations
+    data.data.routes.forEach((route) => {
+      const destinations = new Set<string>();
+      
+      // Add longName as primary destination
+      if (route.longName) {
+        destinations.add(route.longName);
+      }
+      
+      // Add all unique headsigns
+      route.patterns.forEach((pattern) => {
+        if (pattern.headsign) {
+          destinations.add(pattern.headsign);
+        }
+      });
+
+      if (destinations.size > 0) {
+        routeMap.set(route.shortName, Array.from(destinations));
+      }
+    });
+
+    routeDestinationsCache = routeMap;
+    cacheTimestamp = now;
+    
+    console.log(`Cached destinations for ${routeMap.size} routes`);
+    return routeMap;
+  } catch (error) {
+    console.error("Error fetching route destinations:", error);
+    // Return existing cache or empty map
+    return routeDestinationsCache || new Map();
+  }
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<{ buses: Bus[] } | { error: string }>
 ) {
   try {
+    // Fetch route destinations (will use cache if available)
+    const routeDestinations = await fetchRouteDestinations();
+
     const response = await fetch(
       "https://broker.fiware.urbanplatform.portodigital.pt/v2/entities?q=vehicleType==bus&limit=1000",
       {
@@ -126,7 +210,8 @@ export default async function handler(
           }
         }
         
-        const routeLongName = 
+        // Get destination from cache based on route number
+        let routeLongName = 
           entity.routeLongName?.value ||
           entity.destination?.value ||
           entity.tripHeadsign?.value ||
@@ -134,6 +219,19 @@ export default async function handler(
           entity.direction?.value ||
           entity.directionId?.value ||
           "";
+        
+        // If no destination from FIWARE, try to get from OTP route data
+        if (!routeLongName && routeDestinations.has(routeShortName)) {
+          const destinations = routeDestinations.get(routeShortName)!;
+          // Use the first destination (usually the main one from longName)
+          // or join multiple destinations
+          if (destinations.length === 1) {
+            routeLongName = destinations[0];
+          } else if (destinations.length > 1) {
+            // Show primary destination (first one, which is usually from longName)
+            routeLongName = destinations[0];
+          }
+        }
         
         const vehicleNumber = 
           entity.vehiclePlateIdentifier?.value ||

@@ -20,19 +20,39 @@ interface BusesResponse {
   buses: Bus[];
 }
 
+interface Stop {
+  code: string;
+  desc: string;
+  lat: number;
+  lon: number;
+  name: string;
+  gtfsId: string;
+}
+
+interface StopsResponse {
+  data: {
+    stops: Stop[];
+  };
+}
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 // Wrapper component that prevents re-initialization
 function LeafletMap({
   buses,
+  stops,
   userLocation,
+  showStops,
 }: {
   buses: Bus[];
+  stops: Stop[];
   userLocation: [number, number] | null;
+  showStops: boolean;
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const stopMarkersRef = useRef<any[]>([]);
   const locationMarkerRef = useRef<any>(null);
 
   useEffect(() => {
@@ -93,10 +113,11 @@ function LeafletMap({
       buses.forEach((bus) => {
         console.log(`Adding marker for bus ${bus.routeShortName} at [${bus.lat}, ${bus.lon}]`);
         
-        // Create custom icon with line number - simpler approach
+        // Create custom icon with line number and tooltip showing destination
         const busIcon = L.divIcon({
           html: `
             <div style="
+              position: relative;
               width: 48px;
               height: 32px;
               background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
@@ -122,16 +143,23 @@ function LeafletMap({
           popupAnchor: [0, -16],
         });
 
-        const marker = L.marker([bus.lat, bus.lon], { icon: busIcon })
+        const destinationText = bus.routeLongName || 'Destino desconhecido';
+        
+        const marker = L.marker([bus.lat, bus.lon], { 
+          icon: busIcon,
+          title: `Linha ${bus.routeShortName} → ${destinationText}` // Tooltip on hover
+        })
           .addTo(mapInstanceRef.current)
           .bindPopup(`
-            <div class="bus-popup text-sm" style="min-width: 220px; font-family: system-ui, -apple-system, sans-serif;">
-              <div style="font-size: 16px; font-weight: bold; color: #2563eb; margin-bottom: 8px;">
-                Linha: ${bus.routeShortName}
+            <div class="bus-popup text-sm" style="min-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="font-size: 18px; font-weight: bold; color: #2563eb; margin-bottom: 4px;">
+                Linha ${bus.routeShortName}
               </div>
-              ${bus.routeLongName ? `<div style="margin-bottom: 4px;"><strong>Destino:</strong> ${bus.routeLongName}</div>` : ''}
-              <div style="margin-bottom: 4px;"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : 'Parado'}</div>
-              ${bus.vehicleNumber ? `<div style="margin-bottom: 4px;"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
+              <div style="font-size: 15px; font-weight: 600; color: #1e40af; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">
+                → ${destinationText}
+              </div>
+              <div style="margin-bottom: 4px; color: #374151;"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
+              ${bus.vehicleNumber ? `<div style="margin-bottom: 4px; color: #374151;"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
               <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
                 Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}
               </div>
@@ -143,6 +171,67 @@ function LeafletMap({
       console.log(`Successfully added ${markersRef.current.length} markers`);
     });
   }, [buses]);
+
+  // Update stop markers when stops or showStops change
+  useEffect(() => {
+    if (!mapInstanceRef.current) {
+      return;
+    }
+
+    import("leaflet").then((L) => {
+      // Clear existing stop markers
+      stopMarkersRef.current.forEach((marker) => marker.remove());
+      stopMarkersRef.current = [];
+
+      if (!showStops || stops.length === 0) {
+        return;
+      }
+
+      console.log(`Adding ${stops.length} stop markers to map`);
+
+      // Add stop markers
+      stops.forEach((stop) => {
+        // Create simple circular icon for stops
+        const stopIcon = L.divIcon({
+          html: `
+            <div style="
+              width: 10px;
+              height: 10px;
+              background: #ef4444;
+              border: 2px solid white;
+              border-radius: 50%;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+              cursor: pointer;
+            "></div>
+          `,
+          className: "custom-stop-marker",
+          iconSize: [10, 10],
+          iconAnchor: [5, 5],
+          popupAnchor: [0, -5],
+        });
+
+        const marker = L.marker([stop.lat, stop.lon], { icon: stopIcon })
+          .addTo(mapInstanceRef.current)
+          .bindPopup(`
+            <div class="stop-popup text-sm" style="min-width: 200px; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="font-size: 14px; font-weight: bold; color: #ef4444; margin-bottom: 6px;">
+                ${stop.name}
+              </div>
+              ${stop.code ? `<div style="margin-bottom: 4px; font-size: 12px;"><strong>Código:</strong> ${stop.code}</div>` : ''}
+              ${stop.desc ? `<div style="margin-bottom: 6px; font-size: 12px; color: #6b7280;">${stop.desc}</div>` : ''}
+              <a href="/station?gtfsId=${stop.gtfsId}" 
+                 style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #2563eb; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;"
+                 target="_blank">
+                Ver Horários →
+              </a>
+            </div>
+          `);
+        stopMarkersRef.current.push(marker);
+      });
+
+      console.log(`Successfully added ${stopMarkersRef.current.length} stop markers`);
+    });
+  }, [stops, showStops]);
 
   // Fly to location when it changes
   useEffect(() => {
@@ -180,10 +269,16 @@ export default function MapPage() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [showStops, setShowStops] = useState(false);
 
   const { data, error, isLoading } = useSWR<BusesResponse>("/api/buses", fetcher, {
     refreshInterval: 30000,
     revalidateOnFocus: true,
+  });
+
+  const { data: stopsData, error: stopsError } = useSWR<StopsResponse>("/api/stations", fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
   });
 
   const handleLocateMe = () => {
@@ -269,24 +364,44 @@ export default function MapPage() {
       </header>
 
       <main className="flex-1 relative">
-        <button
-          onClick={handleLocateMe}
-          disabled={isLocating}
-          className="absolute top-4 right-4 z-[1000] bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Center map on my location"
-        >
-          {isLocating ? (
+        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+          <button
+            onClick={handleLocateMe}
+            disabled={isLocating}
+            className="bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Center map on my location"
+          >
+            {isLocating ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin">🔄</span>
+                <span className="text-sm">Locating...</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <span>📍</span>
+                <span className="text-sm">My Location</span>
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setShowStops(!showStops)}
+            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all ${
+              showStops
+                ? "bg-red-500 hover:bg-red-600 text-white border-red-600"
+                : "bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
+            }`}
+            title={showStops ? "Hide bus stops" : "Show bus stops"}
+          >
             <span className="flex items-center gap-2">
-              <span className="animate-spin">🔄</span>
-              <span className="text-sm">Locating...</span>
+              <span>{showStops ? "🚏" : "🚏"}</span>
+              <span className="text-sm">{showStops ? "Hide Stops" : "Show Stops"}</span>
+              {stopsData && (
+                <span className="text-xs opacity-75">({stopsData.data.stops.length})</span>
+              )}
             </span>
-          ) : (
-            <span className="flex items-center gap-2">
-              <span>📍</span>
-              <span className="text-sm">My Location</span>
-            </span>
-          )}
-        </button>
+          </button>
+        </div>
 
         {error && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-50 border border-red-200 rounded-lg p-3 shadow-lg max-w-md">
@@ -306,8 +421,13 @@ export default function MapPage() {
           </div>
         )}
 
-        {data ? (
-          <LeafletMap buses={data.buses} userLocation={userLocation} />
+        {data && stopsData ? (
+          <LeafletMap 
+            buses={data.buses} 
+            stops={stopsData.data.stops}
+            userLocation={userLocation}
+            showStops={showStops}
+          />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
             <p className="text-gray-600">Initializing map...</p>
