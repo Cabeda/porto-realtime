@@ -16,7 +16,8 @@ const fetcher = async (url: string) => {
 };
 
 export default function Home() {
-  const [favoriteStations, setFavoriteStations] = useState<string[]>(() => {
+  // Store only gtfsId strings in favorites, not full objects
+  const [favoriteStationIds, setFavoriteStationIds] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       const savedFavorites = localStorage.getItem("favoriteStations");
       return savedFavorites ? JSON.parse(savedFavorites) : [];
@@ -27,7 +28,7 @@ export default function Home() {
 
   const router = useRouter();
 
-  // Inside your component
+  // Get user location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((position) => {
@@ -41,23 +42,15 @@ export default function Home() {
     }
   }, []);
 
-  // Inside your component
+  // Persist favorites to localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem(
         "favoriteStations",
-        JSON.stringify(favoriteStations)
+        JSON.stringify(favoriteStationIds)
       );
     }
-  }, [favoriteStations]);
-
-  // Initialize favorites from local storage
-  useState(() => {
-    if (typeof window !== "undefined") {
-      const savedFavorites = localStorage.getItem("favorites");
-      return savedFavorites ? JSON.parse(savedFavorites) : [];
-    }
-  });
+  }, [favoriteStationIds]);
 
   const {
     data: stations,
@@ -76,6 +69,24 @@ export default function Home() {
   const handleFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFilter(event.target.value);
   };
+
+  // Helper functions for favorites
+  const toggleFavorite = (gtfsId: string) => {
+    setFavoriteStationIds((prev) => {
+      if (prev.includes(gtfsId)) {
+        return prev.filter((id) => id !== gtfsId);
+      } else {
+        return [...prev, gtfsId];
+      }
+    });
+  };
+
+  const isFavorite = (gtfsId: string) => favoriteStationIds.includes(gtfsId);
+
+  // Get favorite station objects from IDs
+  const favoriteStations = stations?.data.stops.filter((station: any) =>
+    favoriteStationIds.includes(station.gtfsId)
+  ) || [];
 
   const get5ClosestStations = (stations: any, location: any) => {
     return stations.data.stops
@@ -123,52 +134,54 @@ export default function Home() {
                       <h3 className="text-xl font-bold">{closeStation.name}</h3>
                       <p>{closeStation.gtfsId}</p>
                       <p>{closeStation.distance.toFixed(2)} km</p>
-                      <button
-                        className="mt-2 p-2 bg-blue-500 text-white rounded"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setFavoriteStations([
-                            ...(favoriteStations || []), // Initialize as empty array if null
-                            closeStation,
-                          ]);
-                        }}
-                      >
-                        <Image src={star} alt="Favorite" width={24} height={24} />
-                      </button>
                     </Link>
+                    <button
+                      className={`mt-2 p-2 text-white rounded ${
+                        isFavorite(closeStation.gtfsId) ? "bg-yellow-500" : "bg-blue-500"
+                      }`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleFavorite(closeStation.gtfsId);
+                      }}
+                      aria-label={
+                        isFavorite(closeStation.gtfsId)
+                          ? "Remove from favorites"
+                          : "Add to favorites"
+                      }
+                    >
+                      <Image src={star} alt="Favorite" width={24} height={24} />
+                    </button>
                   </div>
                 )
               )}
           </div>
           <h2 className="text-2xl font-bold pt-12 pb-4">Favorite Stations</h2>
           <div className="grid gap-4">
-            {favoriteStations &&
+            {favoriteStations.length > 0 ? (
               favoriteStations.map((favoriteStation: any) => (
                 <div
-                  key={`favorite-${favoriteStation.id}`}
+                  key={`favorite-${favoriteStation.gtfsId}`}
                   className="p-4 border border-gray-300 rounded-md hover:bg-gray-100"
                 >
                   <Link href={`/station?gtfsId=${favoriteStation.gtfsId}`}>
-
-                  <h3 className="text-xl font-bold">{favoriteStation.name}</h3>
-                  <p>{favoriteStation.gtfsId}</p>
-                  <p>{favoriteStation.name}</p>
+                    <h3 className="text-xl font-bold">{favoriteStation.name}</h3>
+                    <p className="text-gray-600">{favoriteStation.gtfsId}</p>
                   </Link>
                   <button
-                    className="mt-2 p-2 bg-red-500 text-white rounded"
+                    className="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
                     onClick={(e) => {
                       e.preventDefault();
-                      setFavoriteStations(
-                        favoriteStations.filter(
-                          (station) => station !== favoriteStation
-                        )
-                      );
+                      toggleFavorite(favoriteStation.gtfsId);
                     }}
-                    >
-                    -
+                    aria-label="Remove from favorites"
+                  >
+                    Remove
                   </button>
                 </div>
-              ))}
+              ))
+            ) : (
+              <p className="text-gray-500 italic">No favorite stations yet. Click the star button to add stations to your favorites.</p>
+            )}
           </div>
 
           <h2 className="text-2xl font-bold pt-12 pb-4">All Stations</h2>
@@ -190,18 +203,21 @@ export default function Home() {
                   href={`/station?gtfsId=${station.gtfsId}`}
                 >
                   <div className="p-4 border border-gray-300 rounded-md hover:bg-gray-100">
-                    <p>{station.name}</p>
-                    <p>{station.gtfsId}</p>
+                    <p className="font-semibold">{station.name}</p>
+                    <p className="text-sm text-gray-600">{station.gtfsId}</p>
                     <button
-                      className="mt-2 p-2 bg-blue-500 text-white rounded"
+                      className={`mt-2 p-2 text-white rounded ${
+                        isFavorite(station.gtfsId) ? "bg-yellow-500" : "bg-blue-500"
+                      }`}
                       onClick={(e) => {
                         e.preventDefault();
-                        e.preventDefault();
-                        setFavoriteStations([
-                          ...(favoriteStations || []), // Initialize as empty array if null
-                          station,
-                        ]);
+                        toggleFavorite(station.gtfsId);
                       }}
+                      aria-label={
+                        isFavorite(station.gtfsId)
+                          ? "Remove from favorites"
+                          : "Add to favorites"
+                      }
                     >
                       <Image src={star} className="fill-current text-white" alt="Favorite" width={24} height={24} />
                     </button>
