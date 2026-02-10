@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Porto Times",
-  description: "Simple app to get the latest bus/metro times in Porto",
+  title: "Porto Bus - Mapa em Tempo Real",
+  description: "Mapa de autocarros em tempo real no Porto. Veja onde estão os autocarros e horários das paragens.",
 };
 
 export default function RootLayout({

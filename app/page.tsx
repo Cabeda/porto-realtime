@@ -1,215 +1,541 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import useSWR from "swr";
-import Image from "next/image";
-import star from "./star-white.svg";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-const fetcher = async (url: string) => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("An error occurred while fetching the data.");
-  }
-  return response.json();
-};
+interface Bus {
+  id: string;
+  lat: number;
+  lon: number;
+  routeShortName: string;
+  routeLongName: string;
+  heading: number;
+  speed: number;
+  lastUpdated: string;
+  vehicleNumber: string;
+}
 
-export default function Home() {
-  const [favoriteStations, setFavoriteStations] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const savedFavorites = localStorage.getItem("favoriteStations");
-      return savedFavorites ? JSON.parse(savedFavorites) : [];
-    }
-    return [];
-  });
-  const [location, setLocation] = useState({ latitude: 0, longitude: 0 });
+interface BusesResponse {
+  buses: Bus[];
+}
 
-  const router = useRouter();
+interface Stop {
+  code: string;
+  desc: string;
+  lat: number;
+  lon: number;
+  name: string;
+  gtfsId: string;
+}
 
-  // Inside your component
+interface StopsResponse {
+  data: {
+    stops: Stop[];
+  };
+}
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+// Wrapper component that prevents re-initialization
+function LeafletMap({
+  buses,
+  stops,
+  userLocation,
+  showStops,
+}: {
+  buses: Bus[];
+  stops: Stop[];
+  userLocation: [number, number] | null;
+  showStops: boolean;
+}) {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const stopMarkersRef = useRef<any[]>([]);
+  const locationMarkerRef = useRef<any>(null);
+
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        setLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
+    // Only initialize once
+    if (mapInstanceRef.current) {
+      return;
+    }
+
+    // Dynamically import Leaflet
+    import("leaflet").then((L) => {
+      if (!mapContainerRef.current || mapInstanceRef.current) {
+        return;
+      }
+
+      // Create map
+      const center = userLocation || [41.1579, -8.6291];
+      const zoom = userLocation ? 15 : 13;
+
+      const map = L.map(mapContainerRef.current).setView(center as any, zoom);
+      mapInstanceRef.current = map;
+
+      // Add tile layer
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []); // Empty deps - only run once
+
+  // Update markers when buses change
+  useEffect(() => {
+    if (!mapInstanceRef.current) {
+      console.log("Map not initialized yet");
+      return;
+    }
+    
+    if (buses.length === 0) {
+      console.log("No buses data");
+      return;
+    }
+
+    console.log(`Adding ${buses.length} bus markers to map`);
+
+    import("leaflet").then((L) => {
+      // Clear existing bus markers only (keep location marker)
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
+
+      // Add bus markers with line numbers and destinations
+      buses.forEach((bus) => {
+        console.log(`Adding marker for bus ${bus.routeShortName} at [${bus.lat}, ${bus.lon}]`);
+        
+        const destinationText = bus.routeLongName || 'Destino desconhecido';
+        
+        // Truncate destination for display (keep it short for mobile)
+        const truncatedDestination = destinationText.length > 20 
+          ? destinationText.substring(0, 17) + '...' 
+          : destinationText;
+        
+        // Create custom icon with line number AND destination
+        const busIcon = L.divIcon({
+          html: `
+            <div style="
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+            ">
+              <!-- Line number badge -->
+              <div style="
+                min-width: 44px;
+                height: 32px;
+                background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+                border: 2px solid white;
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 14px;
+                color: white;
+                font-family: system-ui, -apple-system, sans-serif;
+                cursor: pointer;
+                padding: 0 6px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+              ">
+                ${bus.routeShortName}
+              </div>
+              
+              <!-- Destination label -->
+              <div style="
+                background: rgba(255, 255, 255, 0.98);
+                border: 1px solid #cbd5e1;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 11px;
+                font-weight: 600;
+                color: #1e40af;
+                font-family: system-ui, -apple-system, sans-serif;
+                white-space: nowrap;
+                cursor: pointer;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+                max-width: 150px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              ">
+                ${truncatedDestination}
+              </div>
+            </div>
+          `,
+          className: "custom-bus-marker-with-destination",
+          iconSize: [210, 32],
+          iconAnchor: [24, 16],
+          popupAnchor: [80, -16],
         });
-      });
-    } else {
-      console.log("Geolocation is not supported by this browser.");
-    }
-  }, []);
 
-  // Inside your component
+        const marker = L.marker([bus.lat, bus.lon], { 
+          icon: busIcon,
+          title: `Linha ${bus.routeShortName} → ${destinationText}` // Full tooltip on hover
+        })
+          .addTo(mapInstanceRef.current)
+          .bindPopup(`
+            <div class="bus-popup text-sm" style="min-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="font-size: 18px; font-weight: bold; color: #2563eb; margin-bottom: 4px;">
+                Linha ${bus.routeShortName}
+              </div>
+              <div style="font-size: 15px; font-weight: 600; color: #1e40af; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">
+                → ${destinationText}
+              </div>
+              <div style="margin-bottom: 4px; color: #374151;"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
+              ${bus.vehicleNumber ? `<div style="margin-bottom: 4px; color: #374151;"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
+                Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}
+              </div>
+            </div>
+          `);
+        markersRef.current.push(marker);
+      });
+      
+      console.log(`Successfully added ${markersRef.current.length} markers`);
+    });
+  }, [buses]);
+
+  // Update stop markers when stops or showStops change
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(
-        "favoriteStations",
-        JSON.stringify(favoriteStations)
+    if (!mapInstanceRef.current) {
+      return;
+    }
+
+    import("leaflet").then((L) => {
+      // Clear existing stop markers
+      stopMarkersRef.current.forEach((marker) => marker.remove());
+      stopMarkersRef.current = [];
+
+      if (!showStops || stops.length === 0) {
+        return;
+      }
+
+      console.log(`Adding ${stops.length} stop markers to map`);
+
+      // Add stop markers
+      stops.forEach((stop) => {
+        // Create simple circular icon for stops
+        const stopIcon = L.divIcon({
+          html: `
+            <div style="
+              width: 10px;
+              height: 10px;
+              background: #ef4444;
+              border: 2px solid white;
+              border-radius: 50%;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+              cursor: pointer;
+            "></div>
+          `,
+          className: "custom-stop-marker",
+          iconSize: [10, 10],
+          iconAnchor: [5, 5],
+          popupAnchor: [0, -5],
+        });
+
+        const marker = L.marker([stop.lat, stop.lon], { icon: stopIcon })
+          .addTo(mapInstanceRef.current)
+          .bindPopup(`
+            <div class="stop-popup text-sm" style="min-width: 200px; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="font-size: 14px; font-weight: bold; color: #ef4444; margin-bottom: 6px;">
+                ${stop.name}
+              </div>
+              ${stop.code ? `<div style="margin-bottom: 4px; font-size: 12px;"><strong>Código:</strong> ${stop.code}</div>` : ''}
+              ${stop.desc ? `<div style="margin-bottom: 6px; font-size: 12px; color: #6b7280;">${stop.desc}</div>` : ''}
+              <a href="/station?gtfsId=${stop.gtfsId}" 
+                 style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #2563eb; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;"
+                 target="_blank">
+                Ver Horários →
+              </a>
+            </div>
+          `);
+        stopMarkersRef.current.push(marker);
+      });
+
+      console.log(`Successfully added ${stopMarkersRef.current.length} stop markers`);
+    });
+  }, [stops, showStops]);
+
+  // Fly to location when it changes
+  useEffect(() => {
+    if (!userLocation || !mapInstanceRef.current) return;
+
+    import("leaflet").then((L) => {
+      // Remove old location marker if exists
+      if (locationMarkerRef.current) {
+        locationMarkerRef.current.remove();
+      }
+
+      // Add new location marker
+      const locationIcon = L.divIcon({
+        html: `<div style="font-size: 32px; text-align: center; line-height: 1;">📍</div>`,
+        className: "custom-location-icon",
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32],
+      });
+
+      locationMarkerRef.current = L.marker(userLocation, { icon: locationIcon })
+        .addTo(mapInstanceRef.current)
+        .bindPopup('<div class="text-sm"><div class="font-bold text-blue-600">Your Location</div></div>');
+
+      // Fly to location
+      mapInstanceRef.current.flyTo(userLocation, 15, { duration: 1.5 });
+    });
+  }, [userLocation]);
+
+  return <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />;
+}
+
+export default function MapPage() {
+  const [isMounted, setIsMounted] = useState(false);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [showStops, setShowStops] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const { data, error, isLoading, mutate } = useSWR<BusesResponse>("/api/buses", fetcher, {
+    refreshInterval: 30000,
+    revalidateOnFocus: true,
+  });
+
+  const { data: stopsData, error: stopsError } = useSWR<StopsResponse>("/api/stations", fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 30 * 24 * 60 * 60 * 1000, // 30 days - don't refetch within this period
+    revalidateIfStale: false, // Don't revalidate even if stale
+    revalidateOnMount: true, // Only fetch once on mount
+  });
+
+  const handleLocateMe = () => {
+    setIsLocating(true);
+    setLocationError(null);
+
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser");
+      setIsLocating(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation([latitude, longitude]);
+        setIsLocating(false);
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          console.log("Location permission denied - using default Porto location");
+        } else {
+          setLocationError("Unable to retrieve your location");
+        }
+        setIsLocating(false);
+        console.error("Geolocation error:", error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0,
+      }
+    );
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
+    // Refresh bus data
+    await mutate();
+    
+    // Refresh user location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation([latitude, longitude]);
+        },
+        (error) => {
+          console.log("Location refresh failed, keeping current location");
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        }
       );
     }
-  }, [favoriteStations]);
-
-  // Initialize favorites from local storage
-  useState(() => {
-    if (typeof window !== "undefined") {
-      const savedFavorites = localStorage.getItem("favorites");
-      return savedFavorites ? JSON.parse(savedFavorites) : [];
-    }
-  });
-
-  const {
-    data: stations,
-    error: stationsError,
-    isLoading: boolean,
-  } = useSWR("/api/stations", fetcher, {
-    // Cache stops data for 30 days
-    dedupingInterval: 30 * 24 * 60 * 60 * 1000, // 30 days
-    revalidateIfStale: false, // Don't revalidate even if stale
-    revalidateOnFocus: false, // Don't revalidate when window gains focus
-    revalidateOnReconnect: false, // Don't revalidate on network reconnect
-  });
-
-  const [filter, setFilter] = useState("");
-
-  const handleFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFilter(event.target.value);
+    
+    // Keep refresh indicator for at least 500ms so user sees the feedback
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 500);
   };
 
-  const get5ClosestStations = (stations: any, location: any) => {
-    return stations.data.stops
-      .map((station: any) => ({
-        ...station,
-        distance: Math.sqrt(
-          Math.pow(station.lat - location.latitude, 2) +
-            Math.pow(station.lon - location.longitude, 2)
-        ) * 100,
-      }))
-      .sort((a: any, b: any) => a.distance - b.distance)
-      .slice(0, 5);
-  };
+  useEffect(() => {
+    setIsMounted(true);
 
-  if (stationsError) return <div>Failed to load</div>;
-  if (!stations) return <div>Loading...</div>;
+    // Import Leaflet CSS
+    import("leaflet/dist/leaflet.css");
+
+    // Automatically request user location on page load
+    handleLocateMe();
+  }, []);
+
+  if (!isMounted) {
+    return (
+      <div className="h-screen w-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+        <header className="bg-white shadow-sm z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex justify-between items-center">
+              <h1 className="text-xl font-bold text-gray-900">Live Bus Map</h1>
+              <Link href="/stations" className="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                📍 Stations
+              </Link>
+            </div>
+          </div>
+        </header>
+        <div className="flex-1 flex justify-center items-center">
+          <p className="text-gray-600">Loading map...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-8">
-      <div className="w-full max-w-5xl">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-bold">Porto Explore</h1>
-          <Link 
-            href="/map"
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
+    <div className="h-screen w-screen flex flex-col overflow-hidden">
+      <header className="bg-white shadow-sm z-[1000] relative">
+        <div className="px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 
+                className="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors flex items-center gap-2"
+                onClick={handleRefresh}
+                title="Click to refresh buses and location"
+              >
+                Live Bus Map
+                {isRefreshing && (
+                  <span className="animate-spin text-base">🔄</span>
+                )}
+              </h1>
+              <p className="text-xs text-gray-600">
+                {data ? `${data.buses.length} buses` : "Loading..."}
+                {data && " • Updates every 30s"}
+                {!isRefreshing && <span className="text-gray-400 ml-1">(click title to refresh)</span>}
+              </p>
+            </div>
+            <Link href="/stations" className="text-blue-600 hover:text-blue-800 font-medium text-sm">
+              📍 Stations
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 relative">
+        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+          <button
+            onClick={handleLocateMe}
+            disabled={isLocating}
+            className="bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Center map on my location"
           >
-            🗺️ Live Bus Map
-          </Link>
-        </div>
-      </div>
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <div className="grid grid-flow-row mt-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold pt-12 pb-4">Closest Stations</h2>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {stations &&
-              get5ClosestStations(stations, location).map(
-                (closeStation: any, index: any) => (
-                  <div
-                    key={`closest-${closeStation.id}`}
-                    className="p-4 border border-gray-200 rounded-md"
-                  >
-                    <Link href={`/station?gtfsId=${closeStation.gtfsId}`}>
-                      <h3 className="text-xl font-bold">{closeStation.name}</h3>
-                      <p>{closeStation.gtfsId}</p>
-                      <p>{closeStation.distance.toFixed(2)} km</p>
-                      <button
-                        className="mt-2 p-2 bg-blue-500 text-white rounded"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setFavoriteStations([
-                            ...(favoriteStations || []), // Initialize as empty array if null
-                            closeStation,
-                          ]);
-                        }}
-                      >
-                        <Image src={star} alt="Favorite" width={24} height={24} />
-                      </button>
-                    </Link>
-                  </div>
-                )
+            {isLocating ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin">🔄</span>
+                <span className="text-sm">Locating...</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <span>📍</span>
+                <span className="text-sm">My Location</span>
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setShowStops(!showStops)}
+            disabled={!stopsData?.data?.stops}
+            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              showStops
+                ? "bg-red-500 hover:bg-red-600 text-white border-red-600"
+                : "bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
+            }`}
+            title={
+              !stopsData?.data?.stops 
+                ? "Stops data unavailable" 
+                : showStops 
+                  ? "Hide bus stops" 
+                  : "Show bus stops"
+            }
+          >
+            <span className="flex items-center gap-2">
+              <span>{showStops ? "🚏" : "🚏"}</span>
+              <span className="text-sm">{showStops ? "Hide Stops" : "Show Stops"}</span>
+              {stopsData?.data?.stops && (
+                <span className="text-xs opacity-75">({stopsData.data.stops.length})</span>
               )}
-          </div>
-          <h2 className="text-2xl font-bold pt-12 pb-4">Favorite Stations</h2>
-          <div className="grid gap-4">
-            {favoriteStations &&
-              favoriteStations.map((favoriteStation: any) => (
-                <div
-                  key={`favorite-${favoriteStation.id}`}
-                  className="p-4 border border-gray-300 rounded-md hover:bg-gray-100"
-                >
-                  <Link href={`/station?gtfsId=${favoriteStation.gtfsId}`}>
-
-                  <h3 className="text-xl font-bold">{favoriteStation.name}</h3>
-                  <p>{favoriteStation.gtfsId}</p>
-                  <p>{favoriteStation.name}</p>
-                  </Link>
-                  <button
-                    className="mt-2 p-2 bg-red-500 text-white rounded"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setFavoriteStations(
-                        favoriteStations.filter(
-                          (station) => station !== favoriteStation
-                        )
-                      );
-                    }}
-                    >
-                    -
-                  </button>
-                </div>
-              ))}
-          </div>
-
-          <h2 className="text-2xl font-bold pt-12 pb-4">All Stations</h2>
-          <input
-            type="text"
-            value={filter}
-            onChange={handleFilterChange}
-            placeholder="Filter stations by name"
-            className="p-2 border border-gray-300 rounded-md"
-          />
-          {stations &&
-            stations.data.stops
-              .filter((station: any) =>
-                station.name.toLowerCase().includes(filter.toLowerCase())
-              )
-              .map((station: any) => (
-                <Link
-                  key={station.id}
-                  href={`/station?gtfsId=${station.gtfsId}`}
-                >
-                  <div className="p-4 border border-gray-300 rounded-md hover:bg-gray-100">
-                    <p>{station.name}</p>
-                    <p>{station.gtfsId}</p>
-                    <button
-                      className="mt-2 p-2 bg-blue-500 text-white rounded"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.preventDefault();
-                        setFavoriteStations([
-                          ...(favoriteStations || []), // Initialize as empty array if null
-                          station,
-                        ]);
-                      }}
-                    >
-                      <Image src={star} className="fill-current text-white" alt="Favorite" width={24} height={24} />
-                    </button>
-                  </div>
-                </Link>
-              ))}
+            </span>
+          </button>
         </div>
-      </div>
-    </main>
+
+        {error && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-50 border border-red-200 rounded-lg p-3 shadow-lg max-w-md">
+            <p className="text-red-800 text-sm">Failed to load bus data. Please try again later.</p>
+          </div>
+        )}
+
+        {stopsError && (
+          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 border border-yellow-200 rounded-lg p-3 shadow-lg max-w-md">
+            <p className="text-yellow-800 text-sm">Bus stops unavailable. Map shows buses only.</p>
+          </div>
+        )}
+
+        {locationError && (
+          <div className="absolute top-28 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 border border-yellow-200 rounded-lg p-3 shadow-lg max-w-md">
+            <p className="text-yellow-800 text-sm">{locationError}</p>
+          </div>
+        )}
+
+        {isLoading && !data && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white rounded-lg shadow-lg p-6">
+            <p className="text-gray-600">Loading bus locations...</p>
+          </div>
+        )}
+
+        {data && stopsData?.data?.stops ? (
+          <LeafletMap 
+            buses={data.buses} 
+            stops={stopsData.data.stops}
+            userLocation={userLocation}
+            showStops={showStops}
+          />
+        ) : data ? (
+          <LeafletMap 
+            buses={data.buses} 
+            stops={[]}
+            userLocation={userLocation}
+            showStops={false}
+          />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center">
+            <p className="text-gray-600">Initializing map...</p>
+          </div>
+        )}
+
+        {data && data.buses.length === 0 && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white rounded-lg shadow-lg p-6">
+            <p className="text-gray-600">No buses currently tracked.</p>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
