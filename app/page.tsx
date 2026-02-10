@@ -67,15 +67,12 @@ const busesFetcher = async (url: string): Promise<BusesResponse> => {
   
   // If we have cached data, return it immediately while fetching fresh data in background
   if (cached) {
-    logger.log("Loading buses from localStorage cache");
-    
     // Fetch fresh data in background (don't await)
     fetch(url)
       .then((res) => res.json())
       .then((freshData) => {
         // Update cache with fresh data
         storage.set("cachedBuses", freshData, 0.033); // Expire in ~2 minutes (0.033 days)
-        logger.log("Updated buses cache with fresh data");
       })
       .catch((err) => {
         logger.error("Failed to update buses cache:", err);
@@ -85,7 +82,6 @@ const busesFetcher = async (url: string): Promise<BusesResponse> => {
   }
   
   // No cache - fetch from network
-  logger.log("Fetching buses from network (first time)");
   const response = await fetch(url);
   const data = await response.json();
   
@@ -102,15 +98,12 @@ const stationsFetcher = async (url: string): Promise<StopsResponse> => {
   
   // If we have cached data, return it immediately while fetching fresh data in background
   if (cached) {
-    logger.log("Loading stations from localStorage cache");
-    
     // Fetch fresh data in background (don't await)
     fetch(url)
       .then((res) => res.json())
       .then((freshData) => {
         // Update cache with fresh data
         storage.set("cachedStations", freshData, 7); // Expire in 7 days
-        logger.log("Updated stations cache with fresh data");
       })
       .catch((err) => {
         logger.error("Failed to update stations cache:", err);
@@ -120,7 +113,6 @@ const stationsFetcher = async (url: string): Promise<StopsResponse> => {
   }
   
   // No cache - fetch from network
-  logger.log("Fetching stations from network (first time)");
   const response = await fetch(url);
   const data = await response.json();
   
@@ -180,11 +172,24 @@ function LeafletMap({
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const busMarkersMapRef = useRef<Map<string, any>>(new Map()); // Map bus ID to marker
   const stopMarkersRef = useRef<any[]>([]);
   const locationMarkerRef = useRef<any>(null);
   const highlightedMarkerRef = useRef<any>(null);
   const routeLayersRef = useRef<any[]>([]);
+  const driftIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const busDataRef = useRef<Map<string, Bus>>(new Map()); // Track bus data for drift
+  // Per-bus correction state for smooth position reconciliation
+  const busCorrectionRef = useRef<Map<string, {
+    errorLat: number;       // Remaining lat error to correct
+    errorLon: number;       // Remaining lon error to correct
+    correctionFactor: number; // How fast to correct (0-1, applied per drift tick)
+  }>>(new Map());
+  // Precomputed route polylines: routeShortName -> array of separate direction polylines
+  // Each direction is stored as a separate array to avoid phantom segments between directions
+  const routePolylinesRef = useRef<Map<string, [number, number][][]>>(new Map());
+  // Per-bus last-snapped segment tracking to prevent cross-route jumps at intersections
+  const busLastSegmentRef = useRef<Map<string, { polylineIdx: number; segmentIdx: number }>>(new Map());
   const [isMapReady, setIsMapReady] = useState(false);
 
   useEffect(() => {
@@ -214,7 +219,6 @@ function LeafletMap({
 
       // Mark map as ready to trigger bus markers rendering
       setIsMapReady(true);
-      logger.log("Map initialized and ready");
     });
 
     // Cleanup on unmount
@@ -226,122 +230,427 @@ function LeafletMap({
     };
   }, []); // Empty deps - only run once
 
-  // Update markers when buses change
-  useEffect(() => {
-    logger.log(`Bus markers useEffect triggered. Buses array length: ${buses.length}, Map initialized: ${!!mapInstanceRef.current}`);
+  // Helper: create bus icon HTML
+  const createBusIconHtml = (bus: Bus, routeColor: string) => {
+    const destinationText = bus.routeLongName || 'Destino desconhecido';
+    const truncatedDestination = destinationText.length > 20 
+      ? destinationText.substring(0, 17) + '...' 
+      : destinationText;
+    return `
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        transition: transform 0.3s ease;
+      ">
+        <!-- Line number badge -->
+        <div style="
+          min-width: 44px;
+          height: 32px;
+          background: ${routeColor};
+          border: 2px solid white;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 14px;
+          color: white;
+          font-family: system-ui, -apple-system, sans-serif;
+          cursor: pointer;
+          padding: 0 6px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        ">
+          ${bus.routeShortName}
+        </div>
+        
+        <!-- Destination label -->
+        <div style="
+          background: rgba(255, 255, 255, 0.98);
+          border: 1px solid #cbd5e1;
+          border-radius: 4px;
+          padding: 4px 8px;
+          font-size: 11px;
+          font-weight: 600;
+          color: #1e40af;
+          font-family: system-ui, -apple-system, sans-serif;
+          white-space: nowrap;
+          cursor: pointer;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+          max-width: 150px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        ">
+          ${truncatedDestination}
+        </div>
+      </div>
+    `;
+  };
+
+  // Helper: create bus popup HTML
+  const createBusPopupHtml = (bus: Bus) => {
+    const destinationText = bus.routeLongName || 'Destino desconhecido';
+    return `
+      <div class="bus-popup text-sm" style="min-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
+        <div class="bus-popup-title">
+          Linha ${bus.routeShortName}
+        </div>
+        <div class="bus-popup-destination">
+          → ${destinationText}
+        </div>
+        <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
+        ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
+        <div class="bus-popup-footer">
+          Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}
+        </div>
+      </div>
+    `;
+  };
+
+  // Smoothly animate a marker from current position to target over duration (ms)
+  const animateMarker = (marker: any, targetLat: number, targetLon: number, duration: number) => {
+    const start = marker.getLatLng();
+    const startTime = performance.now();
     
-    if (!mapInstanceRef.current) {
-      logger.log("Map not initialized yet");
+    const step = () => {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease-out cubic for natural deceleration
+      const eased = 1 - Math.pow(1 - progress, 3);
+      
+      const lat = start.lat + (targetLat - start.lat) * eased;
+      const lng = start.lng + (targetLon - start.lng) * eased;
+      marker.setLatLng([lat, lng]);
+      
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+    
+    requestAnimationFrame(step);
+  };
+
+  // Snap a point to the nearest position on a route's polylines.
+  // Uses per-bus segment tracking to prefer nearby segments over distant ones,
+  // preventing jumps across the route at intersections.
+  // Returns the closest point on the route, or the original point if too far.
+  const snapToRoute = (lat: number, lon: number, routeName: string, busId: string): [number, number] => {
+    const polylines = routePolylinesRef.current.get(routeName);
+    if (!polylines || polylines.length === 0) return [lat, lon];
+
+    const cosLat = Math.cos(lat * Math.PI / 180);
+    const SNAP_THRESHOLD_M = 150; // Max distance in meters to snap
+
+    let bestDistM = Infinity;
+    let bestLat = lat;
+    let bestLon = lon;
+    let bestPolylineIdx = -1;
+    let bestSegmentIdx = -1;
+
+    // Get last known segment for this bus (locality hint)
+    const lastSeg = busLastSegmentRef.current.get(busId);
+
+    // Helper: project point onto segment, return [projLat, projLon, distMeters]
+    const projectOntoSegment = (aLat: number, aLon: number, bLat: number, bLon: number): [number, number, number] => {
+      const dx = bLon - aLon;
+      const dy = bLat - aLat;
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq === 0) return [aLat, aLon, Infinity];
+
+      const t = Math.max(0, Math.min(1, ((lon - aLon) * dx + (lat - aLat) * dy) / lenSq));
+      const projLat = aLat + t * dy;
+      const projLon = aLon + t * dx;
+
+      // Distance in meters using proper lat/lon scaling
+      const dLatM = (lat - projLat) * 111320;
+      const dLonM = (lon - projLon) * 111320 * cosLat;
+      const distM = Math.sqrt(dLatM * dLatM + dLonM * dLonM);
+
+      return [projLat, projLon, distM];
+    };
+
+    // First pass: if we have a last-known segment, search nearby segments first
+    // (within +/- 15 segments on the same polyline direction)
+    if (lastSeg && lastSeg.polylineIdx < polylines.length) {
+      const poly = polylines[lastSeg.polylineIdx];
+      const searchRadius = 15;
+      const startIdx = Math.max(0, lastSeg.segmentIdx - searchRadius);
+      const endIdx = Math.min(poly.length - 1, lastSeg.segmentIdx + searchRadius);
+
+      for (let i = startIdx; i < endIdx; i++) {
+        const [projLat, projLon, distM] = projectOntoSegment(
+          poly[i][0], poly[i][1], poly[i + 1][0], poly[i + 1][1]
+        );
+        if (distM < bestDistM) {
+          bestDistM = distM;
+          bestLat = projLat;
+          bestLon = projLon;
+          bestPolylineIdx = lastSeg.polylineIdx;
+          bestSegmentIdx = i;
+        }
+      }
+
+      // If the nearby search found something within 50m, use it without full scan
+      if (bestDistM < 50) {
+        busLastSegmentRef.current.set(busId, { polylineIdx: bestPolylineIdx, segmentIdx: bestSegmentIdx });
+        return [bestLat, bestLon];
+      }
+    }
+
+    // Full scan across all polyline directions
+    for (let pIdx = 0; pIdx < polylines.length; pIdx++) {
+      const poly = polylines[pIdx];
+      for (let i = 0; i < poly.length - 1; i++) {
+        const [projLat, projLon, distM] = projectOntoSegment(
+          poly[i][0], poly[i][1], poly[i + 1][0], poly[i + 1][1]
+        );
+        if (distM < bestDistM) {
+          bestDistM = distM;
+          bestLat = projLat;
+          bestLon = projLon;
+          bestPolylineIdx = pIdx;
+          bestSegmentIdx = i;
+        }
+      }
+    }
+
+    // Only snap if within threshold (prevents snapping to wrong routes or far-away segments)
+    if (bestDistM < SNAP_THRESHOLD_M) {
+      busLastSegmentRef.current.set(busId, { polylineIdx: bestPolylineIdx, segmentIdx: bestSegmentIdx });
+      return [bestLat, bestLon];
+    }
+
+    // Too far from any route segment - return original position unchanged
+    // (bus data may be stale, route data incomplete, or bus is off-route)
+    return [lat, lon];
+  };
+
+  // Precompute route polylines when routePatterns change
+  useEffect(() => {
+    const polylines = new Map<string, [number, number][][]>();
+    if (routePatterns && routePatterns.length > 0) {
+      routePatterns.forEach((pattern) => {
+        // Coordinates come as [lon, lat] from GeoJSON, convert to [lat, lon]
+        const points: [number, number][] = pattern.geometry.coordinates.map(
+          (coord) => [coord[1], coord[0]]
+        );
+        const existing = polylines.get(pattern.routeShortName);
+        if (existing) {
+          // Store each direction as a separate polyline (no phantom cross-segments)
+          existing.push(points);
+        } else {
+          polylines.set(pattern.routeShortName, [points]);
+        }
+      });
+    }
+    routePolylinesRef.current = polylines;
+    // Clear per-bus segment tracking when route data changes
+    busLastSegmentRef.current.clear();
+  }, [routePatterns]);
+
+  // Update markers when buses change - reuse existing markers for smooth transitions
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isMapReady) {
       return;
     }
     
     if (buses.length === 0) {
-      logger.log("No buses data");
       return;
     }
 
-    logger.log(`Adding ${buses.length} bus markers to map`);
+    // Stop any existing drift interval
+    if (driftIntervalRef.current) {
+      clearInterval(driftIntervalRef.current);
+      driftIntervalRef.current = null;
+    }
 
     import("leaflet").then((L) => {
-      // Clear existing bus markers only (keep location marker)
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-
-      // Add bus markers with line numbers and destinations
-      buses.forEach((bus) => {
-        
-        const destinationText = bus.routeLongName || 'Destino desconhecido';
-        
-        // Truncate destination for display (keep it short for mobile)
-        const truncatedDestination = destinationText.length > 20 
-          ? destinationText.substring(0, 17) + '...' 
-          : destinationText;
-        
-        // Get route color based on selected routes
-        const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
-        
-        // Create custom icon with line number AND destination
-        const busIcon = L.divIcon({
-          html: `
-            <div style="
-              display: flex;
-              align-items: center;
-              gap: 4px;
-              filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-            ">
-              <!-- Line number badge -->
-              <div style="
-                min-width: 44px;
-                height: 32px;
-                background: ${routeColor};
-                border: 2px solid white;
-                border-radius: 6px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: bold;
-                font-size: 14px;
-                color: white;
-                font-family: system-ui, -apple-system, sans-serif;
-                cursor: pointer;
-                padding: 0 6px;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-              ">
-                ${bus.routeShortName}
-              </div>
-              
-              <!-- Destination label -->
-              <div style="
-                background: rgba(255, 255, 255, 0.98);
-                border: 1px solid #cbd5e1;
-                border-radius: 4px;
-                padding: 4px 8px;
-                font-size: 11px;
-                font-weight: 600;
-                color: #1e40af;
-                font-family: system-ui, -apple-system, sans-serif;
-                white-space: nowrap;
-                cursor: pointer;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-                max-width: 150px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-              ">
-                ${truncatedDestination}
-              </div>
-            </div>
-          `,
-          className: "custom-bus-marker-with-destination",
-          iconSize: [210, 32],
-          iconAnchor: [24, 16],
-          popupAnchor: [80, -16],
-        });
-
-        const marker = L.marker([bus.lat, bus.lon], { 
-          icon: busIcon,
-          title: `Linha ${bus.routeShortName} → ${destinationText}` // Full tooltip on hover
-        })
-          .addTo(mapInstanceRef.current)
-          .bindPopup(`
-            <div class="bus-popup text-sm" style="min-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
-              <div class="bus-popup-title">
-                Linha ${bus.routeShortName}
-              </div>
-              <div class="bus-popup-destination">
-                → ${destinationText}
-              </div>
-              <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
-              ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
-              <div class="bus-popup-footer">
-                Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}
-              </div>
-            </div>
-          `);
-        markersRef.current.push(marker);
-      });
+      const currentBusIds = new Set(buses.map(b => b.id));
       
+      // Remove markers for buses no longer in the data
+      busMarkersMapRef.current.forEach((marker, id) => {
+        if (!currentBusIds.has(id)) {
+          marker.remove();
+          busMarkersMapRef.current.delete(id);
+        }
+      });
+
+      // Update or create markers for each bus
+      buses.forEach((bus) => {
+        const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
+        const destinationText = bus.routeLongName || 'Destino desconhecido';
+        const existingMarker = busMarkersMapRef.current.get(bus.id);
+
+        if (existingMarker) {
+          // Existing bus: calculate error between drifted position and server position
+          const current = existingMarker.getLatLng();
+          const errorLat = bus.lat - current.lat;
+          const errorLon = bus.lon - current.lng;
+
+          // Distance of the error in meters (approx)
+          const errorMeters = Math.sqrt(
+            (errorLat * 111320) ** 2 +
+            (errorLon * 111320 * Math.cos(current.lat * Math.PI / 180)) ** 2
+          );
+
+          // Decide correction strategy based on error magnitude:
+          // - Small error (<30m): gentle correction blended into drift over several ticks
+          // - Medium error (30-150m): faster correction over fewer ticks
+          // - Large error (>150m): snap quickly (likely a data jump or route change)
+          let correctionFactor: number;
+          if (errorMeters < 30) {
+            correctionFactor = 0.15; // Correct 15% of remaining error per drift tick
+          } else if (errorMeters < 150) {
+            correctionFactor = 0.35; // Correct 35% per tick - converges in ~5 ticks
+          } else {
+            correctionFactor = 0.8;  // Nearly snap - large discrepancy
+          }
+
+          busCorrectionRef.current.set(bus.id, {
+            errorLat,
+            errorLon,
+            correctionFactor,
+          });
+
+          // Don't animate directly to server position; let drift+correction handle it.
+          // Only for very large jumps, do an immediate partial snap to avoid wild teleport.
+          if (errorMeters > 150) {
+            animateMarker(existingMarker, bus.lat, bus.lon, 1200);
+          }
+          
+          // Update icon (route color may have changed)
+          const busIcon = L.divIcon({
+            html: createBusIconHtml(bus, routeColor),
+            className: "custom-bus-marker-with-destination",
+            iconSize: [210, 32],
+            iconAnchor: [24, 16],
+            popupAnchor: [80, -16],
+          });
+          existingMarker.setIcon(busIcon);
+          
+          // Update popup content
+          existingMarker.setPopupContent(createBusPopupHtml(bus));
+        } else {
+          // New bus: create marker
+          const busIcon = L.divIcon({
+            html: createBusIconHtml(bus, routeColor),
+            className: "custom-bus-marker-with-destination",
+            iconSize: [210, 32],
+            iconAnchor: [24, 16],
+            popupAnchor: [80, -16],
+          });
+
+          const marker = L.marker([bus.lat, bus.lon], { 
+            icon: busIcon,
+            title: `Linha ${bus.routeShortName} → ${destinationText}`
+          })
+            .addTo(mapInstanceRef.current)
+            .bindPopup(createBusPopupHtml(bus));
+          
+          busMarkersMapRef.current.set(bus.id, marker);
+        }
+        
+        // Store bus data for drift calculation
+        busDataRef.current.set(bus.id, bus);
+      });
+
+      // Clean up bus data and correction state for removed buses
+      busDataRef.current.forEach((_, id) => {
+        if (!currentBusIds.has(id)) {
+          busDataRef.current.delete(id);
+          busCorrectionRef.current.delete(id);
+          busLastSegmentRef.current.delete(id);
+        }
+      });
+
+      // Start drift simulation between refreshes with smooth correction blending.
+      // Each tick:
+      //  1. Computes normal drift displacement from heading + speed
+      //  2. Blends in a portion of the accumulated position error (correction)
+      //  3. If the bus was ahead of the server position (overshot), the correction
+      //     pulls it back, effectively slowing it down or reversing slightly.
+      //  4. If the bus was behind, the correction pushes it forward, speeding it up.
+      const DRIFT_INTERVAL_MS = 2000; // Update every 2 seconds
+      const BASE_SPEED_FACTOR = 0.65; // Use 65% of speed as base (slightly undershoot)
+      
+      driftIntervalRef.current = setInterval(() => {
+        busDataRef.current.forEach((bus, id) => {
+          const marker = busMarkersMapRef.current.get(id);
+          if (!marker) return;
+          
+          const current = marker.getLatLng();
+
+          // --- Drift component (dead-reckoning along heading) ---
+          let driftLat = 0;
+          let driftLon = 0;
+          if (bus.speed > 1) {
+            const headingRad = (bus.heading * Math.PI) / 180;
+            const speedMs = (bus.speed * 1000) / 3600 * BASE_SPEED_FACTOR;
+            const distanceM = speedMs * (DRIFT_INTERVAL_MS / 1000);
+            driftLat = (distanceM * Math.cos(headingRad)) / 111320;
+            driftLon = (distanceM * Math.sin(headingRad)) / (111320 * Math.cos(current.lat * Math.PI / 180));
+          }
+
+          // --- Correction component (blending toward server position) ---
+          let corrLat = 0;
+          let corrLon = 0;
+          const correction = busCorrectionRef.current.get(id);
+          if (correction) {
+            // Apply a fraction of the remaining error this tick
+            corrLat = correction.errorLat * correction.correctionFactor;
+            corrLon = correction.errorLon * correction.correctionFactor;
+
+            // Reduce the remaining error
+            correction.errorLat -= corrLat;
+            correction.errorLon -= corrLon;
+
+            // If remaining error is negligible, clear the correction
+            const remainingMeters = Math.sqrt(
+              (correction.errorLat * 111320) ** 2 +
+              (correction.errorLon * 111320 * Math.cos(current.lat * Math.PI / 180)) ** 2
+            );
+            if (remainingMeters < 1) {
+              busCorrectionRef.current.delete(id);
+            }
+          }
+
+          const targetLat = current.lat + driftLat + corrLat;
+          const targetLon = current.lng + driftLon + corrLon;
+
+          // Snap drifted position to nearest point on the bus's route polyline
+          // so the marker never wanders off-road at turns or curves
+          const [snappedLat, snappedLon] = snapToRoute(targetLat, targetLon, bus.routeShortName, id);
+          
+          // Check if snap failed (returned the un-snapped position)
+          // If so, the bus is too far from any known route segment.
+          // Only apply correction (which pulls toward server position) without drift,
+          // to avoid unconstrained heading-based movement off-road.
+          let finalLat = snappedLat;
+          let finalLon = snappedLon;
+          if (snappedLat === targetLat && snappedLon === targetLon && (driftLat !== 0 || driftLon !== 0)) {
+            // Snap failed - suppress drift, only apply correction toward server position
+            finalLat = current.lat + corrLat;
+            finalLon = current.lng + corrLon;
+          }
+
+          // Only animate if there's meaningful movement
+          const totalMovement = Math.abs(finalLat - current.lat) + Math.abs(finalLon - current.lng);
+          if (totalMovement > 0.0000001) {
+            animateMarker(marker, finalLat, finalLon, DRIFT_INTERVAL_MS * 0.8);
+          }
+        });
+      }, DRIFT_INTERVAL_MS);
     });
-  }, [buses, isMapReady, selectedRoutes]); // Re-render when route selection changes to update colors
+
+    // Cleanup drift on effect re-run or unmount
+    return () => {
+      if (driftIntervalRef.current) {
+        clearInterval(driftIntervalRef.current);
+        driftIntervalRef.current = null;
+      }
+    };
+  }, [buses, isMapReady, selectedRoutes]);
 
   // Update stop markers when stops or showStops change
   useEffect(() => {
@@ -357,8 +666,6 @@ function LeafletMap({
       if (!showStops || stops.length === 0) {
         return;
       }
-
-      logger.log(`Adding ${stops.length} stop markers to map`);
 
       // Add stop markers
       stops.forEach((stop) => {
@@ -399,8 +706,6 @@ function LeafletMap({
           `);
         stopMarkersRef.current.push(marker);
       });
-
-      logger.log(`Successfully added ${stopMarkersRef.current.length} stop markers`);
     });
   }, [stops, showStops, isMapReady]);
 
@@ -543,8 +848,6 @@ function LeafletMap({
         return;
       }
 
-      logger.log(`Rendering ${selectedRoutes.length} route paths`);
-
       // Use shared color mapping
       const routeColorMap = new Map<string, string>();
       selectedRoutes.forEach((route, index) => {
@@ -555,8 +858,6 @@ function LeafletMap({
       const relevantPatterns = routePatterns.filter((pattern) =>
         selectedRoutes.includes(pattern.routeShortName)
       );
-
-      logger.log(`Found ${relevantPatterns.length} patterns for selected routes`);
 
       // Draw polylines for each pattern
       relevantPatterns.forEach((pattern) => {
@@ -592,8 +893,6 @@ function LeafletMap({
         polyline.bringToBack();
         routeLayersRef.current.push(polyline);
       });
-
-      logger.log(`Successfully rendered ${routeLayersRef.current.length} route polylines`);
     });
   }, [routePatterns, selectedRoutes, showRoutes, isMapReady]);
 
@@ -611,6 +910,8 @@ function MapPageContent() {
   const [showRoutes, setShowRoutes] = useState(true); // Show routes by default
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showControls, setShowControls] = useState(false); // Collapsed on mobile by default
+  const [showRouteFilter, setShowRouteFilter] = useState(false); // Route filter collapsed by default
   
   // Get highlighted station from URL params (e.g., /?station=2:BRRS2)
   const highlightedStationId = searchParams?.get("station");
@@ -679,7 +980,7 @@ function MapPageContent() {
       },
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
-          logger.log(translations.map.locationPermissionDenied);
+          logger.warn(translations.map.locationPermissionDenied);
         } else {
           setLocationError(translations.map.unableToGetLocation);
         }
@@ -697,26 +998,8 @@ function MapPageContent() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     
-    // Refresh bus data
+    // Refresh bus data only (location has its own button)
     await mutate();
-    
-    // Refresh user location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation([latitude, longitude]);
-        },
-        (error) => {
-          logger.log(translations.map.locationRefreshFailed);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0,
-        }
-      );
-    }
     
     // Keep refresh indicator for at least 500ms so user sees the feedback
     setTimeout(() => {
@@ -757,11 +1040,6 @@ function MapPageContent() {
     ? data.buses.filter(bus => selectedRoutes.includes(bus.routeShortName))
     : data?.buses || [];
 
-  // Log when bus data changes
-  useEffect(() => {
-    logger.log(`Bus data updated. Total buses: ${data?.buses?.length || 0}, Filtered buses: ${filteredBuses.length}, Selected routes: ${selectedRoutes.length}`);
-  }, [data, filteredBuses.length, selectedRoutes.length]);
-
   const toggleRoute = (route: string) => {
     setSelectedRoutes(prev => 
       prev.includes(route) 
@@ -772,6 +1050,13 @@ function MapPageContent() {
 
   const clearRouteFilters = () => {
     setSelectedRoutes([]);
+  };
+
+  // Auto-close controls on mobile after interaction
+  const closeControlsOnMobile = () => {
+    if (window.innerWidth < 768) { // md breakpoint
+      setShowControls(false);
+    }
   };
 
   if (!isMounted) {
@@ -823,49 +1108,84 @@ function MapPageContent() {
       </header>
 
       <main className="flex-1 relative">
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
-          {/* Route Filter Dropdown */}
+        {/* Mobile controls toggle button */}
+        <button
+          onClick={() => setShowControls(!showControls)}
+          className="absolute top-4 right-4 z-[1001] md:hidden bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all"
+          title={showControls ? "Esconder controlos" : "Mostrar controlos"}
+        >
+          <span className="text-xl">{showControls ? "✕" : "☰"}</span>
+        </button>
+
+        {/* Controls panel - always visible on desktop, collapsible on mobile */}
+        <div className={`absolute top-4 right-4 z-[1000] flex flex-col gap-2 transition-all max-h-[calc(100vh-2rem)] overflow-y-auto ${
+          showControls ? 'flex' : 'hidden md:flex'
+        }`}>
+          {/* Route Filter - Collapsible */}
           {availableRoutes.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 max-h-[400px] overflow-y-auto">
-              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm">🚌 {translations.map.filterRoutes}</span>
-                {selectedRoutes.length > 0 && (
-                  <button
-                    onClick={clearRouteFilters}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-                  >
-                    {translations.map.clearFilters}
-                  </button>
-                )}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                {selectedRoutes.length > 0 
-                  ? translations.map.routesSelected(selectedRoutes.length)
-                  : translations.map.allRoutes
-                }
-              </div>
-              <div className="grid grid-cols-3 gap-2 max-w-[280px]">
-                {availableRoutes.map(route => (
-                  <button
-                    key={route}
-                    onClick={() => toggleRoute(route)}
-                    className={`py-2 px-3 rounded-md text-sm font-semibold transition-all ${
-                      selectedRoutes.includes(route)
-                        ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    {route}
-                  </button>
-                ))}
-              </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <button
+                onClick={() => setShowRouteFilter(!showRouteFilter)}
+                className="w-full p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg transition-colors"
+              >
+                <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm">
+                  🚌 {translations.map.filterRoutes}
+                  {selectedRoutes.length > 0 && (
+                    <span className="ml-2 text-xs bg-blue-600 dark:bg-blue-500 text-white px-2 py-0.5 rounded-full">
+                      {selectedRoutes.length}
+                    </span>
+                  )}
+                </span>
+                <span className="text-gray-500 dark:text-gray-400 text-sm">
+                  {showRouteFilter ? '▲' : '▼'}
+                </span>
+              </button>
+              
+              {showRouteFilter && (
+                <div className="p-3 pt-0 border-t border-gray-200 dark:border-gray-700 max-h-[300px] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-2 pt-2">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedRoutes.length > 0 
+                        ? translations.map.routesSelected(selectedRoutes.length)
+                        : translations.map.allRoutes
+                      }
+                    </div>
+                    {selectedRoutes.length > 0 && (
+                      <button
+                        onClick={clearRouteFilters}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+                      >
+                        {translations.map.clearFilters}
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 max-w-[280px]">
+                    {availableRoutes.map(route => (
+                      <button
+                        key={route}
+                        onClick={() => toggleRoute(route)}
+                        className={`py-2 px-3 rounded-md text-sm font-semibold transition-all ${
+                          selectedRoutes.includes(route)
+                            ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        {route}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           <button
-            onClick={handleLocateMe}
+            onClick={() => {
+              handleLocateMe();
+              closeControlsOnMobile();
+            }}
             disabled={isLocating}
-            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
             title={translations.map.centerMapTitle}
           >
             {isLocating ? (
@@ -882,9 +1202,12 @@ function MapPageContent() {
           </button>
 
           <button
-            onClick={() => setShowStops(!showStops)}
+            onClick={() => {
+              setShowStops(!showStops);
+              closeControlsOnMobile();
+            }}
             disabled={!stopsData?.data?.stops}
-            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
               showStops
                 ? "bg-red-500 hover:bg-red-600 text-white border-red-600 dark:border-red-500"
                 : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
@@ -907,9 +1230,12 @@ function MapPageContent() {
           </button>
 
           <button
-            onClick={() => setShowRoutes(!showRoutes)}
+            onClick={() => {
+              setShowRoutes(!showRoutes);
+              closeControlsOnMobile();
+            }}
             disabled={selectedRoutes.length === 0 || !routePatternsData?.patterns}
-            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
               showRoutes
                 ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-600 dark:border-blue-500"
                 : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
