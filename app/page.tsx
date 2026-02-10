@@ -9,6 +9,7 @@ import { translations } from "@/lib/translations";
 import { logger } from "@/lib/logger";
 import { MapSkeleton } from "@/components/LoadingSkeletons";
 import { storage } from "@/lib/storage";
+import { DarkModeToggle } from "@/components/DarkModeToggle";
 
 interface Bus {
   id: string;
@@ -587,13 +588,13 @@ function MapPageContent() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden">
-      <header className="bg-white shadow-sm z-[1000] relative">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 transition-colors">
+      <header className="bg-white dark:bg-gray-800 shadow-sm z-[1000] relative transition-colors">
         <div className="px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center">
             <div>
               <h1 
-                className="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors flex items-center gap-2"
+                className="text-xl font-bold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-2"
                 onClick={handleRefresh}
                 title={translations.map.refreshTitle}
               >
@@ -602,20 +603,23 @@ function MapPageContent() {
                   <span className="animate-spin text-base">🔄</span>
                 )}
               </h1>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 {data ? (
                   <>
                     {translations.map.busesCount(filteredBuses.length)}
-                    {selectedRoutes.length > 0 && <span className="text-gray-500"> / {data.buses.length} total</span>}
+                    {selectedRoutes.length > 0 && <span className="text-gray-500 dark:text-gray-500"> / {data.buses.length} total</span>}
                   </>
                 ) : translations.map.loading}
                 {data && " • Atualiza a cada 30s"}
-                {!isRefreshing && <span className="text-gray-400 ml-1">(clique no título para atualizar)</span>}
+                {!isRefreshing && <span className="text-gray-400 dark:text-gray-500 ml-1">(clique no título para atualizar)</span>}
               </p>
             </div>
-            <Link href="/stations" className="text-blue-600 hover:text-blue-800 font-medium text-sm">
-              📍 {translations.nav.stations}
-            </Link>
+            <div className="flex items-center gap-3">
+              <DarkModeToggle />
+              <Link href="/stations" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm">
+                📍 {translations.nav.stations}
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -624,19 +628,19 @@ function MapPageContent() {
         <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
           {/* Route Filter Dropdown */}
           {availableRoutes.length > 0 && (
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 max-h-[400px] overflow-y-auto">
-              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200">
-                <span className="font-semibold text-gray-700 text-sm">🚌 {translations.map.filterRoutes}</span>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 max-h-[400px] overflow-y-auto">
+              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm">🚌 {translations.map.filterRoutes}</span>
                 {selectedRoutes.length > 0 && (
                   <button
                     onClick={clearRouteFilters}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
                   >
                     {translations.map.clearFilters}
                   </button>
                 )}
               </div>
-              <div className="text-xs text-gray-500 mb-2">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 {selectedRoutes.length > 0 
                   ? translations.map.routesSelected(selectedRoutes.length)
                   : translations.map.allRoutes
@@ -649,8 +653,8 @@ function MapPageContent() {
                     onClick={() => toggleRoute(route)}
                     className={`py-2 px-3 rounded-md text-sm font-semibold transition-all ${
                       selectedRoutes.includes(route)
-                        ? "bg-blue-600 text-white shadow-md"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                     }`}
                   >
                     {route}
@@ -663,7 +667,7 @@ function MapPageContent() {
           <button
             onClick={handleLocateMe}
             disabled={isLocating}
-            className="bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             title={translations.map.centerMapTitle}
           >
             {isLocating ? (
@@ -684,8 +688,8 @@ function MapPageContent() {
             disabled={!stopsData?.data?.stops}
             className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
               showStops
-                ? "bg-red-500 hover:bg-red-600 text-white border-red-600"
-                : "bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
+                ? "bg-red-500 hover:bg-red-600 text-white border-red-600 dark:border-red-500"
+                : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
             }`}
             title={
               !stopsData?.data?.stops 
@@ -706,40 +710,40 @@ function MapPageContent() {
         </div>
 
         {error && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-50 border border-red-200 rounded-lg p-3 shadow-lg max-w-md">
-            <p className="text-red-800 text-sm">{translations.map.errorLoadingBuses}</p>
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-lg max-w-md">
+            <p className="text-red-800 dark:text-red-200 text-sm">{translations.map.errorLoadingBuses}</p>
           </div>
         )}
 
         {stopsError && (
-          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 border border-yellow-200 rounded-lg p-3 shadow-lg max-w-md">
-            <p className="text-yellow-800 text-sm">{translations.map.stopsUnavailableError}</p>
+          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
+            <p className="text-yellow-800 dark:text-yellow-200 text-sm">{translations.map.stopsUnavailableError}</p>
           </div>
         )}
 
         {locationError && (
-          <div className="absolute top-28 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 border border-yellow-200 rounded-lg p-3 shadow-lg max-w-md">
-            <p className="text-yellow-800 text-sm">{locationError}</p>
+          <div className="absolute top-28 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
+            <p className="text-yellow-800 dark:text-yellow-200 text-sm">{locationError}</p>
           </div>
         )}
 
         {highlightedStationId && stopsData?.data?.stops && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-lg max-w-md">
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 shadow-lg max-w-md">
             <div className="flex items-center gap-2">
               <span className="text-lg">📍</span>
               <div>
-                <p className="text-blue-900 text-sm font-semibold">
+                <p className="text-blue-900 dark:text-blue-200 text-sm font-semibold">
                   {stopsData.data.stops.find((s) => s.gtfsId === highlightedStationId)?.name || "Estação selecionada"}
                 </p>
-                <p className="text-blue-700 text-xs">Centrado no mapa</p>
+                <p className="text-blue-700 dark:text-blue-300 text-xs">Centrado no mapa</p>
               </div>
             </div>
           </div>
         )}
 
         {isLoading && !data && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white rounded-lg shadow-lg p-6">
-            <p className="text-gray-600">{translations.map.loadingBusLocations}</p>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <p className="text-gray-600 dark:text-gray-300">{translations.map.loadingBusLocations}</p>
           </div>
         )}
 
@@ -761,13 +765,13 @@ function MapPageContent() {
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
-            <p className="text-gray-600">Initializing map...</p>
+            <p className="text-gray-600 dark:text-gray-400">Initializing map...</p>
           </div>
         )}
 
         {data && data.buses.length === 0 && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white rounded-lg shadow-lg p-6">
-            <p className="text-gray-600">No buses currently tracked.</p>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <p className="text-gray-600 dark:text-gray-300">No buses currently tracked.</p>
           </div>
         )}
       </main>
