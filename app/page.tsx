@@ -611,6 +611,7 @@ function MapPageContent() {
   const [showRoutes, setShowRoutes] = useState(true); // Show routes by default
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showRouteFilter, setShowRouteFilter] = useState(false); // Collapsible route filter
   
   // Get highlighted station from URL params (e.g., /?station=2:BRRS2)
   const highlightedStationId = searchParams?.get("station");
@@ -781,15 +782,16 @@ function MapPageContent() {
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 transition-colors">
       <header className="bg-white dark:bg-gray-800 shadow-sm z-[1000] relative transition-colors">
-        <div className="px-4 sm:px-6 lg:px-8 py-3">
+        <div className="px-3 sm:px-6 lg:px-8 py-2 sm:py-3">
           <div className="flex justify-between items-center">
-            <div>
+            <div className="flex-1 min-w-0">
               <h1 
-                className="text-xl font-bold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-2"
+                className="text-base sm:text-xl font-bold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-2"
                 onClick={handleRefresh}
                 title={translations.map.refreshTitle}
               >
-                Mapa de Autocarros ao Vivo
+                <span className="hidden sm:inline">Mapa de Autocarros</span>
+                <span className="sm:hidden">Porto Buses</span>
                 {isRefreshing && (
                   <span className="animate-spin text-base">🔄</span>
                 )}
@@ -797,25 +799,25 @@ function MapPageContent() {
               <p className="text-xs text-gray-600 dark:text-gray-400">
                 {data ? (
                   <>
-                    {translations.map.busesCount(filteredBuses.length)}
-                    {selectedRoutes.length > 0 && <span className="text-gray-500 dark:text-gray-500"> / {data.buses.length} total</span>}
+                    {filteredBuses.length} {filteredBuses.length === 1 ? 'autocarro' : 'autocarros'}
+                    {selectedRoutes.length > 0 && <span className="text-gray-500 dark:text-gray-500"> / {data.buses.length}</span>}
                   </>
                 ) : translations.map.loading}
-                {data && " • Atualiza a cada 30s"}
-                {!isRefreshing && <span className="text-gray-400 dark:text-gray-500 ml-1">(clique no título para atualizar)</span>}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setShowAboutModal(true)}
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium text-sm transition-colors"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-lg sm:text-base transition-colors"
                 title="Sobre este projeto"
               >
-                ℹ️ Sobre
+                <span className="sm:hidden">ℹ️</span>
+                <span className="hidden sm:inline">ℹ️ Sobre</span>
               </button>
               <DarkModeToggle />
-              <Link href="/stations" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm">
-                📍 {translations.nav.stations}
+              <Link href="/stations" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-lg sm:text-base whitespace-nowrap">
+                <span className="sm:hidden">📍</span>
+                <span className="hidden sm:inline">📍 {translations.nav.stations}</span>
               </Link>
             </div>
           </div>
@@ -823,110 +825,120 @@ function MapPageContent() {
       </header>
 
       <main className="flex-1 relative">
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
-          {/* Route Filter Dropdown */}
+        {/* Floating Location Button (Google Maps style) - Always visible */}
+        <button
+          onClick={handleLocateMe}
+          disabled={isLocating}
+          className="absolute bottom-6 right-4 z-[1001] w-12 h-12 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-full shadow-lg border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          title={translations.map.centerMapTitle}
+        >
+          {isLocating ? (
+            <span className="animate-spin text-xl">🔄</span>
+          ) : (
+            <span className="text-xl">📍</span>
+          )}
+        </button>
+
+        {/* Top-right controls */}
+        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 max-w-[calc(100vw-2rem)]">
+          {/* Route Filter - Collapsible */}
           {availableRoutes.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 max-h-[400px] overflow-y-auto">
-              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm">🚌 {translations.map.filterRoutes}</span>
-                {selectedRoutes.length > 0 && (
-                  <button
-                    onClick={clearRouteFilters}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-                  >
-                    {translations.map.clearFilters}
-                  </button>
-                )}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                {selectedRoutes.length > 0 
-                  ? translations.map.routesSelected(selectedRoutes.length)
-                  : translations.map.allRoutes
-                }
-              </div>
-              <div className="grid grid-cols-3 gap-2 max-w-[280px]">
-                {availableRoutes.map(route => (
-                  <button
-                    key={route}
-                    onClick={() => toggleRoute(route)}
-                    className={`py-2 px-3 rounded-md text-sm font-semibold transition-all ${
-                      selectedRoutes.includes(route)
-                        ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    {route}
-                  </button>
-                ))}
-              </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowRouteFilter(!showRouteFilter)}
+                className="w-full p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg transition-colors"
+              >
+                <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2">
+                  🚌 Filtrar Linhas
+                  {selectedRoutes.length > 0 && (
+                    <span className="text-xs bg-blue-600 dark:bg-blue-500 text-white px-2 py-0.5 rounded-full">
+                      {selectedRoutes.length}
+                    </span>
+                  )}
+                </span>
+                <span className="text-gray-500 dark:text-gray-400 text-sm">
+                  {showRouteFilter ? '▲' : '▼'}
+                </span>
+              </button>
+              
+              {showRouteFilter && (
+                <div className="p-3 pt-0 border-t border-gray-200 dark:border-gray-700 max-h-[calc(100vh-12rem)] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-2 pt-2">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedRoutes.length > 0 
+                        ? `${selectedRoutes.length} linha${selectedRoutes.length > 1 ? 's' : ''} selecionada${selectedRoutes.length > 1 ? 's' : ''}`
+                        : 'Todas as linhas'
+                      }
+                    </div>
+                    {selectedRoutes.length > 0 && (
+                      <button
+                        onClick={clearRouteFilters}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {availableRoutes.map(route => (
+                      <button
+                        key={route}
+                        onClick={() => toggleRoute(route)}
+                        className={`py-2 px-3 rounded-md text-sm font-semibold transition-all ${
+                          selectedRoutes.includes(route)
+                            ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        {route}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          <button
-            onClick={handleLocateMe}
-            disabled={isLocating}
-            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            title={translations.map.centerMapTitle}
-          >
-            {isLocating ? (
-              <span className="flex items-center gap-2">
-                <span className="animate-spin">🔄</span>
-                <span className="text-sm">Localizando...</span>
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <span>📍</span>
-                <span className="text-sm">Minha Localização</span>
-              </span>
-            )}
-          </button>
+          {/* Other controls - compact */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowStops(!showStops)}
+              disabled={!stopsData?.data?.stops}
+              className={`flex-1 font-semibold py-2 px-3 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
+                showStops
+                  ? "bg-red-500 hover:bg-red-600 text-white border-red-600 dark:border-red-500"
+                  : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
+              }`}
+              title={
+                !stopsData?.data?.stops 
+                  ? translations.map.stopsUnavailable 
+                  : showStops 
+                    ? translations.map.hideStops 
+                    : translations.map.showStops
+              }
+            >
+              🚏 {showStops ? 'Ocultar' : 'Paragens'}
+            </button>
 
-          <button
-            onClick={() => setShowStops(!showStops)}
-            disabled={!stopsData?.data?.stops}
-            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-              showStops
-                ? "bg-red-500 hover:bg-red-600 text-white border-red-600 dark:border-red-500"
-                : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
-            }`}
-            title={
-              !stopsData?.data?.stops 
-                ? translations.map.stopsUnavailable 
-                : showStops 
-                  ? translations.map.hideStops 
-                  : translations.map.showStops
-            }
-          >
-            <span className="flex items-center gap-2">
-              <span>{showStops ? "🚏" : "🚏"}</span>
-              <span className="text-sm">{showStops ? translations.map.hideStops : translations.map.showStops}</span>
-              {stopsData?.data?.stops && (
-                <span className="text-xs opacity-75">({stopsData.data.stops.length})</span>
-              )}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setShowRoutes(!showRoutes)}
-            disabled={selectedRoutes.length === 0 || !routePatternsData?.patterns}
-            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-              showRoutes
-                ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-600 dark:border-blue-500"
-                : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
-            }`}
-            title={
-              selectedRoutes.length === 0
-                ? "Selecione rotas para visualizar caminhos"
-                : showRoutes
-                  ? "Esconder Caminhos das Rotas"
-                  : "Mostrar Caminhos das Rotas"
-            }
-          >
-            <span className="flex items-center gap-2">
-              <span>{showRoutes ? "🛣️" : "🛣️"}</span>
-              <span className="text-sm">{showRoutes ? "Esconder Caminhos" : "Mostrar Caminhos"}</span>
-            </span>
-          </button>
+            <button
+              onClick={() => setShowRoutes(!showRoutes)}
+              disabled={selectedRoutes.length === 0 || !routePatternsData?.patterns}
+              className={`flex-1 font-semibold py-2 px-3 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
+                showRoutes
+                  ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-600 dark:border-blue-500"
+                  : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
+              }`}
+              title={
+                selectedRoutes.length === 0
+                  ? "Selecione linhas para ver caminhos"
+                  : showRoutes
+                    ? "Ocultar Caminhos"
+                    : "Mostrar Caminhos"
+              }
+            >
+              🛣️ {showRoutes ? 'Ocultar' : 'Caminhos'}
+            </button>
+          </div>
         </div>
 
         {error && (
