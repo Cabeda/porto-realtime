@@ -179,6 +179,14 @@ function LeafletMap({
   const routeLayersRef = useRef<any[]>([]);
   const driftIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const busDataRef = useRef<Map<string, Bus>>(new Map()); // Track bus data for drift
+  // Per-bus correction state for smooth position reconciliation
+  const busCorrectionRef = useRef<Map<string, {
+    errorLat: number;       // Remaining lat error to correct
+    errorLon: number;       // Remaining lon error to correct
+    correctionFactor: number; // How fast to correct (0-1, applied per drift tick)
+  }>>(new Map());
+  // Precomputed route polylines: routeShortName -> array of [lat, lon] segments
+  const routePolylinesRef = useRef<Map<string, [number, number][]>>(new Map());
   const [isMapReady, setIsMapReady] = useState(false);
 
   useEffect(() => {
@@ -320,6 +328,67 @@ function LeafletMap({
     requestAnimationFrame(step);
   };
 
+  // Snap a point to the nearest position on a polyline (array of [lat, lon] points).
+  // Returns the closest point on the polyline, or the original point if no route data.
+  const snapToRoute = (lat: number, lon: number, routeName: string): [number, number] => {
+    const polyline = routePolylinesRef.current.get(routeName);
+    if (!polyline || polyline.length < 2) return [lat, lon];
+
+    let bestDist = Infinity;
+    let bestLat = lat;
+    let bestLon = lon;
+
+    for (let i = 0; i < polyline.length - 1; i++) {
+      const [aLat, aLon] = polyline[i];
+      const [bLat, bLon] = polyline[i + 1];
+
+      // Project point onto segment [A, B], clamped to [0, 1]
+      const dx = bLon - aLon;
+      const dy = bLat - aLat;
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq === 0) continue; // Degenerate segment
+
+      const t = Math.max(0, Math.min(1, ((lon - aLon) * dx + (lat - aLat) * dy) / lenSq));
+      const projLat = aLat + t * dy;
+      const projLon = aLon + t * dx;
+
+      const distSq = (lat - projLat) ** 2 + (lon - projLon) ** 2;
+      if (distSq < bestDist) {
+        bestDist = distSq;
+        bestLat = projLat;
+        bestLon = projLon;
+      }
+    }
+
+    // Only snap if within ~100m of the route (avoid snapping to wrong routes)
+    // ~0.001 degrees ≈ 111m
+    if (bestDist < 0.001 * 0.001) {
+      return [bestLat, bestLon];
+    }
+    return [lat, lon];
+  };
+
+  // Precompute route polylines when routePatterns change
+  useEffect(() => {
+    const polylines = new Map<string, [number, number][]>();
+    if (routePatterns && routePatterns.length > 0) {
+      routePatterns.forEach((pattern) => {
+        // Coordinates come as [lon, lat] from GeoJSON, convert to [lat, lon]
+        const points: [number, number][] = pattern.geometry.coordinates.map(
+          (coord) => [coord[1], coord[0]]
+        );
+        const existing = polylines.get(pattern.routeShortName);
+        if (existing) {
+          // Merge multiple direction patterns for the same route
+          existing.push(...points);
+        } else {
+          polylines.set(pattern.routeShortName, points);
+        }
+      });
+    }
+    routePolylinesRef.current = polylines;
+  }, [routePatterns]);
+
   // Update markers when buses change - reuse existing markers for smooth transitions
   useEffect(() => {
     if (!mapInstanceRef.current || !isMapReady) {
@@ -354,8 +423,41 @@ function LeafletMap({
         const existingMarker = busMarkersMapRef.current.get(bus.id);
 
         if (existingMarker) {
-          // Existing bus: animate to new position
-          animateMarker(existingMarker, bus.lat, bus.lon, 800);
+          // Existing bus: calculate error between drifted position and server position
+          const current = existingMarker.getLatLng();
+          const errorLat = bus.lat - current.lat;
+          const errorLon = bus.lon - current.lng;
+
+          // Distance of the error in meters (approx)
+          const errorMeters = Math.sqrt(
+            (errorLat * 111320) ** 2 +
+            (errorLon * 111320 * Math.cos(current.lat * Math.PI / 180)) ** 2
+          );
+
+          // Decide correction strategy based on error magnitude:
+          // - Small error (<30m): gentle correction blended into drift over several ticks
+          // - Medium error (30-150m): faster correction over fewer ticks
+          // - Large error (>150m): snap quickly (likely a data jump or route change)
+          let correctionFactor: number;
+          if (errorMeters < 30) {
+            correctionFactor = 0.15; // Correct 15% of remaining error per drift tick
+          } else if (errorMeters < 150) {
+            correctionFactor = 0.35; // Correct 35% per tick - converges in ~5 ticks
+          } else {
+            correctionFactor = 0.8;  // Nearly snap - large discrepancy
+          }
+
+          busCorrectionRef.current.set(bus.id, {
+            errorLat,
+            errorLon,
+            correctionFactor,
+          });
+
+          // Don't animate directly to server position; let drift+correction handle it.
+          // Only for very large jumps, do an immediate partial snap to avoid wild teleport.
+          if (errorMeters > 150) {
+            animateMarker(existingMarker, bus.lat, bus.lon, 1200);
+          }
           
           // Update icon (route color may have changed)
           const busIcon = L.divIcon({
@@ -393,38 +495,77 @@ function LeafletMap({
         busDataRef.current.set(bus.id, bus);
       });
 
-      // Clean up bus data for removed buses
+      // Clean up bus data and correction state for removed buses
       busDataRef.current.forEach((_, id) => {
         if (!currentBusIds.has(id)) {
           busDataRef.current.delete(id);
+          busCorrectionRef.current.delete(id);
         }
       });
 
-      // Start drift simulation between refreshes
-      // Moves buses along their heading at 70% of reported speed
+      // Start drift simulation between refreshes with smooth correction blending.
+      // Each tick:
+      //  1. Computes normal drift displacement from heading + speed
+      //  2. Blends in a portion of the accumulated position error (correction)
+      //  3. If the bus was ahead of the server position (overshot), the correction
+      //     pulls it back, effectively slowing it down or reversing slightly.
+      //  4. If the bus was behind, the correction pushes it forward, speeding it up.
       const DRIFT_INTERVAL_MS = 2000; // Update every 2 seconds
-      const SPEED_FACTOR = 0.7; // Use 70% of speed to undershoot rather than overshoot
+      const BASE_SPEED_FACTOR = 0.65; // Use 65% of speed as base (slightly undershoot)
       
       driftIntervalRef.current = setInterval(() => {
         busDataRef.current.forEach((bus, id) => {
           const marker = busMarkersMapRef.current.get(id);
-          if (!marker || bus.speed <= 1) return; // Skip stopped buses
+          if (!marker) return;
           
           const current = marker.getLatLng();
-          // Convert heading to radians (heading: 0=North, 90=East)
-          const headingRad = (bus.heading * Math.PI) / 180;
-          // Speed in m/s, then distance per interval
-          const speedMs = (bus.speed * 1000) / 3600 * SPEED_FACTOR;
-          const distanceM = speedMs * (DRIFT_INTERVAL_MS / 1000);
+
+          // --- Drift component (dead-reckoning along heading) ---
+          let driftLat = 0;
+          let driftLon = 0;
+          if (bus.speed > 1) {
+            const headingRad = (bus.heading * Math.PI) / 180;
+            const speedMs = (bus.speed * 1000) / 3600 * BASE_SPEED_FACTOR;
+            const distanceM = speedMs * (DRIFT_INTERVAL_MS / 1000);
+            driftLat = (distanceM * Math.cos(headingRad)) / 111320;
+            driftLon = (distanceM * Math.sin(headingRad)) / (111320 * Math.cos(current.lat * Math.PI / 180));
+          }
+
+          // --- Correction component (blending toward server position) ---
+          let corrLat = 0;
+          let corrLon = 0;
+          const correction = busCorrectionRef.current.get(id);
+          if (correction) {
+            // Apply a fraction of the remaining error this tick
+            corrLat = correction.errorLat * correction.correctionFactor;
+            corrLon = correction.errorLon * correction.correctionFactor;
+
+            // Reduce the remaining error
+            correction.errorLat -= corrLat;
+            correction.errorLon -= corrLon;
+
+            // If remaining error is negligible, clear the correction
+            const remainingMeters = Math.sqrt(
+              (correction.errorLat * 111320) ** 2 +
+              (correction.errorLon * 111320 * Math.cos(current.lat * Math.PI / 180)) ** 2
+            );
+            if (remainingMeters < 1) {
+              busCorrectionRef.current.delete(id);
+            }
+          }
+
+          const targetLat = current.lat + driftLat + corrLat;
+          const targetLon = current.lng + driftLon + corrLon;
+
+          // Snap drifted position to nearest point on the bus's route polyline
+          // so the marker never wanders off-road at turns or curves
+          const [snappedLat, snappedLon] = snapToRoute(targetLat, targetLon, bus.routeShortName);
           
-          // Approximate lat/lon offset from distance
-          // 1 degree lat ≈ 111,320 meters
-          // 1 degree lon ≈ 111,320 * cos(lat) meters
-          const dLat = (distanceM * Math.cos(headingRad)) / 111320;
-          const dLon = (distanceM * Math.sin(headingRad)) / (111320 * Math.cos(current.lat * Math.PI / 180));
-          
-          // Smoothly drift to new position
-          animateMarker(marker, current.lat + dLat, current.lng + dLon, DRIFT_INTERVAL_MS * 0.8);
+          // Only animate if there's meaningful movement
+          const totalMovement = Math.abs(snappedLat - current.lat) + Math.abs(snappedLon - current.lng);
+          if (totalMovement > 0.0000001) {
+            animateMarker(marker, snappedLat, snappedLon, DRIFT_INTERVAL_MS * 0.8);
+          }
         });
       }, DRIFT_INTERVAL_MS);
     });
@@ -782,26 +923,8 @@ function MapPageContent() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     
-    // Refresh bus data
+    // Refresh bus data only (location has its own button)
     await mutate();
-    
-    // Refresh user location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation([latitude, longitude]);
-        },
-        (error) => {
-          logger.warn(translations.map.locationRefreshFailed);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0,
-        }
-      );
-    }
     
     // Keep refresh indicator for at least 500ms so user sees the feedback
     setTimeout(() => {
