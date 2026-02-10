@@ -179,8 +179,9 @@ function LeafletMap({
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const busMarkersMapRef = useRef<Map<string, any>>(new Map());
   const stopMarkersRef = useRef<any[]>([]);
+  const mapBoundsRef = useRef<any>(null);
   const locationMarkerRef = useRef<any>(null);
   const highlightedMarkerRef = useRef<any>(null);
   const routeLayersRef = useRef<any[]>([]);
@@ -225,103 +226,98 @@ function LeafletMap({
     };
   }, []); // Empty deps - only run once
 
-  // Update markers when buses change
+  // Update markers when buses change - reuse existing markers for performance
   useEffect(() => {
-    logger.log(`Bus markers useEffect triggered. Buses array length: ${buses.length}, Map initialized: ${!!mapInstanceRef.current}`);
-    
     if (!mapInstanceRef.current) {
-      logger.log("Map not initialized yet");
       return;
     }
     
     if (buses.length === 0) {
-      logger.log("No buses data");
+      // Remove all existing markers when no buses
+      busMarkersMapRef.current.forEach((marker) => marker.remove());
+      busMarkersMapRef.current.clear();
       return;
     }
 
-    logger.log(`Adding ${buses.length} bus markers to map`);
-
     import("leaflet").then((L) => {
-      // Clear existing bus markers only (keep location marker)
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
+      const currentBusIds = new Set(buses.map(b => b.id));
+      const existingIds = new Set(busMarkersMapRef.current.keys());
 
-      // Add bus markers with line numbers and destinations
+      // Remove markers for buses that no longer exist
+      existingIds.forEach((id) => {
+        if (!currentBusIds.has(id)) {
+          busMarkersMapRef.current.get(id)!.remove();
+          busMarkersMapRef.current.delete(id);
+        }
+      });
+
+      // Update existing or create new markers
       buses.forEach((bus) => {
-        
         const destinationText = bus.routeLongName || 'Destino desconhecido';
-        
-        // Truncate destination for display (keep it short for mobile)
         const truncatedDestination = destinationText.length > 20 
           ? destinationText.substring(0, 17) + '...' 
           : destinationText;
-        
-        // Get route color based on selected routes
         const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
-        
-        // Create custom icon with line number AND destination
-        const busIcon = L.divIcon({
-          html: `
-            <div style="
-              display: flex;
-              align-items: center;
-              gap: 4px;
-              filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-            ">
-              <!-- Line number badge -->
+
+        const existingMarker = busMarkersMapRef.current.get(bus.id);
+
+        if (existingMarker) {
+          // Reuse marker: update position and icon (color may have changed)
+          existingMarker.setLatLng([bus.lat, bus.lon]);
+          existingMarker.setIcon(L.divIcon({
+            html: `
               <div style="
-                min-width: 44px;
-                height: 32px;
-                background: ${routeColor};
-                border: 2px solid white;
-                border-radius: 6px;
                 display: flex;
                 align-items: center;
-                justify-content: center;
-                font-weight: bold;
-                font-size: 14px;
-                color: white;
-                font-family: system-ui, -apple-system, sans-serif;
-                cursor: pointer;
-                padding: 0 6px;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+                gap: 4px;
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
               ">
-                ${bus.routeShortName}
+                <div style="
+                  min-width: 44px;
+                  height: 32px;
+                  background: ${routeColor};
+                  border: 2px solid white;
+                  border-radius: 6px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-weight: bold;
+                  font-size: 14px;
+                  color: white;
+                  font-family: system-ui, -apple-system, sans-serif;
+                  cursor: pointer;
+                  padding: 0 6px;
+                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+                ">
+                  ${bus.routeShortName}
+                </div>
+                <div style="
+                  background: rgba(255, 255, 255, 0.98);
+                  border: 1px solid #cbd5e1;
+                  border-radius: 4px;
+                  padding: 4px 8px;
+                  font-size: 11px;
+                  font-weight: 600;
+                  color: #1e40af;
+                  font-family: system-ui, -apple-system, sans-serif;
+                  white-space: nowrap;
+                  cursor: pointer;
+                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+                  max-width: 150px;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                ">
+                  ${truncatedDestination}
+                </div>
               </div>
-              
-              <!-- Destination label -->
-              <div style="
-                background: rgba(255, 255, 255, 0.98);
-                border: 1px solid #cbd5e1;
-                border-radius: 4px;
-                padding: 4px 8px;
-                font-size: 11px;
-                font-weight: 600;
-                color: #1e40af;
-                font-family: system-ui, -apple-system, sans-serif;
-                white-space: nowrap;
-                cursor: pointer;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-                max-width: 150px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-              ">
-                ${truncatedDestination}
-              </div>
-            </div>
-          `,
-          className: "custom-bus-marker-with-destination",
-          iconSize: [210, 32],
-          iconAnchor: [24, 16],
-          popupAnchor: [80, -16],
-        });
-
-        const marker = L.marker([bus.lat, bus.lon], { 
-          icon: busIcon,
-          title: `Linha ${bus.routeShortName} → ${destinationText}` // Full tooltip on hover
-        })
-          .addTo(mapInstanceRef.current)
-          .bindPopup(`
+            `,
+            className: "custom-bus-marker-with-destination",
+            iconSize: [210, 32],
+            iconAnchor: [24, 16],
+            popupAnchor: [80, -16],
+          }));
+          // Update popup content
+          existingMarker.setPopupContent(`
             <div class="bus-popup text-sm" style="min-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
               <div class="bus-popup-title">
                 Linha ${bus.routeShortName}
@@ -329,78 +325,170 @@ function LeafletMap({
               <div class="bus-popup-destination">
                 → ${destinationText}
               </div>
-              <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
+              <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : 'Parado'}</div>
               ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
               <div class="bus-popup-footer">
                 Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}
               </div>
             </div>
           `);
-        markersRef.current.push(marker);
-      });
-      
-    });
-  }, [buses, isMapReady, selectedRoutes]); // Re-render when route selection changes to update colors
+        } else {
+          // Create new marker
+          const busIcon = L.divIcon({
+            html: `
+              <div style="
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+              ">
+                <div style="
+                  min-width: 44px;
+                  height: 32px;
+                  background: ${routeColor};
+                  border: 2px solid white;
+                  border-radius: 6px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-weight: bold;
+                  font-size: 14px;
+                  color: white;
+                  font-family: system-ui, -apple-system, sans-serif;
+                  cursor: pointer;
+                  padding: 0 6px;
+                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+                ">
+                  ${bus.routeShortName}
+                </div>
+                <div style="
+                  background: rgba(255, 255, 255, 0.98);
+                  border: 1px solid #cbd5e1;
+                  border-radius: 4px;
+                  padding: 4px 8px;
+                  font-size: 11px;
+                  font-weight: 600;
+                  color: #1e40af;
+                  font-family: system-ui, -apple-system, sans-serif;
+                  white-space: nowrap;
+                  cursor: pointer;
+                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+                  max-width: 150px;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                ">
+                  ${truncatedDestination}
+                </div>
+              </div>
+            `,
+            className: "custom-bus-marker-with-destination",
+            iconSize: [210, 32],
+            iconAnchor: [24, 16],
+            popupAnchor: [80, -16],
+          });
 
-  // Update stop markers when stops or showStops change
+          const marker = L.marker([bus.lat, bus.lon], { 
+            icon: busIcon,
+            title: `Linha ${bus.routeShortName} → ${destinationText}`
+          })
+            .addTo(mapInstanceRef.current)
+            .bindPopup(`
+              <div class="bus-popup text-sm" style="min-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
+                <div class="bus-popup-title">
+                  Linha ${bus.routeShortName}
+                </div>
+                <div class="bus-popup-destination">
+                  → ${destinationText}
+                </div>
+                <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : 'Parado'}</div>
+                ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
+                <div class="bus-popup-footer">
+                  Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}
+                </div>
+              </div>
+            `);
+          busMarkersMapRef.current.set(bus.id, marker);
+        }
+      });
+    });
+  }, [buses, isMapReady, selectedRoutes]);
+
+  // Viewport-based stop rendering: only render stops within visible map bounds
   useEffect(() => {
     if (!mapInstanceRef.current || !isMapReady) {
       return;
     }
 
-    import("leaflet").then((L) => {
-      // Clear existing stop markers
-      stopMarkersRef.current.forEach((marker) => marker.remove());
-      stopMarkersRef.current = [];
+    const map = mapInstanceRef.current;
 
-      if (!showStops || stops.length === 0) {
-        return;
-      }
+    const renderVisibleStops = () => {
+      import("leaflet").then((L) => {
+        // Clear existing stop markers
+        stopMarkersRef.current.forEach((marker) => marker.remove());
+        stopMarkersRef.current = [];
 
-      logger.log(`Adding ${stops.length} stop markers to map`);
+        if (!showStops || stops.length === 0) {
+          return;
+        }
 
-      // Add stop markers
-      stops.forEach((stop) => {
-        // Create simple circular icon for stops
-        const stopIcon = L.divIcon({
-          html: `
-            <div style="
-              width: 10px;
-              height: 10px;
-              background: #ef4444;
-              border: 2px solid white;
-              border-radius: 50%;
-              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-              cursor: pointer;
-            "></div>
-          `,
-          className: "custom-stop-marker",
-          iconSize: [10, 10],
-          iconAnchor: [5, 5],
-          popupAnchor: [0, -5],
-        });
+        const bounds = map.getBounds();
+        mapBoundsRef.current = bounds;
 
-        const marker = L.marker([stop.lat, stop.lon], { icon: stopIcon })
-          .addTo(mapInstanceRef.current)
-          .bindPopup(`
-            <div class="stop-popup text-sm" style="min-width: 200px; font-family: system-ui, -apple-system, sans-serif;">
-              <div class="stop-popup-title">
-                ${stop.name}
+        // Filter to stops within viewport
+        const visibleStops = stops.filter((stop) =>
+          bounds.contains([stop.lat, stop.lon])
+        );
+
+        // Add stop markers only for visible stops
+        visibleStops.forEach((stop) => {
+          const stopIcon = L.divIcon({
+            html: `
+              <div style="
+                width: 10px;
+                height: 10px;
+                background: #ef4444;
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+                cursor: pointer;
+              "></div>
+            `,
+            className: "custom-stop-marker",
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
+            popupAnchor: [0, -5],
+          });
+
+          const marker = L.marker([stop.lat, stop.lon], { icon: stopIcon })
+            .addTo(map)
+            .bindPopup(`
+              <div class="stop-popup text-sm" style="min-width: 200px; font-family: system-ui, -apple-system, sans-serif;">
+                <div class="stop-popup-title">
+                  ${stop.name}
+                </div>
+                ${stop.code ? `<div class="stop-popup-code"><strong>Código:</strong> ${stop.code}</div>` : ''}
+                ${stop.desc ? `<div class="stop-popup-desc">${stop.desc}</div>` : ''}
+                <a href="/station?gtfsId=${stop.gtfsId}" 
+                   class="stop-popup-link"
+                   target="_blank">
+                  Ver Horários →
+                </a>
               </div>
-              ${stop.code ? `<div class="stop-popup-code"><strong>Código:</strong> ${stop.code}</div>` : ''}
-              ${stop.desc ? `<div class="stop-popup-desc">${stop.desc}</div>` : ''}
-              <a href="/station?gtfsId=${stop.gtfsId}" 
-                 class="stop-popup-link"
-                 target="_blank">
-                Ver Horários →
-              </a>
-            </div>
-          `);
-        stopMarkersRef.current.push(marker);
+            `);
+          stopMarkersRef.current.push(marker);
+        });
       });
+    };
 
-      logger.log(`Successfully added ${stopMarkersRef.current.length} stop markers`);
-    });
+    // Render on initial load / toggle
+    renderVisibleStops();
+
+    // Re-render when user pans or zooms
+    map.on("moveend", renderVisibleStops);
+
+    return () => {
+      map.off("moveend", renderVisibleStops);
+    };
   }, [stops, showStops, isMapReady]);
 
   // Fly to location when it changes
@@ -612,6 +700,9 @@ function MapPageContent() {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showRouteFilter, setShowRouteFilter] = useState(false); // Collapsible route filter
   const [lastRefreshTime, setLastRefreshTime] = useState(0); // Track last manual refresh
+  const [lastDataTime, setLastDataTime] = useState<number | null>(null); // When data was last received
+  const [timeSinceUpdate, setTimeSinceUpdate] = useState<string>(""); // "Updated Xs ago"
+  const [isDataStale, setIsDataStale] = useState(false); // True when showing cached/stale data
   
   // Get highlighted station from URL params (e.g., /?station=2:BRRS2)
   const highlightedStationId = searchParams?.get("station");
@@ -624,6 +715,16 @@ function MapPageContent() {
     }
     return [];
   });
+
+  // Load favorite routes from localStorage
+  const [favoriteRoutes, setFavoriteRoutes] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("favoriteRoutes");
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+  const [favoritesAppliedOnLoad, setFavoritesAppliedOnLoad] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR<BusesResponse>("/api/buses", busesFetcher, {
     refreshInterval: 30000,
@@ -643,9 +744,9 @@ function MapPageContent() {
     }
   );
 
-  // Fetch route patterns (cached for 24 hours server-side)
+  // Lazy-load route patterns: only fetch when user has selected routes
   const { data: routePatternsData } = useSWR<RoutePatternsResponse>(
-    "/api/route-shapes",
+    selectedRoutes.length > 0 ? "/api/route-shapes" : null,
     fetcher,
     {
       revalidateOnFocus: false,
@@ -661,6 +762,35 @@ function MapPageContent() {
       setShowStopsInitialized(true);
     }
   }, [stopsData, showStopsInitialized]);
+
+  // Track when bus data was last received
+  useEffect(() => {
+    if (data?.buses && data.buses.length > 0) {
+      setLastDataTime(Date.now());
+      setIsDataStale(!!(data as any).stale);
+    }
+  }, [data]);
+
+  // Update "time since last update" every second
+  useEffect(() => {
+    if (!lastDataTime) return;
+
+    const updateLabel = () => {
+      const seconds = Math.floor((Date.now() - lastDataTime) / 1000);
+      if (seconds < 5) {
+        setTimeSinceUpdate("agora");
+      } else if (seconds < 60) {
+        setTimeSinceUpdate(`${seconds}s`);
+      } else {
+        const minutes = Math.floor(seconds / 60);
+        setTimeSinceUpdate(`${minutes}m`);
+      }
+    };
+
+    updateLabel();
+    const interval = setInterval(updateLabel, 1000);
+    return () => clearInterval(interval);
+  }, [lastDataTime]);
 
   const handleLocateMe = () => {
     setIsLocating(true);
@@ -728,6 +858,13 @@ function MapPageContent() {
     }
   }, [selectedRoutes]);
 
+  // Persist favorite routes to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("favoriteRoutes", JSON.stringify(favoriteRoutes));
+    }
+  }, [favoriteRoutes]);
+
   // Get unique routes from bus data
   const availableRoutes = data?.buses 
     ? Array.from(new Set(data.buses.map(bus => bus.routeShortName)))
@@ -741,6 +878,18 @@ function MapPageContent() {
           return a.localeCompare(b);
         })
     : [];
+
+  // Auto-filter to favorite routes on first data load
+  useEffect(() => {
+    if (!favoritesAppliedOnLoad && favoriteRoutes.length > 0 && availableRoutes.length > 0 && selectedRoutes.length === 0) {
+      // Only apply favorites that actually exist in current data
+      const validFavorites = favoriteRoutes.filter(r => availableRoutes.includes(r));
+      if (validFavorites.length > 0) {
+        setSelectedRoutes(validFavorites);
+      }
+      setFavoritesAppliedOnLoad(true);
+    }
+  }, [favoriteRoutes, availableRoutes, favoritesAppliedOnLoad, selectedRoutes.length]);
 
   // Filter buses based on selected routes
   const filteredBuses = data?.buses && selectedRoutes.length > 0
@@ -764,6 +913,14 @@ function MapPageContent() {
     setSelectedRoutes([]);
   };
 
+  const toggleFavorite = (route: string) => {
+    setFavoriteRoutes(prev =>
+      prev.includes(route)
+        ? prev.filter(r => r !== route)
+        : [...prev, route]
+    );
+  };
+
   if (!isMounted) {
     return <MapSkeleton />;
   }
@@ -785,11 +942,21 @@ function MapPageContent() {
                   <span className="animate-spin text-base">🔄</span>
                 )}
               </h1>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
+              <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
                 {data ? (
                   <>
                     {filteredBuses.length} {filteredBuses.length === 1 ? 'autocarro' : 'autocarros'}
                     {selectedRoutes.length > 0 && <span className="text-gray-500 dark:text-gray-500"> / {data.buses.length}</span>}
+                    {timeSinceUpdate && (
+                      <span className="text-gray-400 dark:text-gray-500">
+                        · {timeSinceUpdate}
+                      </span>
+                    )}
+                    {isDataStale && (
+                      <span className="text-amber-600 dark:text-amber-400 font-medium">
+                        · dados em cache
+                      </span>
+                    )}
                   </>
                 ) : translations.map.loading}
               </p>
@@ -866,17 +1033,32 @@ function MapPageContent() {
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {availableRoutes.map(route => (
-                      <button
-                        key={route}
-                        onClick={() => toggleRoute(route)}
-                        className={`py-2 px-3 rounded-md text-sm font-semibold transition-all ${
-                          selectedRoutes.includes(route)
-                            ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                        }`}
-                      >
-                        {route}
-                      </button>
+                      <div key={route} className="relative">
+                        <button
+                          onClick={() => toggleRoute(route)}
+                          className={`w-full py-2 px-3 rounded-md text-sm font-semibold transition-all ${
+                            selectedRoutes.includes(route)
+                              ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          }`}
+                        >
+                          {route}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(route);
+                          }}
+                          className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-xs leading-none"
+                          title={favoriteRoutes.includes(route) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                        >
+                          {favoriteRoutes.includes(route) ? (
+                            <span className="text-yellow-500">&#9733;</span>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-500 hover:text-yellow-500">&#9734;</span>
+                          )}
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>

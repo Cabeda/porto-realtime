@@ -213,18 +213,6 @@ export default async function handler(
 
     const data: FiwareResponse[] = await response.json();
 
-    // Log first few entities to see available fields (for debugging)
-    if (data.length > 0) {
-      console.log("=== FIWARE Entity Sample ===");
-      console.log("First entity ID:", data[0].id);
-      console.log("First entity keys:", Object.keys(data[0]));
-      console.log("Full first entity:", JSON.stringify(data[0], null, 2));
-      if (data.length > 1) {
-        console.log("Second entity ID:", data[1].id);
-      }
-      console.log("===========================");
-    }
-
     // Parse and normalize the FIWARE entities
     const buses: Bus[] = data
       .filter((entity) => entity.location?.value?.coordinates)
