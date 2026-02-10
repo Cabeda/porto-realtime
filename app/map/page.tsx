@@ -167,7 +167,7 @@ function LeafletMap({
                 overflow: hidden;
                 text-overflow: ellipsis;
               ">
-                → ${truncatedDestination}
+                ${truncatedDestination}
               </div>
             </div>
           `,
@@ -312,6 +312,9 @@ export default function MapPage() {
   const { data: stopsData, error: stopsError } = useSWR<StopsResponse>("/api/stations", fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
+    dedupingInterval: 30 * 24 * 60 * 60 * 1000, // 30 days - don't refetch within this period
+    revalidateIfStale: false, // Don't revalidate even if stale
+    revalidateOnMount: true, // Only fetch once on mount
   });
 
   const handleLocateMe = () => {

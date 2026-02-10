@@ -63,7 +63,13 @@ export default function Home() {
     data: stations,
     error: stationsError,
     isLoading: boolean,
-  } = useSWR("/api/stations", fetcher);
+  } = useSWR("/api/stations", fetcher, {
+    // Cache stops data for 30 days
+    dedupingInterval: 30 * 24 * 60 * 60 * 1000, // 30 days
+    revalidateIfStale: false, // Don't revalidate even if stale
+    revalidateOnFocus: false, // Don't revalidate when window gains focus
+    revalidateOnReconnect: false, // Don't revalidate on network reconnect
+  });
 
   const [filter, setFilter] = useState("");
 
