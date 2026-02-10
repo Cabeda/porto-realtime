@@ -122,6 +122,7 @@ function LeafletMap({
   const locationMarkerRef = useRef<any>(null);
   const highlightedMarkerRef = useRef<any>(null);
   const routeLayersRef = useRef<any[]>([]);
+  const [isMapReady, setIsMapReady] = useState(false);
 
   useEffect(() => {
     // Only initialize once
@@ -147,6 +148,10 @@ function LeafletMap({
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
+
+      // Mark map as ready to trigger bus markers rendering
+      setIsMapReady(true);
+      logger.log("Map initialized and ready");
     });
 
     // Cleanup on unmount
@@ -270,11 +275,11 @@ function LeafletMap({
       });
       
     });
-  }, [buses]);
+  }, [buses, isMapReady]); // Add isMapReady as dependency
 
   // Update stop markers when stops or showStops change
   useEffect(() => {
-    if (!mapInstanceRef.current) {
+    if (!mapInstanceRef.current || !isMapReady) {
       return;
     }
 
@@ -331,11 +336,11 @@ function LeafletMap({
 
       logger.log(`Successfully added ${stopMarkersRef.current.length} stop markers`);
     });
-  }, [stops, showStops]);
+  }, [stops, showStops, isMapReady]);
 
   // Fly to location when it changes
   useEffect(() => {
-    if (!userLocation || !mapInstanceRef.current) return;
+    if (!userLocation || !mapInstanceRef.current || !isMapReady) return;
 
     import("leaflet").then((L) => {
       // Remove old location marker if exists
@@ -359,11 +364,11 @@ function LeafletMap({
       // Fly to location
       mapInstanceRef.current.flyTo(userLocation, 15, { duration: 1.5 });
     });
-  }, [userLocation]);
+  }, [userLocation, isMapReady]);
 
   // Handle highlighted station
   useEffect(() => {
-    if (!highlightedStationId || !mapInstanceRef.current || stops.length === 0) {
+    if (!highlightedStationId || !mapInstanceRef.current || !isMapReady || stops.length === 0) {
       // Remove highlighted marker if no station is highlighted
       if (highlightedMarkerRef.current) {
         highlightedMarkerRef.current.remove();
@@ -454,11 +459,11 @@ function LeafletMap({
       // Fly to highlighted station
       mapInstanceRef.current.flyTo([highlightedStop.lat, highlightedStop.lon], 17, { duration: 1.5 });
     });
-  }, [highlightedStationId, stops]);
+  }, [highlightedStationId, stops, isMapReady]);
 
   // Update route polylines when selected routes or patterns change
   useEffect(() => {
-    if (!mapInstanceRef.current || !routePatterns || routePatterns.length === 0) {
+    if (!mapInstanceRef.current || !isMapReady || !routePatterns || routePatterns.length === 0) {
       return;
     }
 
@@ -538,7 +543,7 @@ function LeafletMap({
 
       logger.log(`Successfully rendered ${routeLayersRef.current.length} route polylines`);
     });
-  }, [routePatterns, selectedRoutes, showRoutes]);
+  }, [routePatterns, selectedRoutes, showRoutes, isMapReady]);
 
   return <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />;
 }
