@@ -427,17 +427,24 @@ export default function MapPage() {
 
           <button
             onClick={() => setShowStops(!showStops)}
-            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all ${
+            disabled={!stopsData?.data?.stops}
+            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
               showStops
                 ? "bg-red-500 hover:bg-red-600 text-white border-red-600"
                 : "bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
             }`}
-            title={showStops ? "Hide bus stops" : "Show bus stops"}
+            title={
+              !stopsData?.data?.stops 
+                ? "Stops data unavailable" 
+                : showStops 
+                  ? "Hide bus stops" 
+                  : "Show bus stops"
+            }
           >
             <span className="flex items-center gap-2">
               <span>{showStops ? "🚏" : "🚏"}</span>
               <span className="text-sm">{showStops ? "Hide Stops" : "Show Stops"}</span>
-              {stopsData && (
+              {stopsData?.data?.stops && (
                 <span className="text-xs opacity-75">({stopsData.data.stops.length})</span>
               )}
             </span>
@@ -450,8 +457,14 @@ export default function MapPage() {
           </div>
         )}
 
+        {stopsError && (
+          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 border border-yellow-200 rounded-lg p-3 shadow-lg max-w-md">
+            <p className="text-yellow-800 text-sm">Bus stops unavailable. Map shows buses only.</p>
+          </div>
+        )}
+
         {locationError && (
-          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 border border-yellow-200 rounded-lg p-3 shadow-lg max-w-md">
+          <div className="absolute top-28 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 border border-yellow-200 rounded-lg p-3 shadow-lg max-w-md">
             <p className="text-yellow-800 text-sm">{locationError}</p>
           </div>
         )}
@@ -462,12 +475,19 @@ export default function MapPage() {
           </div>
         )}
 
-        {data && stopsData ? (
+        {data && stopsData?.data?.stops ? (
           <LeafletMap 
             buses={data.buses} 
             stops={stopsData.data.stops}
             userLocation={userLocation}
             showStops={showStops}
+          />
+        ) : data ? (
+          <LeafletMap 
+            buses={data.buses} 
+            stops={[]}
+            userLocation={userLocation}
+            showStops={false}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
