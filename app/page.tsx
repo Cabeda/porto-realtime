@@ -837,6 +837,7 @@ function MapPageContent() {
   const [showRoutes, setShowRoutes] = useState(true); // Show routes by default
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showControls, setShowControls] = useState(false); // Collapsed on mobile by default
   
   // Get highlighted station from URL params (e.g., /?station=2:BRRS2)
   const highlightedStationId = searchParams?.get("station");
@@ -977,6 +978,13 @@ function MapPageContent() {
     setSelectedRoutes([]);
   };
 
+  // Auto-close controls on mobile after interaction
+  const closeControlsOnMobile = () => {
+    if (window.innerWidth < 768) { // md breakpoint
+      setShowControls(false);
+    }
+  };
+
   if (!isMounted) {
     return <MapSkeleton />;
   }
@@ -1026,7 +1034,19 @@ function MapPageContent() {
       </header>
 
       <main className="flex-1 relative">
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+        {/* Mobile controls toggle button */}
+        <button
+          onClick={() => setShowControls(!showControls)}
+          className="absolute top-4 right-4 z-[1001] md:hidden bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all"
+          title={showControls ? "Esconder controlos" : "Mostrar controlos"}
+        >
+          <span className="text-xl">{showControls ? "✕" : "☰"}</span>
+        </button>
+
+        {/* Controls panel - always visible on desktop, collapsible on mobile */}
+        <div className={`absolute top-4 right-4 z-[1000] flex flex-col gap-2 transition-all ${
+          showControls ? 'flex' : 'hidden md:flex'
+        }`}>
           {/* Route Filter Dropdown */}
           {availableRoutes.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 max-h-[400px] overflow-y-auto">
@@ -1066,7 +1086,10 @@ function MapPageContent() {
           )}
 
           <button
-            onClick={handleLocateMe}
+            onClick={() => {
+              handleLocateMe();
+              closeControlsOnMobile();
+            }}
             disabled={isLocating}
             className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             title={translations.map.centerMapTitle}
@@ -1085,7 +1108,10 @@ function MapPageContent() {
           </button>
 
           <button
-            onClick={() => setShowStops(!showStops)}
+            onClick={() => {
+              setShowStops(!showStops);
+              closeControlsOnMobile();
+            }}
             disabled={!stopsData?.data?.stops}
             className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
               showStops
@@ -1110,7 +1136,10 @@ function MapPageContent() {
           </button>
 
           <button
-            onClick={() => setShowRoutes(!showRoutes)}
+            onClick={() => {
+              setShowRoutes(!showRoutes);
+              closeControlsOnMobile();
+            }}
             disabled={selectedRoutes.length === 0 || !routePatternsData?.patterns}
             className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
               showRoutes
