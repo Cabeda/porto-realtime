@@ -251,15 +251,15 @@ function LeafletMap({
           .addTo(mapInstanceRef.current)
           .bindPopup(`
             <div class="bus-popup text-sm" style="min-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
-              <div style="font-size: 18px; font-weight: bold; color: #2563eb; margin-bottom: 4px;">
+              <div style="font-size: 18px; font-weight: bold; color: #3b82f6; margin-bottom: 4px;">
                 Linha ${bus.routeShortName}
               </div>
-              <div style="font-size: 15px; font-weight: 600; color: #1e40af; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">
+              <div style="font-size: 15px; font-weight: 600; color: #60a5fa; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid rgba(156, 163, 175, 0.3);">
                 → ${destinationText}
               </div>
-              <div style="margin-bottom: 4px; color: #374151;"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
-              ${bus.vehicleNumber ? `<div style="margin-bottom: 4px; color: #374151;"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
-              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
+              <div style="margin-bottom: 4px;"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
+              ${bus.vehicleNumber ? `<div style="margin-bottom: 4px;"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(156, 163, 175, 0.3); font-size: 11px; opacity: 0.8;">
                 Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}
               </div>
             </div>
@@ -316,9 +316,9 @@ function LeafletMap({
                 ${stop.name}
               </div>
               ${stop.code ? `<div style="margin-bottom: 4px; font-size: 12px;"><strong>Código:</strong> ${stop.code}</div>` : ''}
-              ${stop.desc ? `<div style="margin-bottom: 6px; font-size: 12px; color: #6b7280;">${stop.desc}</div>` : ''}
+              ${stop.desc ? `<div style="margin-bottom: 6px; font-size: 12px; opacity: 0.8;">${stop.desc}</div>` : ''}
               <a href="/station?gtfsId=${stop.gtfsId}" 
-                 style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #2563eb; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;"
+                 style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;"
                  target="_blank">
                 Ver Horários →
               </a>
@@ -439,9 +439,9 @@ function LeafletMap({
               ${highlightedStop.name}
             </div>
             ${highlightedStop.code ? `<div style="margin-bottom: 4px; font-size: 12px;"><strong>Código:</strong> ${highlightedStop.code}</div>` : ''}
-            ${highlightedStop.desc ? `<div style="margin-bottom: 6px; font-size: 12px; color: #6b7280;">${highlightedStop.desc}</div>` : ''}
+            ${highlightedStop.desc ? `<div style="margin-bottom: 6px; font-size: 12px; opacity: 0.8;">${highlightedStop.desc}</div>` : ''}
             <a href="/station?gtfsId=${highlightedStop.gtfsId}" 
-               style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #2563eb; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;"
+               style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;"
                target="_blank">
               Ver Horários →
             </a>
@@ -520,10 +520,10 @@ function LeafletMap({
               <div style="font-size: 16px; font-weight: bold; color: ${color}; margin-bottom: 4px;">
                 Linha ${pattern.routeShortName}
               </div>
-              <div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">
+              <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">
                 → ${pattern.headsign}
               </div>
-              <div style="font-size: 11px; color: #6b7280;">
+              <div style="font-size: 11px; opacity: 0.8;">
                 ${pattern.routeLongName}
               </div>
             </div>
