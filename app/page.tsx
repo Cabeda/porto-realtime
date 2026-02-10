@@ -257,6 +257,9 @@ function LeafletMap({
           ? destinationText.substring(0, 17) + '...' 
           : destinationText;
         
+        // Get route color based on selected routes
+        const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
+        
         // Create custom icon with line number AND destination
         const busIcon = L.divIcon({
           html: `
@@ -270,7 +273,7 @@ function LeafletMap({
               <div style="
                 min-width: 44px;
                 height: 32px;
-                background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+                background: ${routeColor};
                 border: 2px solid white;
                 border-radius: 6px;
                 display: flex;
@@ -338,7 +341,7 @@ function LeafletMap({
       });
       
     });
-  }, [buses, isMapReady]); // Add isMapReady as dependency
+  }, [buses, isMapReady, selectedRoutes]); // Re-render when route selection changes to update colors
 
   // Update stop markers when stops or showStops change
   useEffect(() => {
@@ -542,24 +545,10 @@ function LeafletMap({
 
       logger.log(`Rendering ${selectedRoutes.length} route paths`);
 
-      // Color palette for routes (vibrant colors that work in light and dark mode)
-      const routeColors = [
-        '#3b82f6', // blue
-        '#ef4444', // red
-        '#10b981', // green
-        '#f59e0b', // amber
-        '#8b5cf6', // purple
-        '#ec4899', // pink
-        '#14b8a6', // teal
-        '#f97316', // orange
-        '#06b6d4', // cyan
-        '#84cc16', // lime
-      ];
-
-      // Group patterns by route
+      // Use shared color mapping
       const routeColorMap = new Map<string, string>();
       selectedRoutes.forEach((route, index) => {
-        routeColorMap.set(route, routeColors[index % routeColors.length]);
+        routeColorMap.set(route, ROUTE_COLORS[index % ROUTE_COLORS.length]);
       });
 
       // Filter patterns for selected routes
