@@ -251,15 +251,15 @@ function LeafletMap({
           .addTo(mapInstanceRef.current)
           .bindPopup(`
             <div class="bus-popup text-sm" style="min-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
-              <div style="font-size: 18px; font-weight: bold; color: #3b82f6; margin-bottom: 4px;">
+              <div class="bus-popup-title">
                 Linha ${bus.routeShortName}
               </div>
-              <div style="font-size: 15px; font-weight: 600; color: #60a5fa; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid rgba(156, 163, 175, 0.3);">
+              <div class="bus-popup-destination">
                 → ${destinationText}
               </div>
-              <div style="margin-bottom: 4px;"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
-              ${bus.vehicleNumber ? `<div style="margin-bottom: 4px;"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
-              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(156, 163, 175, 0.3); font-size: 11px; opacity: 0.8;">
+              <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
+              ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
+              <div class="bus-popup-footer">
                 Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}
               </div>
             </div>
@@ -312,13 +312,13 @@ function LeafletMap({
           .addTo(mapInstanceRef.current)
           .bindPopup(`
             <div class="stop-popup text-sm" style="min-width: 200px; font-family: system-ui, -apple-system, sans-serif;">
-              <div style="font-size: 14px; font-weight: bold; color: #ef4444; margin-bottom: 6px;">
+              <div class="stop-popup-title">
                 ${stop.name}
               </div>
-              ${stop.code ? `<div style="margin-bottom: 4px; font-size: 12px;"><strong>Código:</strong> ${stop.code}</div>` : ''}
-              ${stop.desc ? `<div style="margin-bottom: 6px; font-size: 12px; opacity: 0.8;">${stop.desc}</div>` : ''}
+              ${stop.code ? `<div class="stop-popup-code"><strong>Código:</strong> ${stop.code}</div>` : ''}
+              ${stop.desc ? `<div class="stop-popup-desc">${stop.desc}</div>` : ''}
               <a href="/station?gtfsId=${stop.gtfsId}" 
-                 style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;"
+                 class="stop-popup-link"
                  target="_blank">
                 Ver Horários →
               </a>
@@ -435,13 +435,13 @@ function LeafletMap({
         .addTo(mapInstanceRef.current)
         .bindPopup(`
           <div class="stop-popup text-sm" style="min-width: 200px; font-family: system-ui, -apple-system, sans-serif;">
-            <div style="font-size: 14px; font-weight: bold; color: #ef4444; margin-bottom: 6px;">
+            <div class="stop-popup-title">
               ${highlightedStop.name}
             </div>
-            ${highlightedStop.code ? `<div style="margin-bottom: 4px; font-size: 12px;"><strong>Código:</strong> ${highlightedStop.code}</div>` : ''}
-            ${highlightedStop.desc ? `<div style="margin-bottom: 6px; font-size: 12px; opacity: 0.8;">${highlightedStop.desc}</div>` : ''}
+            ${highlightedStop.code ? `<div class="stop-popup-code"><strong>Código:</strong> ${highlightedStop.code}</div>` : ''}
+            ${highlightedStop.desc ? `<div class="stop-popup-desc">${highlightedStop.desc}</div>` : ''}
             <a href="/station?gtfsId=${highlightedStop.gtfsId}" 
-               style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;"
+               class="stop-popup-link"
                target="_blank">
               Ver Horários →
             </a>
@@ -517,13 +517,13 @@ function LeafletMap({
           .addTo(mapInstanceRef.current)
           .bindPopup(`
             <div class="route-popup text-sm" style="min-width: 200px; font-family: system-ui, -apple-system, sans-serif;">
-              <div style="font-size: 16px; font-weight: bold; color: ${color}; margin-bottom: 4px;">
+              <div class="route-popup-title" style="color: ${color};">
                 Linha ${pattern.routeShortName}
               </div>
-              <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">
+              <div class="route-popup-headsign">
                 → ${pattern.headsign}
               </div>
-              <div style="font-size: 11px; opacity: 0.8;">
+              <div class="route-popup-desc">
                 ${pattern.routeLongName}
               </div>
             </div>
