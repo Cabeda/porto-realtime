@@ -838,6 +838,7 @@ function MapPageContent() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showControls, setShowControls] = useState(false); // Collapsed on mobile by default
+  const [showRouteFilter, setShowRouteFilter] = useState(false); // Route filter collapsed by default
   
   // Get highlighted station from URL params (e.g., /?station=2:BRRS2)
   const highlightedStationId = searchParams?.get("station");
@@ -1044,44 +1045,64 @@ function MapPageContent() {
         </button>
 
         {/* Controls panel - always visible on desktop, collapsible on mobile */}
-        <div className={`absolute top-4 right-4 z-[1000] flex flex-col gap-2 transition-all ${
+        <div className={`absolute top-4 right-4 z-[1000] flex flex-col gap-2 transition-all max-h-[calc(100vh-2rem)] overflow-y-auto ${
           showControls ? 'flex' : 'hidden md:flex'
         }`}>
-          {/* Route Filter Dropdown */}
+          {/* Route Filter - Collapsible */}
           {availableRoutes.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 max-h-[400px] overflow-y-auto">
-              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm">🚌 {translations.map.filterRoutes}</span>
-                {selectedRoutes.length > 0 && (
-                  <button
-                    onClick={clearRouteFilters}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-                  >
-                    {translations.map.clearFilters}
-                  </button>
-                )}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                {selectedRoutes.length > 0 
-                  ? translations.map.routesSelected(selectedRoutes.length)
-                  : translations.map.allRoutes
-                }
-              </div>
-              <div className="grid grid-cols-3 gap-2 max-w-[280px]">
-                {availableRoutes.map(route => (
-                  <button
-                    key={route}
-                    onClick={() => toggleRoute(route)}
-                    className={`py-2 px-3 rounded-md text-sm font-semibold transition-all ${
-                      selectedRoutes.includes(route)
-                        ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    {route}
-                  </button>
-                ))}
-              </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <button
+                onClick={() => setShowRouteFilter(!showRouteFilter)}
+                className="w-full p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg transition-colors"
+              >
+                <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm">
+                  🚌 {translations.map.filterRoutes}
+                  {selectedRoutes.length > 0 && (
+                    <span className="ml-2 text-xs bg-blue-600 dark:bg-blue-500 text-white px-2 py-0.5 rounded-full">
+                      {selectedRoutes.length}
+                    </span>
+                  )}
+                </span>
+                <span className="text-gray-500 dark:text-gray-400 text-sm">
+                  {showRouteFilter ? '▲' : '▼'}
+                </span>
+              </button>
+              
+              {showRouteFilter && (
+                <div className="p-3 pt-0 border-t border-gray-200 dark:border-gray-700 max-h-[300px] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-2 pt-2">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedRoutes.length > 0 
+                        ? translations.map.routesSelected(selectedRoutes.length)
+                        : translations.map.allRoutes
+                      }
+                    </div>
+                    {selectedRoutes.length > 0 && (
+                      <button
+                        onClick={clearRouteFilters}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+                      >
+                        {translations.map.clearFilters}
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 max-w-[280px]">
+                    {availableRoutes.map(route => (
+                      <button
+                        key={route}
+                        onClick={() => toggleRoute(route)}
+                        className={`py-2 px-3 rounded-md text-sm font-semibold transition-all ${
+                          selectedRoutes.includes(route)
+                            ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        {route}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1091,7 +1112,7 @@ function MapPageContent() {
               closeControlsOnMobile();
             }}
             disabled={isLocating}
-            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
             title={translations.map.centerMapTitle}
           >
             {isLocating ? (
@@ -1113,7 +1134,7 @@ function MapPageContent() {
               closeControlsOnMobile();
             }}
             disabled={!stopsData?.data?.stops}
-            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
               showStops
                 ? "bg-red-500 hover:bg-red-600 text-white border-red-600 dark:border-red-500"
                 : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
@@ -1141,7 +1162,7 @@ function MapPageContent() {
               closeControlsOnMobile();
             }}
             disabled={selectedRoutes.length === 0 || !routePatternsData?.patterns}
-            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
               showRoutes
                 ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-600 dark:border-blue-500"
                 : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
