@@ -160,6 +160,8 @@ function LeafletMap({
 
   // Update markers when buses change
   useEffect(() => {
+    logger.log(`Bus markers useEffect triggered. Buses array length: ${buses.length}, Map initialized: ${!!mapInstanceRef.current}`);
+    
     if (!mapInstanceRef.current) {
       logger.log("Map not initialized yet");
       return;
@@ -697,6 +699,11 @@ function MapPageContent() {
   const filteredBuses = data?.buses && selectedRoutes.length > 0
     ? data.buses.filter(bus => selectedRoutes.includes(bus.routeShortName))
     : data?.buses || [];
+
+  // Log when bus data changes
+  useEffect(() => {
+    logger.log(`Bus data updated. Total buses: ${data?.buses?.length || 0}, Filtered buses: ${filteredBuses.length}, Selected routes: ${selectedRoutes.length}`);
+  }, [data, filteredBuses.length, selectedRoutes.length]);
 
   const toggleRoute = (route: string) => {
     setSelectedRoutes(prev => 
