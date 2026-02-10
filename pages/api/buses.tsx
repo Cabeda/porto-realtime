@@ -187,8 +187,10 @@ async function fetchRouteDestinations(): Promise<Map<string, RouteDirectionMap>>
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<{ buses: Bus[]; stale?: boolean } | { error: string; buses?: Bus[] }>
+  res: NextApiResponse
 ) {
+  const startTime = Date.now();
+  
   try {
     // Fetch route destinations (will use cache if available)
     const routeDestinations = await fetchRouteDestinations();
@@ -382,8 +384,10 @@ export default async function handler(
     lastSuccessfulBusData = buses;
     lastSuccessfulTimestamp = Date.now();
 
-    // Add cache headers
-    res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    // Add cache headers and response time
+    const responseTime = Date.now() - startTime;
+    res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=60");
+    res.setHeader("X-Response-Time", `${responseTime}ms`);
     res.status(200).json({ buses });
   } catch (error) {
     console.error("Error fetching buses:", error);

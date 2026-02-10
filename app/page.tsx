@@ -5,6 +5,8 @@ import useSWR from "swr";
 import Link from "next/link";
 import "leaflet/dist/leaflet.css";
 import { translations } from "@/lib/translations";
+import { logger } from "@/lib/logger";
+import { MapSkeleton } from "@/components/LoadingSkeletons";
 
 interface Bus {
   id: string;
@@ -95,16 +97,16 @@ function LeafletMap({
   // Update markers when buses change
   useEffect(() => {
     if (!mapInstanceRef.current) {
-      console.log("Map not initialized yet");
+      logger.log("Map not initialized yet");
       return;
     }
     
     if (buses.length === 0) {
-      console.log("No buses data");
+      logger.log("No buses data");
       return;
     }
 
-    console.log(`Adding ${buses.length} bus markers to map`);
+    logger.log(`Adding ${buses.length} bus markers to map`);
 
     import("leaflet").then((L) => {
       // Clear existing bus markers only (keep location marker)
@@ -113,7 +115,7 @@ function LeafletMap({
 
       // Add bus markers with line numbers and destinations
       buses.forEach((bus) => {
-        console.log(`Adding marker for bus ${bus.routeShortName} at [${bus.lat}, ${bus.lon}]`);
+        logger.log(`Adding marker for bus ${bus.routeShortName} at [${bus.lat}, ${bus.lon}]`);
         
         const destinationText = bus.routeLongName || 'Destino desconhecido';
         
@@ -202,7 +204,7 @@ function LeafletMap({
         markersRef.current.push(marker);
       });
       
-      console.log(`Successfully added ${markersRef.current.length} markers`);
+      logger.log(`Successfully added ${markersRef.current.length} markers`);
     });
   }, [buses]);
 
@@ -221,7 +223,7 @@ function LeafletMap({
         return;
       }
 
-      console.log(`Adding ${stops.length} stop markers to map`);
+      logger.log(`Adding ${stops.length} stop markers to map`);
 
       // Add stop markers
       stops.forEach((stop) => {
@@ -263,7 +265,7 @@ function LeafletMap({
         stopMarkersRef.current.push(marker);
       });
 
-      console.log(`Successfully added ${stopMarkersRef.current.length} stop markers`);
+      logger.log(`Successfully added ${stopMarkersRef.current.length} stop markers`);
     });
   }, [stops, showStops]);
 
@@ -320,13 +322,17 @@ export default function MapPage() {
     revalidateOnFocus: true,
   });
 
-  const { data: stopsData, error: stopsError } = useSWR<StopsResponse>("/api/stations", fetcher, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    dedupingInterval: 30 * 24 * 60 * 60 * 1000, // 30 days - don't refetch within this period
-    revalidateIfStale: false, // Don't revalidate even if stale
-    revalidateOnMount: true, // Only fetch once on mount
-  });
+  // Only fetch stations when user wants to show stops (deferred loading for performance)
+  const { data: stopsData, error: stopsError } = useSWR<StopsResponse>(
+    showStops ? "/api/stations" : null,  // Conditional fetching
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 30 * 24 * 60 * 60 * 1000, // 30 days - don't refetch within this period
+      revalidateIfStale: false, // Don't revalidate even if stale
+    }
+  );
 
   const handleLocateMe = () => {
     setIsLocating(true);
@@ -346,12 +352,12 @@ export default function MapPage() {
       },
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
-          console.log(translations.map.locationPermissionDenied);
+          logger.log(translations.map.locationPermissionDenied);
         } else {
           setLocationError(translations.map.unableToGetLocation);
         }
         setIsLocating(false);
-        console.error("Geolocation error:", error);
+        logger.error("Geolocation error:", error);
       },
       {
         enableHighAccuracy: true,
@@ -375,7 +381,7 @@ export default function MapPage() {
           setUserLocation([latitude, longitude]);
         },
         (error) => {
-          console.log(translations.map.locationRefreshFailed);
+          logger.log(translations.map.locationRefreshFailed);
         },
         {
           enableHighAccuracy: true,
@@ -437,23 +443,7 @@ export default function MapPage() {
   };
 
   if (!isMounted) {
-    return (
-      <div className="h-screen w-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
-        <header className="bg-white shadow-sm z-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <div className="flex justify-between items-center">
-              <h1 className="text-xl font-bold text-gray-900">Live Bus Map</h1>
-              <Link href="/stations" className="text-blue-600 hover:text-blue-800 font-medium text-sm">
-                📍 Stations
-              </Link>
-            </div>
-          </div>
-        </header>
-        <div className="flex-1 flex justify-center items-center">
-          <p className="text-gray-600">{translations.map.loading}</p>
-        </div>
-      </div>
-    );
+    return <MapSkeleton />;
   }
 
   return (

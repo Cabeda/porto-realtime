@@ -7,6 +7,8 @@ import Image from "next/image";
 import star from "../star-white.svg";
 import { useRouter } from "next/navigation";
 import { translations } from "@/lib/translations";
+import { logger } from "@/lib/logger";
+import { StationsSkeleton } from "@/components/LoadingSkeletons";
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -39,7 +41,7 @@ export default function Home() {
         });
       });
     } else {
-      console.log(translations.stations.geolocationNotSupported);
+      logger.log(translations.stations.geolocationNotSupported);
     }
   }, []);
 
@@ -119,7 +121,7 @@ export default function Home() {
   };
 
   if (stationsError) return <div>{translations.stations.errorLoading}</div>;
-  if (!stations) return <div>{translations.stations.loading}</div>;
+  if (!stations) return <StationsSkeleton />;
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-8">
