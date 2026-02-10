@@ -305,7 +305,15 @@ export default function MapPage() {
   const [isLocating, setIsLocating] = useState(false);
   const [showStops, setShowStops] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedRoutes, setSelectedRoutes] = useState<string[]>([]);
+  
+  // Load selected routes from localStorage on mount
+  const [selectedRoutes, setSelectedRoutes] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("selectedRoutes");
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
 
   const { data, error, isLoading, mutate } = useSWR<BusesResponse>("/api/buses", fetcher, {
     refreshInterval: 30000,
@@ -389,6 +397,13 @@ export default function MapPage() {
     // Automatically request user location on page load
     handleLocateMe();
   }, []);
+
+  // Persist selected routes to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("selectedRoutes", JSON.stringify(selectedRoutes));
+    }
+  }, [selectedRoutes]);
 
   // Get unique routes from bus data
   const availableRoutes = data?.buses 
