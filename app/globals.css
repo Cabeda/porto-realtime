@@ -46,6 +46,34 @@ body {
   box-shadow: none !important;
 }
 
+/* Custom bus marker with destination label */
+.custom-bus-marker-with-destination {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Responsive bus marker adjustments */
+@media (max-width: 768px) {
+  /* On mobile, markers might overlap, so we add better spacing */
+  .custom-bus-marker-with-destination {
+    z-index: 1000;
+  }
+  
+  /* Ensure destination labels don't overflow on small screens */
+  .custom-bus-marker-with-destination .destination-label {
+    max-width: 120px !important;
+    font-size: 10px !important;
+  }
+}
+
+/* Hover effect for bus markers */
+.leaflet-marker-icon:hover {
+  z-index: 10000 !important;
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
 .bus-marker {
   position: relative;
   display: flex;

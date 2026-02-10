@@ -109,45 +109,77 @@ function LeafletMap({
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
 
-      // Add bus markers with line numbers
+      // Add bus markers with line numbers and destinations
       buses.forEach((bus) => {
         console.log(`Adding marker for bus ${bus.routeShortName} at [${bus.lat}, ${bus.lon}]`);
         
-        // Create custom icon with line number and tooltip showing destination
+        const destinationText = bus.routeLongName || 'Destino desconhecido';
+        
+        // Truncate destination for display (keep it short for mobile)
+        const truncatedDestination = destinationText.length > 20 
+          ? destinationText.substring(0, 17) + '...' 
+          : destinationText;
+        
+        // Create custom icon with line number AND destination
         const busIcon = L.divIcon({
           html: `
             <div style="
-              position: relative;
-              width: 48px;
-              height: 32px;
-              background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-              border: 2px solid white;
-              border-radius: 6px;
               display: flex;
               align-items: center;
-              justify-content: center;
-              box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-              font-weight: bold;
-              font-size: 14px;
-              color: white;
-              font-family: system-ui, -apple-system, sans-serif;
-              cursor: pointer;
-              transition: transform 0.2s;
+              gap: 4px;
+              filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
             ">
-              ${bus.routeShortName}
+              <!-- Line number badge -->
+              <div style="
+                min-width: 44px;
+                height: 32px;
+                background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+                border: 2px solid white;
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 14px;
+                color: white;
+                font-family: system-ui, -apple-system, sans-serif;
+                cursor: pointer;
+                padding: 0 6px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+              ">
+                ${bus.routeShortName}
+              </div>
+              
+              <!-- Destination label -->
+              <div style="
+                background: rgba(255, 255, 255, 0.98);
+                border: 1px solid #cbd5e1;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 11px;
+                font-weight: 600;
+                color: #1e40af;
+                font-family: system-ui, -apple-system, sans-serif;
+                white-space: nowrap;
+                cursor: pointer;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+                max-width: 150px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              ">
+                → ${truncatedDestination}
+              </div>
             </div>
           `,
-          className: "custom-bus-marker",
-          iconSize: [48, 32],
+          className: "custom-bus-marker-with-destination",
+          iconSize: [210, 32],
           iconAnchor: [24, 16],
-          popupAnchor: [0, -16],
+          popupAnchor: [80, -16],
         });
 
-        const destinationText = bus.routeLongName || 'Destino desconhecido';
-        
         const marker = L.marker([bus.lat, bus.lon], { 
           icon: busIcon,
-          title: `Linha ${bus.routeShortName} → ${destinationText}` // Tooltip on hover
+          title: `Linha ${bus.routeShortName} → ${destinationText}` // Full tooltip on hover
         })
           .addTo(mapInstanceRef.current)
           .bindPopup(`
