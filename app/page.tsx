@@ -305,6 +305,7 @@ export default function MapPage() {
   const [isLocating, setIsLocating] = useState(false);
   const [showStops, setShowStops] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedRoutes, setSelectedRoutes] = useState<string[]>([]);
 
   const { data, error, isLoading, mutate } = useSWR<BusesResponse>("/api/buses", fetcher, {
     refreshInterval: 30000,
@@ -389,6 +390,37 @@ export default function MapPage() {
     handleLocateMe();
   }, []);
 
+  // Get unique routes from bus data
+  const availableRoutes = data?.buses 
+    ? Array.from(new Set(data.buses.map(bus => bus.routeShortName)))
+        .sort((a, b) => {
+          // Sort numerically if both are numbers, otherwise alphabetically
+          const aNum = parseInt(a);
+          const bNum = parseInt(b);
+          if (!isNaN(aNum) && !isNaN(bNum)) {
+            return aNum - bNum;
+          }
+          return a.localeCompare(b);
+        })
+    : [];
+
+  // Filter buses based on selected routes
+  const filteredBuses = data?.buses && selectedRoutes.length > 0
+    ? data.buses.filter(bus => selectedRoutes.includes(bus.routeShortName))
+    : data?.buses || [];
+
+  const toggleRoute = (route: string) => {
+    setSelectedRoutes(prev => 
+      prev.includes(route) 
+        ? prev.filter(r => r !== route)
+        : [...prev, route]
+    );
+  };
+
+  const clearRouteFilters = () => {
+    setSelectedRoutes([]);
+  };
+
   if (!isMounted) {
     return (
       <div className="h-screen w-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
@@ -426,7 +458,12 @@ export default function MapPage() {
                 )}
               </h1>
               <p className="text-xs text-gray-600">
-                {data ? translations.map.busesCount(data.buses.length) : translations.map.loading}
+                {data ? (
+                  <>
+                    {translations.map.busesCount(filteredBuses.length)}
+                    {selectedRoutes.length > 0 && <span className="text-gray-500"> / {data.buses.length} total</span>}
+                  </>
+                ) : translations.map.loading}
                 {data && " • Atualiza a cada 30s"}
                 {!isRefreshing && <span className="text-gray-400 ml-1">(clique no título para atualizar)</span>}
               </p>
@@ -440,6 +477,44 @@ export default function MapPage() {
 
       <main className="flex-1 relative">
         <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+          {/* Route Filter Dropdown */}
+          {availableRoutes.length > 0 && (
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 max-h-[400px] overflow-y-auto">
+              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200">
+                <span className="font-semibold text-gray-700 text-sm">🚌 {translations.map.filterRoutes}</span>
+                {selectedRoutes.length > 0 && (
+                  <button
+                    onClick={clearRouteFilters}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    {translations.map.clearFilters}
+                  </button>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 mb-2">
+                {selectedRoutes.length > 0 
+                  ? translations.map.routesSelected(selectedRoutes.length)
+                  : translations.map.allRoutes
+                }
+              </div>
+              <div className="grid grid-cols-3 gap-2 max-w-[280px]">
+                {availableRoutes.map(route => (
+                  <button
+                    key={route}
+                    onClick={() => toggleRoute(route)}
+                    className={`py-2 px-3 rounded-md text-sm font-semibold transition-all ${
+                      selectedRoutes.includes(route)
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    {route}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <button
             onClick={handleLocateMe}
             disabled={isLocating}
@@ -511,14 +586,14 @@ export default function MapPage() {
 
         {data && stopsData?.data?.stops ? (
           <LeafletMap 
-            buses={data.buses} 
+            buses={filteredBuses} 
             stops={stopsData.data.stops}
             userLocation={userLocation}
             showStops={showStops}
           />
         ) : data ? (
           <LeafletMap 
-            buses={data.buses} 
+            buses={filteredBuses} 
             stops={[]}
             userLocation={userLocation}
             showStops={false}

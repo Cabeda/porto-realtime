@@ -20,6 +20,10 @@ export const translations = {
     errorLoadingBuses: "Falha ao carregar dados de autocarros. Por favor, tente novamente mais tarde.",
     stopsUnavailableError: "Paragens de autocarro indisponíveis. O mapa mostra apenas autocarros.",
     loadingBusLocations: "A carregar localizações de autocarros...",
+    filterRoutes: "Filtrar linhas",
+    allRoutes: "Todas as linhas",
+    clearFilters: "Limpar filtros",
+    routesSelected: (count: number) => `${count} linha${count !== 1 ? 's' : ''} selecionada${count !== 1 ? 's' : ''}`,
   },
   
   // Stations page (/stations)
