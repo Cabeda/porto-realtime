@@ -270,8 +270,9 @@ export default function MapPage() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [showStops, setShowStops] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data, error, isLoading } = useSWR<BusesResponse>("/api/buses", fetcher, {
+  const { data, error, isLoading, mutate } = useSWR<BusesResponse>("/api/buses", fetcher, {
     refreshInterval: 30000,
     revalidateOnFocus: true,
   });
@@ -314,6 +315,36 @@ export default function MapPage() {
     );
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
+    // Refresh bus data
+    await mutate();
+    
+    // Refresh user location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation([latitude, longitude]);
+        },
+        (error) => {
+          console.log("Location refresh failed, keeping current location");
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        }
+      );
+    }
+    
+    // Keep refresh indicator for at least 500ms so user sees the feedback
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 500);
+  };
+
   useEffect(() => {
     setIsMounted(true);
 
@@ -350,10 +381,20 @@ export default function MapPage() {
         <div className="px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Live Bus Map</h1>
+              <h1 
+                className="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors flex items-center gap-2"
+                onClick={handleRefresh}
+                title="Click to refresh buses and location"
+              >
+                Live Bus Map
+                {isRefreshing && (
+                  <span className="animate-spin text-base">🔄</span>
+                )}
+              </h1>
               <p className="text-xs text-gray-600">
                 {data ? `${data.buses.length} buses` : "Loading..."}
                 {data && " • Updates every 30s"}
+                {!isRefreshing && <span className="text-gray-400 ml-1">(click title to refresh)</span>}
               </p>
             </div>
             <Link href="/" className="text-blue-600 hover:text-blue-800 font-medium text-sm">
