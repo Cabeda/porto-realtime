@@ -29,7 +29,10 @@ interface OTPRoute {
   gtfsId: string;
   shortName: string;
   longName: string;
-  patterns: Array<{ headsign: string }>;
+  patterns: Array<{ 
+    headsign: string;
+    directionId: number;
+  }>;
 }
 
 interface OTPResponse {
@@ -38,12 +41,17 @@ interface OTPResponse {
   };
 }
 
+interface RouteDirectionMap {
+  destinations: string[];
+  directionHeadsigns: Map<number, string[]>; // directionId -> headsigns
+}
+
 // Cache for route destinations (in-memory cache)
-let routeDestinationsCache: Map<string, string[]> | null = null;
+let routeDestinationsCache: Map<string, RouteDirectionMap> | null = null;
 let cacheTimestamp = 0;
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-async function fetchRouteDestinations(): Promise<Map<string, string[]>> {
+async function fetchRouteDestinations(): Promise<Map<string, RouteDirectionMap>> {
   const now = Date.now();
   
   // Return cached data if still valid
@@ -61,7 +69,7 @@ async function fetchRouteDestinations(): Promise<Map<string, string[]>> {
           Origin: "https://explore.porto.pt",
         },
         body: JSON.stringify({
-          query: `query { routes { gtfsId shortName longName patterns { headsign } } }`,
+          query: `query { routes { gtfsId shortName longName patterns { headsign directionId } } }`,
         }),
       }
     );
@@ -71,26 +79,39 @@ async function fetchRouteDestinations(): Promise<Map<string, string[]>> {
     }
 
     const data: OTPResponse = await response.json();
-    const routeMap = new Map<string, string[]>();
+    const routeMap = new Map<string, RouteDirectionMap>();
 
-    // Build a map of route shortName -> possible destinations
+    // Build a map of route shortName -> destinations and direction mappings
     data.data.routes.forEach((route) => {
-      const destinations = new Set<string>();
+      const allDestinations = new Set<string>();
+      const directionMap = new Map<number, string[]>();
       
       // Add longName as primary destination
       if (route.longName) {
-        destinations.add(route.longName);
+        allDestinations.add(route.longName);
       }
       
-      // Add all unique headsigns
+      // Group headsigns by directionId
       route.patterns.forEach((pattern) => {
         if (pattern.headsign) {
-          destinations.add(pattern.headsign);
+          allDestinations.add(pattern.headsign);
+          
+          if (!directionMap.has(pattern.directionId)) {
+            directionMap.set(pattern.directionId, []);
+          }
+          
+          const directionHeadsigns = directionMap.get(pattern.directionId)!;
+          if (!directionHeadsigns.includes(pattern.headsign)) {
+            directionHeadsigns.push(pattern.headsign);
+          }
         }
       });
 
-      if (destinations.size > 0) {
-        routeMap.set(route.shortName, Array.from(destinations));
+      if (allDestinations.size > 0) {
+        routeMap.set(route.shortName, {
+          destinations: Array.from(allDestinations),
+          directionHeadsigns: directionMap,
+        });
       }
     });
 
@@ -210,7 +231,22 @@ export default async function handler(
           }
         }
         
-        // Get destination from cache based on route number
+        // Extract direction from FIWARE annotations
+        // Example: annotations.value = ["stcp:route:700", "stcp:sentido:1"]
+        let directionId: number | null = null;
+        if (entity.annotations?.value && Array.isArray(entity.annotations.value)) {
+          const sentidoAnnotation = entity.annotations.value.find((ann: string) => 
+            typeof ann === 'string' && ann.startsWith('stcp:sentido:')
+          );
+          if (sentidoAnnotation) {
+            const match = sentidoAnnotation.match(/stcp:sentido:(\d+)/);
+            if (match && match[1]) {
+              directionId = parseInt(match[1], 10);
+            }
+          }
+        }
+        
+        // Get destination from cache based on route number and direction
         let routeLongName = 
           entity.routeLongName?.value ||
           entity.destination?.value ||
@@ -222,14 +258,16 @@ export default async function handler(
         
         // If no destination from FIWARE, try to get from OTP route data
         if (!routeLongName && routeDestinations.has(routeShortName)) {
-          const destinations = routeDestinations.get(routeShortName)!;
-          // Use the first destination (usually the main one from longName)
-          // or join multiple destinations
-          if (destinations.length === 1) {
-            routeLongName = destinations[0];
-          } else if (destinations.length > 1) {
-            // Show primary destination (first one, which is usually from longName)
-            routeLongName = destinations[0];
+          const routeData = routeDestinations.get(routeShortName)!;
+          
+          // If we have a direction, use it to get the specific headsign
+          if (directionId !== null && routeData.directionHeadsigns.has(directionId)) {
+            const directionHeadsigns = routeData.directionHeadsigns.get(directionId)!;
+            // Use the first headsign for this direction (most specific)
+            routeLongName = directionHeadsigns[0] || "";
+          } else {
+            // Fallback: use the first destination from all destinations
+            routeLongName = routeData.destinations[0] || "";
           }
         }
         
