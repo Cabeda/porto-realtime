@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import useSWR from "swr";
 import Link from "next/link";
+import "leaflet/dist/leaflet.css";
 
 interface Bus {
   id: string;
@@ -382,9 +383,6 @@ export default function MapPage() {
 
   useEffect(() => {
     setIsMounted(true);
-
-    // Import Leaflet CSS
-    import("leaflet/dist/leaflet.css");
 
     // Automatically request user location on page load
     handleLocateMe();
