@@ -67,15 +67,12 @@ const busesFetcher = async (url: string): Promise<BusesResponse> => {
   
   // If we have cached data, return it immediately while fetching fresh data in background
   if (cached) {
-    logger.log("Loading buses from localStorage cache");
-    
     // Fetch fresh data in background (don't await)
     fetch(url)
       .then((res) => res.json())
       .then((freshData) => {
         // Update cache with fresh data
         storage.set("cachedBuses", freshData, 0.033); // Expire in ~2 minutes (0.033 days)
-        logger.log("Updated buses cache with fresh data");
       })
       .catch((err) => {
         logger.error("Failed to update buses cache:", err);
@@ -85,7 +82,6 @@ const busesFetcher = async (url: string): Promise<BusesResponse> => {
   }
   
   // No cache - fetch from network
-  logger.log("Fetching buses from network (first time)");
   const response = await fetch(url);
   const data = await response.json();
   
@@ -102,15 +98,12 @@ const stationsFetcher = async (url: string): Promise<StopsResponse> => {
   
   // If we have cached data, return it immediately while fetching fresh data in background
   if (cached) {
-    logger.log("Loading stations from localStorage cache");
-    
     // Fetch fresh data in background (don't await)
     fetch(url)
       .then((res) => res.json())
       .then((freshData) => {
         // Update cache with fresh data
         storage.set("cachedStations", freshData, 7); // Expire in 7 days
-        logger.log("Updated stations cache with fresh data");
       })
       .catch((err) => {
         logger.error("Failed to update stations cache:", err);
@@ -120,7 +113,6 @@ const stationsFetcher = async (url: string): Promise<StopsResponse> => {
   }
   
   // No cache - fetch from network
-  logger.log("Fetching stations from network (first time)");
   const response = await fetch(url);
   const data = await response.json();
   
@@ -180,11 +172,13 @@ function LeafletMap({
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const busMarkersMapRef = useRef<Map<string, any>>(new Map()); // Map bus ID to marker
   const stopMarkersRef = useRef<any[]>([]);
   const locationMarkerRef = useRef<any>(null);
   const highlightedMarkerRef = useRef<any>(null);
   const routeLayersRef = useRef<any[]>([]);
+  const driftIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const busDataRef = useRef<Map<string, Bus>>(new Map()); // Track bus data for drift
   const [isMapReady, setIsMapReady] = useState(false);
 
   useEffect(() => {
@@ -214,7 +208,6 @@ function LeafletMap({
 
       // Mark map as ready to trigger bus markers rendering
       setIsMapReady(true);
-      logger.log("Map initialized and ready");
     });
 
     // Cleanup on unmount
@@ -226,122 +219,224 @@ function LeafletMap({
     };
   }, []); // Empty deps - only run once
 
-  // Update markers when buses change
-  useEffect(() => {
-    logger.log(`Bus markers useEffect triggered. Buses array length: ${buses.length}, Map initialized: ${!!mapInstanceRef.current}`);
+  // Helper: create bus icon HTML
+  const createBusIconHtml = (bus: Bus, routeColor: string) => {
+    const destinationText = bus.routeLongName || 'Destino desconhecido';
+    const truncatedDestination = destinationText.length > 20 
+      ? destinationText.substring(0, 17) + '...' 
+      : destinationText;
+    return `
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        transition: transform 0.3s ease;
+      ">
+        <!-- Line number badge -->
+        <div style="
+          min-width: 44px;
+          height: 32px;
+          background: ${routeColor};
+          border: 2px solid white;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 14px;
+          color: white;
+          font-family: system-ui, -apple-system, sans-serif;
+          cursor: pointer;
+          padding: 0 6px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        ">
+          ${bus.routeShortName}
+        </div>
+        
+        <!-- Destination label -->
+        <div style="
+          background: rgba(255, 255, 255, 0.98);
+          border: 1px solid #cbd5e1;
+          border-radius: 4px;
+          padding: 4px 8px;
+          font-size: 11px;
+          font-weight: 600;
+          color: #1e40af;
+          font-family: system-ui, -apple-system, sans-serif;
+          white-space: nowrap;
+          cursor: pointer;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+          max-width: 150px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        ">
+          ${truncatedDestination}
+        </div>
+      </div>
+    `;
+  };
+
+  // Helper: create bus popup HTML
+  const createBusPopupHtml = (bus: Bus) => {
+    const destinationText = bus.routeLongName || 'Destino desconhecido';
+    return `
+      <div class="bus-popup text-sm" style="min-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
+        <div class="bus-popup-title">
+          Linha ${bus.routeShortName}
+        </div>
+        <div class="bus-popup-destination">
+          → ${destinationText}
+        </div>
+        <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
+        ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
+        <div class="bus-popup-footer">
+          Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}
+        </div>
+      </div>
+    `;
+  };
+
+  // Smoothly animate a marker from current position to target over duration (ms)
+  const animateMarker = (marker: any, targetLat: number, targetLon: number, duration: number) => {
+    const start = marker.getLatLng();
+    const startTime = performance.now();
     
-    if (!mapInstanceRef.current) {
-      logger.log("Map not initialized yet");
+    const step = () => {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease-out cubic for natural deceleration
+      const eased = 1 - Math.pow(1 - progress, 3);
+      
+      const lat = start.lat + (targetLat - start.lat) * eased;
+      const lng = start.lng + (targetLon - start.lng) * eased;
+      marker.setLatLng([lat, lng]);
+      
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+    
+    requestAnimationFrame(step);
+  };
+
+  // Update markers when buses change - reuse existing markers for smooth transitions
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isMapReady) {
       return;
     }
     
     if (buses.length === 0) {
-      logger.log("No buses data");
       return;
     }
 
-    logger.log(`Adding ${buses.length} bus markers to map`);
+    // Stop any existing drift interval
+    if (driftIntervalRef.current) {
+      clearInterval(driftIntervalRef.current);
+      driftIntervalRef.current = null;
+    }
 
     import("leaflet").then((L) => {
-      // Clear existing bus markers only (keep location marker)
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-
-      // Add bus markers with line numbers and destinations
-      buses.forEach((bus) => {
-        
-        const destinationText = bus.routeLongName || 'Destino desconhecido';
-        
-        // Truncate destination for display (keep it short for mobile)
-        const truncatedDestination = destinationText.length > 20 
-          ? destinationText.substring(0, 17) + '...' 
-          : destinationText;
-        
-        // Get route color based on selected routes
-        const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
-        
-        // Create custom icon with line number AND destination
-        const busIcon = L.divIcon({
-          html: `
-            <div style="
-              display: flex;
-              align-items: center;
-              gap: 4px;
-              filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-            ">
-              <!-- Line number badge -->
-              <div style="
-                min-width: 44px;
-                height: 32px;
-                background: ${routeColor};
-                border: 2px solid white;
-                border-radius: 6px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: bold;
-                font-size: 14px;
-                color: white;
-                font-family: system-ui, -apple-system, sans-serif;
-                cursor: pointer;
-                padding: 0 6px;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-              ">
-                ${bus.routeShortName}
-              </div>
-              
-              <!-- Destination label -->
-              <div style="
-                background: rgba(255, 255, 255, 0.98);
-                border: 1px solid #cbd5e1;
-                border-radius: 4px;
-                padding: 4px 8px;
-                font-size: 11px;
-                font-weight: 600;
-                color: #1e40af;
-                font-family: system-ui, -apple-system, sans-serif;
-                white-space: nowrap;
-                cursor: pointer;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-                max-width: 150px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-              ">
-                ${truncatedDestination}
-              </div>
-            </div>
-          `,
-          className: "custom-bus-marker-with-destination",
-          iconSize: [210, 32],
-          iconAnchor: [24, 16],
-          popupAnchor: [80, -16],
-        });
-
-        const marker = L.marker([bus.lat, bus.lon], { 
-          icon: busIcon,
-          title: `Linha ${bus.routeShortName} → ${destinationText}` // Full tooltip on hover
-        })
-          .addTo(mapInstanceRef.current)
-          .bindPopup(`
-            <div class="bus-popup text-sm" style="min-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
-              <div class="bus-popup-title">
-                Linha ${bus.routeShortName}
-              </div>
-              <div class="bus-popup-destination">
-                → ${destinationText}
-              </div>
-              <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : '🛑 Parado'}</div>
-              ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
-              <div class="bus-popup-footer">
-                Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}
-              </div>
-            </div>
-          `);
-        markersRef.current.push(marker);
-      });
+      const currentBusIds = new Set(buses.map(b => b.id));
       
+      // Remove markers for buses no longer in the data
+      busMarkersMapRef.current.forEach((marker, id) => {
+        if (!currentBusIds.has(id)) {
+          marker.remove();
+          busMarkersMapRef.current.delete(id);
+        }
+      });
+
+      // Update or create markers for each bus
+      buses.forEach((bus) => {
+        const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
+        const destinationText = bus.routeLongName || 'Destino desconhecido';
+        const existingMarker = busMarkersMapRef.current.get(bus.id);
+
+        if (existingMarker) {
+          // Existing bus: animate to new position
+          animateMarker(existingMarker, bus.lat, bus.lon, 800);
+          
+          // Update icon (route color may have changed)
+          const busIcon = L.divIcon({
+            html: createBusIconHtml(bus, routeColor),
+            className: "custom-bus-marker-with-destination",
+            iconSize: [210, 32],
+            iconAnchor: [24, 16],
+            popupAnchor: [80, -16],
+          });
+          existingMarker.setIcon(busIcon);
+          
+          // Update popup content
+          existingMarker.setPopupContent(createBusPopupHtml(bus));
+        } else {
+          // New bus: create marker
+          const busIcon = L.divIcon({
+            html: createBusIconHtml(bus, routeColor),
+            className: "custom-bus-marker-with-destination",
+            iconSize: [210, 32],
+            iconAnchor: [24, 16],
+            popupAnchor: [80, -16],
+          });
+
+          const marker = L.marker([bus.lat, bus.lon], { 
+            icon: busIcon,
+            title: `Linha ${bus.routeShortName} → ${destinationText}`
+          })
+            .addTo(mapInstanceRef.current)
+            .bindPopup(createBusPopupHtml(bus));
+          
+          busMarkersMapRef.current.set(bus.id, marker);
+        }
+        
+        // Store bus data for drift calculation
+        busDataRef.current.set(bus.id, bus);
+      });
+
+      // Clean up bus data for removed buses
+      busDataRef.current.forEach((_, id) => {
+        if (!currentBusIds.has(id)) {
+          busDataRef.current.delete(id);
+        }
+      });
+
+      // Start drift simulation between refreshes
+      // Moves buses along their heading at 70% of reported speed
+      const DRIFT_INTERVAL_MS = 2000; // Update every 2 seconds
+      const SPEED_FACTOR = 0.7; // Use 70% of speed to undershoot rather than overshoot
+      
+      driftIntervalRef.current = setInterval(() => {
+        busDataRef.current.forEach((bus, id) => {
+          const marker = busMarkersMapRef.current.get(id);
+          if (!marker || bus.speed <= 1) return; // Skip stopped buses
+          
+          const current = marker.getLatLng();
+          // Convert heading to radians (heading: 0=North, 90=East)
+          const headingRad = (bus.heading * Math.PI) / 180;
+          // Speed in m/s, then distance per interval
+          const speedMs = (bus.speed * 1000) / 3600 * SPEED_FACTOR;
+          const distanceM = speedMs * (DRIFT_INTERVAL_MS / 1000);
+          
+          // Approximate lat/lon offset from distance
+          // 1 degree lat ≈ 111,320 meters
+          // 1 degree lon ≈ 111,320 * cos(lat) meters
+          const dLat = (distanceM * Math.cos(headingRad)) / 111320;
+          const dLon = (distanceM * Math.sin(headingRad)) / (111320 * Math.cos(current.lat * Math.PI / 180));
+          
+          // Smoothly drift to new position
+          animateMarker(marker, current.lat + dLat, current.lng + dLon, DRIFT_INTERVAL_MS * 0.8);
+        });
+      }, DRIFT_INTERVAL_MS);
     });
-  }, [buses, isMapReady, selectedRoutes]); // Re-render when route selection changes to update colors
+
+    // Cleanup drift on effect re-run or unmount
+    return () => {
+      if (driftIntervalRef.current) {
+        clearInterval(driftIntervalRef.current);
+        driftIntervalRef.current = null;
+      }
+    };
+  }, [buses, isMapReady, selectedRoutes]);
 
   // Update stop markers when stops or showStops change
   useEffect(() => {
@@ -357,8 +452,6 @@ function LeafletMap({
       if (!showStops || stops.length === 0) {
         return;
       }
-
-      logger.log(`Adding ${stops.length} stop markers to map`);
 
       // Add stop markers
       stops.forEach((stop) => {
@@ -399,8 +492,6 @@ function LeafletMap({
           `);
         stopMarkersRef.current.push(marker);
       });
-
-      logger.log(`Successfully added ${stopMarkersRef.current.length} stop markers`);
     });
   }, [stops, showStops, isMapReady]);
 
@@ -543,8 +634,6 @@ function LeafletMap({
         return;
       }
 
-      logger.log(`Rendering ${selectedRoutes.length} route paths`);
-
       // Use shared color mapping
       const routeColorMap = new Map<string, string>();
       selectedRoutes.forEach((route, index) => {
@@ -555,8 +644,6 @@ function LeafletMap({
       const relevantPatterns = routePatterns.filter((pattern) =>
         selectedRoutes.includes(pattern.routeShortName)
       );
-
-      logger.log(`Found ${relevantPatterns.length} patterns for selected routes`);
 
       // Draw polylines for each pattern
       relevantPatterns.forEach((pattern) => {
@@ -592,8 +679,6 @@ function LeafletMap({
         polyline.bringToBack();
         routeLayersRef.current.push(polyline);
       });
-
-      logger.log(`Successfully rendered ${routeLayersRef.current.length} route polylines`);
     });
   }, [routePatterns, selectedRoutes, showRoutes, isMapReady]);
 
@@ -679,7 +764,7 @@ function MapPageContent() {
       },
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
-          logger.log(translations.map.locationPermissionDenied);
+          logger.warn(translations.map.locationPermissionDenied);
         } else {
           setLocationError(translations.map.unableToGetLocation);
         }
@@ -708,7 +793,7 @@ function MapPageContent() {
           setUserLocation([latitude, longitude]);
         },
         (error) => {
-          logger.log(translations.map.locationRefreshFailed);
+          logger.warn(translations.map.locationRefreshFailed);
         },
         {
           enableHighAccuracy: true,
@@ -756,11 +841,6 @@ function MapPageContent() {
   const filteredBuses = data?.buses && selectedRoutes.length > 0
     ? data.buses.filter(bus => selectedRoutes.includes(bus.routeShortName))
     : data?.buses || [];
-
-  // Log when bus data changes
-  useEffect(() => {
-    logger.log(`Bus data updated. Total buses: ${data?.buses?.length || 0}, Filtered buses: ${filteredBuses.length}, Selected routes: ${selectedRoutes.length}`);
-  }, [data, filteredBuses.length, selectedRoutes.length]);
 
   const toggleRoute = (route: string) => {
     setSelectedRoutes(prev => 

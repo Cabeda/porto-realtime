@@ -18,8 +18,6 @@ const stationsFetcher = async (url: string) => {
   const cached = storage.get<any>("cachedStations");
   
   if (cached) {
-    logger.log("Loading stations from localStorage cache");
-    
     // Fetch fresh data in background
     fetch(url)
       .then((res) => {
@@ -28,7 +26,6 @@ const stationsFetcher = async (url: string) => {
       })
       .then((freshData) => {
         storage.set("cachedStations", freshData, 7);
-        logger.log("Updated stations cache with fresh data");
       })
       .catch((err) => {
         logger.error("Failed to update stations cache:", err);
@@ -38,7 +35,6 @@ const stationsFetcher = async (url: string) => {
   }
   
   // No cache - fetch from network
-  logger.log("Fetching stations from network (first time)");
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(translations.stations.errorLoading);
@@ -74,7 +70,7 @@ export default function Home() {
         });
       });
     } else {
-      logger.log(translations.stations.geolocationNotSupported);
+      logger.warn(translations.stations.geolocationNotSupported);
     }
   }, []);
 
