@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Porto Bus - Mapa em Tempo Real",
   description: "Mapa de autocarros em tempo real no Porto. Veja onde estão os autocarros e horários das paragens.",
-  manifest: "/site.webmanifest",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -47,7 +48,10 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://otp.services.porto.digital" />
         <link rel="dns-prefetch" href="https://opendata.porto.digital" />
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {children}
+        <PWAInstallPrompt />
+      </body>
     </html>
   );
 }

@@ -31,6 +31,40 @@ body {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
 }
 
+/* Dark mode for Leaflet popups */
+.dark .leaflet-popup-content-wrapper {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #f3f4f6 !important; /* gray-100 */
+  border: 1px solid #374151 !important; /* gray-700 */
+}
+
+.dark .leaflet-popup-tip {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+.dark .leaflet-popup-content a {
+  color: #60a5fa !important; /* blue-400 */
+}
+
+.dark .leaflet-popup-content a:hover {
+  color: #93c5fd !important; /* blue-300 */
+}
+
+/* Dark mode for Leaflet controls */
+.dark .leaflet-control-zoom a {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #f3f4f6 !important; /* gray-100 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+.dark .leaflet-control-zoom a:hover {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+.dark .leaflet-bar {
+  border: 1px solid #374151 !important; /* gray-700 */
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
