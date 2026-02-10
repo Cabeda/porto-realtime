@@ -89,9 +89,15 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center justify-between">
+      <div className="w-full max-w-5xl">
+        <div className="flex items-center justify-between mb-8">
           <h1 className="text-4xl font-bold">Porto Explore</h1>
+          <Link 
+            href="/map"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
+          >
+            🗺️ Live Bus Map
+          </Link>
         </div>
       </div>
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
