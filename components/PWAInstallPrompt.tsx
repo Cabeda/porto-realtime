@@ -7,6 +7,7 @@ export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState<string>("");
 
   useEffect(() => {
     // Register service worker
@@ -16,20 +17,24 @@ export function PWAInstallPrompt() {
         .then((registration) => {
           console.log('[PWA] Service Worker registered:', registration.scope);
           
-          // Check for updates periodically (every 60 seconds)
+          // More aggressive update checking - every 30 seconds
           setInterval(() => {
+            console.log('[PWA] Checking for updates...');
             registration.update();
-          }, 60000);
+          }, 30000);
 
           // Listen for update found
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
             if (!newWorker) return;
 
+            console.log('[PWA] Update found, new worker installing...');
+
             newWorker.addEventListener('statechange', () => {
+              console.log('[PWA] New worker state:', newWorker.state);
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // New service worker available
-                console.log('[PWA] New version available');
+                console.log('[PWA] New version available - showing update prompt');
                 setUpdateAvailable(true);
                 setShowUpdatePrompt(true);
               }
@@ -47,6 +52,7 @@ export function PWAInstallPrompt() {
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data && event.data.type === 'SW_UPDATED') {
           console.log('[PWA] Service Worker updated to version:', event.data.version);
+          setCurrentVersion(event.data.version || '');
           // Show update notification
           setUpdateAvailable(true);
           setShowUpdatePrompt(true);
@@ -113,17 +119,28 @@ export function PWAInstallPrompt() {
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.getRegistration().then((registration) => {
         if (registration?.waiting) {
+          console.log('[PWA] Telling waiting worker to skip waiting...');
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });
         } else {
           // If no waiting worker, just reload
+          console.log('[PWA] No waiting worker, forcing reload...');
           window.location.reload();
         }
       });
+    } else {
+      // Fallback: just reload
+      window.location.reload();
     }
   };
 
   const handleDismissUpdate = () => {
     setShowUpdatePrompt(false);
+    // Show again in 5 minutes if user dismisses
+    setTimeout(() => {
+      if (updateAvailable) {
+        setShowUpdatePrompt(true);
+      }
+    }, 5 * 60 * 1000);
   };
 
   return (
@@ -161,33 +178,37 @@ export function PWAInstallPrompt() {
         </div>
       )}
 
-      {/* Update Prompt */}
+      {/* Update Prompt - Persistent and more visible */}
       {showUpdatePrompt && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[10000] max-w-md w-full px-4">
-          <div className="bg-green-50 dark:bg-green-900/30 rounded-lg shadow-2xl border-2 border-green-500 dark:border-green-600 p-4">
-            <div className="flex items-start gap-3">
-              <div className="text-3xl">🔄</div>
-              <div className="flex-1">
-                <h3 className="font-bold text-green-900 dark:text-green-100 mb-1">
-                  Nova Versão Disponível
-                </h3>
-                <p className="text-sm text-green-700 dark:text-green-300 mb-3">
-                  Uma nova versão da aplicação está disponível. Atualize para obter as últimas funcionalidades.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleUpdate}
-                    className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors text-sm font-semibold"
-                  >
-                    Atualizar Agora
-                  </button>
-                  <button
-                    onClick={handleDismissUpdate}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm font-semibold"
-                  >
-                    Mais tarde
-                  </button>
+        <div className="fixed top-0 left-0 right-0 z-[10001] bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg">
+          <div className="max-w-screen-xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="text-2xl animate-bounce">🎉</div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-white text-sm sm:text-base">
+                    Nova Versão Disponível!
+                    {currentVersion && <span className="ml-2 text-xs opacity-90">v{currentVersion}</span>}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-green-50 hidden sm:block">
+                    Clique em atualizar para obter as últimas melhorias
+                  </p>
                 </div>
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                <button
+                  onClick={handleUpdate}
+                  className="px-4 py-2 bg-white text-green-600 rounded-lg hover:bg-green-50 transition-colors text-sm font-bold shadow-md"
+                >
+                  ✨ Atualizar
+                </button>
+                <button
+                  onClick={handleDismissUpdate}
+                  className="px-3 py-2 bg-green-600/50 hover:bg-green-600/70 text-white rounded-lg transition-colors text-sm"
+                  title="Lembrar mais tarde"
+                >
+                  ✕
+                </button>
               </div>
             </div>
           </div>

@@ -1238,6 +1238,10 @@ function MapPageContent() {
                 <div className="text-xs text-gray-500 dark:text-gray-400 pt-2">
                   Dados fornecidos pela API OpenTripPlanner do Porto
                 </div>
+
+                <div className="text-xs text-gray-400 dark:text-gray-500 pt-2 font-mono">
+                  Versão: {process.env.NEXT_PUBLIC_APP_VERSION || '2.0.0'}
+                </div>
               </div>
             </div>
           </div>

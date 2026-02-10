@@ -1,7 +1,8 @@
-// Build timestamp - updated on each deployment
-const BUILD_VERSION = '1770743446809'; // Will be replaced during build
-const CACHE_NAME = `porto-realtime-v${BUILD_VERSION}`;
-const RUNTIME_CACHE = `porto-realtime-runtime-v${BUILD_VERSION}`;
+// Build version - updated automatically during build
+const APP_VERSION = '{{APP_VERSION}}';
+const BUILD_TIMESTAMP = '{{BUILD_TIMESTAMP}}';
+const CACHE_NAME = `porto-realtime-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
+const RUNTIME_CACHE = `porto-realtime-runtime-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -20,7 +21,7 @@ self.addEventListener('message', (event) => {
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing version:', BUILD_VERSION);
+  console.log('[Service Worker] Installing version:', APP_VERSION, 'Build:', BUILD_TIMESTAMP);
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[Service Worker] Caching static assets');
@@ -34,7 +35,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating version:', BUILD_VERSION);
+  console.log('[Service Worker] Activating version:', APP_VERSION, 'Build:', BUILD_TIMESTAMP);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -51,7 +52,8 @@ self.addEventListener('activate', (event) => {
         clients.forEach((client) => {
           client.postMessage({
             type: 'SW_UPDATED',
-            version: BUILD_VERSION
+            version: APP_VERSION,
+            buildTimestamp: BUILD_TIMESTAMP
           });
         });
       });
