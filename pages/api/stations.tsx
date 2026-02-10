@@ -16,10 +16,14 @@ interface QueryResult {
 export default async function handler(req: any, res: any): Promise<any> {
   const url =
     "https://otp.services.porto.digital/otp/routers/default/index/graphql";
+  
+  // Cache for 30 days (2,592,000 seconds)
+  const CACHE_DURATION = 30 * 24 * 60 * 60; // 30 days in seconds
+  
   const options = {
     method: "POST",
     next: {
-      revalidate: 604800,
+      revalidate: CACHE_DURATION, // 30 days
     },
     headers: {
       Accept: "*/*",
@@ -55,8 +59,16 @@ export default async function handler(req: any, res: any): Promise<any> {
   const data: QueryResult = await response.json();
 
   if (response.ok) {
+    // Set cache headers for browser and CDN caching
+    // Cache for 30 days, allow stale content for 7 days while revalidating
+    res.setHeader(
+      'Cache-Control',
+      `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${7 * 24 * 60 * 60}`
+    );
     res.status(200).json(data);
   } else {
+    // Don't cache errors
+    res.setHeader('Cache-Control', 'no-cache');
     res.status(response.status).json(data);
   }
 }

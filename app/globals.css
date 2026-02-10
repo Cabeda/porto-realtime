@@ -26,8 +26,256 @@ body {
     rgb(var(--background-start-rgb));
 }
 
+/* Dark mode for Leaflet map */
+.dark .leaflet-tile-pane {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+/* Dark mode for Leaflet popups */
+.dark .leaflet-popup-content-wrapper {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #f3f4f6 !important; /* gray-100 */
+  border: 1px solid #374151 !important; /* gray-700 */
+}
+
+.dark .leaflet-popup-tip {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+.dark .leaflet-popup-content a {
+  color: #60a5fa !important; /* blue-400 */
+}
+
+.dark .leaflet-popup-content a:hover {
+  color: #93c5fd !important; /* blue-300 */
+}
+
+/* Popup content styling for both light and dark modes */
+.bus-popup-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #3b82f6;
+  margin-bottom: 4px;
+}
+
+.dark .bus-popup-title {
+  color: #93c5fd; /* Brighter blue for dark mode */
+}
+
+.bus-popup-destination {
+  font-size: 15px;
+  font-weight: 600;
+  color: #60a5fa;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(229, 231, 235, 0.3);
+}
+
+.dark .bus-popup-destination {
+  color: #93c5fd; /* Brighter blue for dark mode */
+}
+
+
+
+.bus-popup-info {
+  margin-bottom: 4px;
+}
+
+.bus-popup-footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(229, 231, 235, 0.3);
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.dark .bus-popup-footer {
+  border-top-color: rgba(156, 163, 175, 0.3);
+}
+
+.stop-popup-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #ef4444;
+  margin-bottom: 6px;
+}
+
+.dark .stop-popup-title {
+  color: #fca5a5; /* Brighter red for dark mode */
+}
+
+.stop-popup-code {
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.stop-popup-desc {
+  margin-bottom: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.stop-popup-link {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.stop-popup-link:hover {
+  background: #2563eb;
+}
+
+.route-popup-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.route-popup-headsign {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.route-popup-desc {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* Dark mode for Leaflet controls */
+.dark .leaflet-control-zoom a {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #f3f4f6 !important; /* gray-100 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+.dark .leaflet-control-zoom a:hover {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+.dark .leaflet-bar {
+  border: 1px solid #374151 !important; /* gray-700 */
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* Custom bus icon styling - removes default marker styling */
+.custom-bus-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Custom bus marker with line number */
+.custom-bus-marker {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Custom bus marker with destination label */
+.custom-bus-marker-with-destination {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Responsive bus marker adjustments */
+@media (max-width: 768px) {
+  /* On mobile, markers might overlap, so we add better spacing */
+  .custom-bus-marker-with-destination {
+    z-index: 1000;
+  }
+  
+  /* Ensure destination labels don't overflow on small screens */
+  .custom-bus-marker-with-destination .destination-label {
+    max-width: 120px !important;
+    font-size: 10px !important;
+  }
+}
+
+/* Hover effect for bus markers */
+.leaflet-marker-icon:hover {
+  z-index: 10000 !important;
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+.bus-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.bus-icon-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.bus-icon-container svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 40px;
+}
+
+.bus-line-number {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: bold;
+  font-size: 12px;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  z-index: 10;
+  line-height: 1;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Custom location icon styling */
+.custom-location-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove the default leaflet marker shadow */
+.leaflet-marker-shadow {
+  display: none !important;
+}
+
+/* Ensure map controls are properly styled */
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+}
+
+.leaflet-control-zoom a {
+  border: none !important;
+  background-color: white !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: #f3f4f6 !important;
 }

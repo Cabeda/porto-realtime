@@ -1,36 +1,109 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Porto Bus - Mapa em Tempo Real
+
+Real-time public transit tracker for Porto, Portugal. View live bus positions on an interactive map, check departure times, and save favorite stations.
+
+## Features
+
+- **🗺️ Live Bus Map**: Interactive map showing real-time bus positions across Porto
+- **🚌 Real-time Tracking**: Bus locations update every 10 seconds
+- **📍 Geolocation**: Automatically finds the 5 closest stations
+- **⭐ Favorites**: Save frequently used stations with persistent storage
+- **🔍 Station Search**: Filter and browse all available stations
+- **⏱️ Auto-refresh**: Station pages update every 30 seconds
+- **📱 PWA Support**: Install as an app, works offline with intelligent caching
+- **🚀 Reliable**: API retry logic and stale data fallback for graceful degradation
+
+## Prerequisites
+
+This project uses **pnpm** as the package manager. Install it if you haven't already:
+
+```bash
+npm install -g pnpm
+```
+
+Or use the standalone script:
+
+```bash
+curl -fsSL https://get.pnpm.io/install.sh | sh -
+```
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Run the development server:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+Build for production:
 
-## Learn More
+```bash
+pnpm build
+```
 
-To learn more about Next.js, take a look at the following resources:
+Start production server:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm start
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-## Deploy on Vercel
+## Tech Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Next.js 16** - React framework with App Router and Turbopack
+- **React 18.3.1** - UI library
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Utility-first styling
+- **Leaflet** - Interactive maps
+- **SWR** - Data fetching with auto-revalidation
+- **GraphQL** - Porto OTP API integration
+- **PWA** - Progressive Web App with service worker
+- **pnpm** - Fast, disk space efficient package manager
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+## Pages
+
+- `/` - Live bus map (homepage)
+- `/stations` - Station list with search and favorites
+- `/station?gtfsId={id}` - Real-time departures for a specific station
+
+## API Routes
+
+- `/api/buses` - Fetches real-time bus positions from FIWARE Urban Platform
+- `/api/stations` - Fetches all transit stops (30-day cache)
+- `/api/station?gtfsId={id}` - Fetches real-time departures for a specific station (30s refresh)
+
+## Data Sources
+
+- **Transit Data**: Porto's OpenTripPlanner instance at `https://otp.services.porto.digital`
+- **Real-time Bus Positions**: FIWARE Urban Platform at `https://opendata.porto.digital`
+- **Map Tiles**: OpenStreetMap
+
+## Development
+
+This project enforces pnpm usage via the `preinstall` script. If you try to use npm or yarn, you'll get an error.
+
+To bypass this (not recommended):
+
+```bash
+# Temporarily disable preinstall check
+pnpm install --ignore-scripts
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+## License
+
+This project is open source and available under the MIT License.
