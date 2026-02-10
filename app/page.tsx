@@ -60,6 +60,41 @@ interface RoutePatternsResponse {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+// Fetcher with localStorage fallback for buses (short cache for instant load)
+const busesFetcher = async (url: string): Promise<BusesResponse> => {
+  // Try to get from localStorage first (instant load)
+  const cached = storage.get<BusesResponse>("cachedBuses");
+  
+  // If we have cached data, return it immediately while fetching fresh data in background
+  if (cached) {
+    logger.log("Loading buses from localStorage cache");
+    
+    // Fetch fresh data in background (don't await)
+    fetch(url)
+      .then((res) => res.json())
+      .then((freshData) => {
+        // Update cache with fresh data
+        storage.set("cachedBuses", freshData, 0.033); // Expire in ~2 minutes (0.033 days)
+        logger.log("Updated buses cache with fresh data");
+      })
+      .catch((err) => {
+        logger.error("Failed to update buses cache:", err);
+      });
+    
+    return cached;
+  }
+  
+  // No cache - fetch from network
+  logger.log("Fetching buses from network (first time)");
+  const response = await fetch(url);
+  const data = await response.json();
+  
+  // Store in localStorage for next time
+  storage.set("cachedBuses", data, 0.033); // Expire in ~2 minutes
+  
+  return data;
+};
+
 // Fetcher with localStorage fallback for stations (they change infrequently)
 const stationsFetcher = async (url: string): Promise<StopsResponse> => {
   // Try to get from localStorage first (instant load)
@@ -93,6 +128,34 @@ const stationsFetcher = async (url: string): Promise<StopsResponse> => {
   storage.set("cachedStations", data, 7); // Expire in 7 days
   
   return data;
+};
+
+// Color palette for routes (vibrant colors that work in light and dark mode)
+const ROUTE_COLORS = [
+  '#3b82f6', // blue
+  '#ef4444', // red
+  '#10b981', // green
+  '#f59e0b', // amber
+  '#8b5cf6', // purple
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#f97316', // orange
+  '#06b6d4', // cyan
+  '#84cc16', // lime
+];
+
+// Helper function to get color for a route based on selected routes
+const getRouteColor = (routeShortName: string, selectedRoutes: string[]): string => {
+  if (selectedRoutes.length === 0) {
+    // Default color when no filters applied
+    return '#2563eb';
+  }
+  const index = selectedRoutes.indexOf(routeShortName);
+  if (index === -1) {
+    // Route not selected, use default
+    return '#2563eb';
+  }
+  return ROUTE_COLORS[index % ROUTE_COLORS.length];
 };
 
 // Wrapper component that prevents re-initialization
@@ -572,7 +635,7 @@ function MapPageContent() {
     return [];
   });
 
-  const { data, error, isLoading, mutate } = useSWR<BusesResponse>("/api/buses", fetcher, {
+  const { data, error, isLoading, mutate } = useSWR<BusesResponse>("/api/buses", busesFetcher, {
     refreshInterval: 30000,
     revalidateOnFocus: true,
   });
