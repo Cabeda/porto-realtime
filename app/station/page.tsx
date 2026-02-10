@@ -7,6 +7,7 @@ import liveWhite from "./live-white.svg"; // Already correct - file exists in ap
 import Image from "next/image";
 import router from "next/navigation";
 import Link from "next/link";
+import { translations } from "@/lib/translations";
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -45,17 +46,17 @@ function SearchStation() {
   };
 
   const diffText = (minutes: number) => {
-    return minutes > 0 ? `${minutes} min` : "Already left";
+    return minutes > 0 ? translations.station.minutes(minutes) : translations.station.alreadyLeft;
   };
 
-  if (error) return <div>Failed to load</div>;
-  if (!station) return <div>Loading...</div>;
+  if (error) return <div>{translations.station.noData}</div>;
+  if (!station) return <div>{translations.station.loading}</div>;
 
   return (
     <>
       <Link href="/">
       <button onClick={() => router} className="fixed top-0 left-0 mt-4 ml-4">
-      Back
+      Voltar
     </button>
     </Link>
     <main className="flex min-h-screen flex-col items-center justify-between p-8">
@@ -72,10 +73,10 @@ function SearchStation() {
             <table className="mt-4 w-full text-left">
               <thead className="hidden md:table-header-group">
                 <tr>
-                  <th>Leaves</th>
-                  <th>Route</th>
-                  <th>Destination</th>
-                  <th>Realtime</th>
+                  <th>{translations.station.leaves}</th>
+                  <th>{translations.station.route}</th>
+                  <th>{translations.station.destination}</th>
+                  <th>{translations.station.realtime}</th>
                 </tr>
               </thead>
               <tbody>
@@ -90,17 +91,17 @@ function SearchStation() {
                         className={`md:table-row block md:table-row rounded-lg shadow mb-4 p-4`}
                       >
                         <td className="block md:table-cell">
-                          <strong className="md:hidden">Leaves: </strong>
+                          <strong className="md:hidden">{translations.station.leaves}: </strong>
                           {diff > 10
                             ? convertToTime(item.realtimeDeparture)
                             : diffText(diff)}
                         </td>
                         <td className="block md:table-cell">
-                          <strong className="md:hidden">Route: </strong>
+                          <strong className="md:hidden">{translations.station.route}: </strong>
                           {item.trip.route.shortName}
                         </td>
                         <td className="block md:table-cell">
-                          <strong className="md:hidden">Destination: </strong>
+                          <strong className="md:hidden">{translations.station.destination}: </strong>
                           {item.trip.route.longName}
                         </td>
                         <td className="block md:table-cell">
@@ -117,7 +118,7 @@ function SearchStation() {
                                 width={24}
                                 height={24}
                               />
-                            <strong className="md:hidden">Realtime: </strong>
+                            <strong className="md:hidden">{translations.station.realtime}: </strong>
                             </div>
                           )}
                         </td>
@@ -137,7 +138,7 @@ function SearchStation() {
 
 export default function Station() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div>{translations.station.loading}</div>}>
       <SearchStation />
     </Suspense>
   );

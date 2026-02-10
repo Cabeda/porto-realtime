@@ -6,11 +6,12 @@ import useSWR from "swr";
 import Image from "next/image";
 import star from "../star-white.svg";
 import { useRouter } from "next/navigation";
+import { translations } from "@/lib/translations";
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error("An error occurred while fetching the data.");
+    throw new Error(translations.stations.errorLoading);
   }
   return response.json();
 };
@@ -38,7 +39,7 @@ export default function Home() {
         });
       });
     } else {
-      console.log("Geolocation is not supported by this browser.");
+      console.log(translations.stations.geolocationNotSupported);
     }
   }, []);
 
@@ -117,8 +118,8 @@ export default function Home() {
       .slice(0, 5);
   };
 
-  if (stationsError) return <div>Failed to load</div>;
-  if (!stations) return <div>Loading...</div>;
+  if (stationsError) return <div>{translations.stations.errorLoading}</div>;
+  if (!stations) return <div>{translations.stations.loading}</div>;
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-8">
@@ -129,14 +130,14 @@ export default function Home() {
             href="/"
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
           >
-            🗺️ Live Map
+            🗺️ {translations.nav.map}
           </Link>
         </div>
       </div>
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
         <div className="grid grid-flow-row mt-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold pt-12 pb-4">Closest Stations</h2>
+            <h2 className="text-2xl font-bold pt-12 pb-4">{translations.stations.closestStations}</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {stations &&
@@ -149,7 +150,7 @@ export default function Home() {
                     <Link href={`/station?gtfsId=${closeStation.gtfsId}`}>
                       <h3 className="text-xl font-bold">{closeStation.name}</h3>
                       <p>{closeStation.gtfsId}</p>
-                      <p>{closeStation.distance.toFixed(2)} km</p>
+                      <p>{closeStation.distance.toFixed(2)} {translations.stations.km}</p>
                     </Link>
                     <button
                       className={`mt-2 p-2 text-white rounded ${
@@ -161,8 +162,8 @@ export default function Home() {
                       }}
                       aria-label={
                         isFavorite(closeStation.gtfsId)
-                          ? "Remove from favorites"
-                          : "Add to favorites"
+                          ? translations.stations.removeFromFavorites
+                          : translations.stations.addToFavorites
                       }
                     >
                       <Image src={star} alt="Favorite" width={24} height={24} />
@@ -171,7 +172,7 @@ export default function Home() {
                 )
               )}
           </div>
-          <h2 className="text-2xl font-bold pt-12 pb-4">Favorite Stations</h2>
+          <h2 className="text-2xl font-bold pt-12 pb-4">{translations.stations.favorites}</h2>
           <div className="grid gap-4">
             {favoriteStations.length > 0 ? (
               favoriteStations.map((favoriteStation: any) => (
@@ -189,23 +190,23 @@ export default function Home() {
                       e.preventDefault();
                       toggleFavorite(favoriteStation.gtfsId);
                     }}
-                    aria-label="Remove from favorites"
+                    aria-label={translations.stations.removeFromFavorites}
                   >
-                    Remove
+                    {translations.stations.removeFromFavorites}
                   </button>
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 italic">No favorite stations yet. Click the star button to add stations to your favorites.</p>
+              <p className="text-gray-500 italic">{translations.stations.noFavoritesDesc}</p>
             )}
           </div>
 
-          <h2 className="text-2xl font-bold pt-12 pb-4">All Stations</h2>
+          <h2 className="text-2xl font-bold pt-12 pb-4">{translations.stations.allStations}</h2>
           <input
             type="text"
             value={filter}
             onChange={handleFilterChange}
-            placeholder="Filter stations by name"
+            placeholder={translations.stations.filterPlaceholder}
             className="p-2 border border-gray-300 rounded-md"
           />
           {stations &&
@@ -231,8 +232,8 @@ export default function Home() {
                       }}
                       aria-label={
                         isFavorite(station.gtfsId)
-                          ? "Remove from favorites"
-                          : "Add to favorites"
+                          ? translations.stations.removeFromFavorites
+                          : translations.stations.addToFavorites
                       }
                     >
                       <Image src={star} className="fill-current text-white" alt="Favorite" width={24} height={24} />

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import "leaflet/dist/leaflet.css";
+import { translations } from "@/lib/translations";
 
 interface Bus {
   id: string;
@@ -323,7 +324,7 @@ export default function MapPage() {
     setLocationError(null);
 
     if (!navigator.geolocation) {
-      setLocationError("Geolocation is not supported by your browser");
+      setLocationError(translations.map.geolocationNotSupported);
       setIsLocating(false);
       return;
     }
@@ -336,9 +337,9 @@ export default function MapPage() {
       },
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
-          console.log("Location permission denied - using default Porto location");
+          console.log(translations.map.locationPermissionDenied);
         } else {
-          setLocationError("Unable to retrieve your location");
+          setLocationError(translations.map.unableToGetLocation);
         }
         setIsLocating(false);
         console.error("Geolocation error:", error);
@@ -365,7 +366,7 @@ export default function MapPage() {
           setUserLocation([latitude, longitude]);
         },
         (error) => {
-          console.log("Location refresh failed, keeping current location");
+          console.log(translations.map.locationRefreshFailed);
         },
         {
           enableHighAccuracy: true,
@@ -402,7 +403,7 @@ export default function MapPage() {
           </div>
         </header>
         <div className="flex-1 flex justify-center items-center">
-          <p className="text-gray-600">Loading map...</p>
+          <p className="text-gray-600">{translations.map.loading}</p>
         </div>
       </div>
     );
@@ -417,21 +418,21 @@ export default function MapPage() {
               <h1 
                 className="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors flex items-center gap-2"
                 onClick={handleRefresh}
-                title="Click to refresh buses and location"
+                title={translations.map.refreshTitle}
               >
-                Live Bus Map
+                Mapa de Autocarros ao Vivo
                 {isRefreshing && (
                   <span className="animate-spin text-base">🔄</span>
                 )}
               </h1>
               <p className="text-xs text-gray-600">
-                {data ? `${data.buses.length} buses` : "Loading..."}
-                {data && " • Updates every 30s"}
-                {!isRefreshing && <span className="text-gray-400 ml-1">(click title to refresh)</span>}
+                {data ? translations.map.busesCount(data.buses.length) : translations.map.loading}
+                {data && " • Atualiza a cada 30s"}
+                {!isRefreshing && <span className="text-gray-400 ml-1">(clique no título para atualizar)</span>}
               </p>
             </div>
             <Link href="/stations" className="text-blue-600 hover:text-blue-800 font-medium text-sm">
-              📍 Stations
+              📍 {translations.nav.stations}
             </Link>
           </div>
         </div>
@@ -443,17 +444,17 @@ export default function MapPage() {
             onClick={handleLocateMe}
             disabled={isLocating}
             className="bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg shadow-lg border border-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Center map on my location"
+            title={translations.map.centerMapTitle}
           >
             {isLocating ? (
               <span className="flex items-center gap-2">
                 <span className="animate-spin">🔄</span>
-                <span className="text-sm">Locating...</span>
+                <span className="text-sm">Localizando...</span>
               </span>
             ) : (
               <span className="flex items-center gap-2">
                 <span>📍</span>
-                <span className="text-sm">My Location</span>
+                <span className="text-sm">Minha Localização</span>
               </span>
             )}
           </button>
@@ -468,15 +469,15 @@ export default function MapPage() {
             }`}
             title={
               !stopsData?.data?.stops 
-                ? "Stops data unavailable" 
+                ? translations.map.stopsUnavailable 
                 : showStops 
-                  ? "Hide bus stops" 
-                  : "Show bus stops"
+                  ? translations.map.hideStops 
+                  : translations.map.showStops
             }
           >
             <span className="flex items-center gap-2">
               <span>{showStops ? "🚏" : "🚏"}</span>
-              <span className="text-sm">{showStops ? "Hide Stops" : "Show Stops"}</span>
+              <span className="text-sm">{showStops ? translations.map.hideStops : translations.map.showStops}</span>
               {stopsData?.data?.stops && (
                 <span className="text-xs opacity-75">({stopsData.data.stops.length})</span>
               )}
@@ -486,13 +487,13 @@ export default function MapPage() {
 
         {error && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-50 border border-red-200 rounded-lg p-3 shadow-lg max-w-md">
-            <p className="text-red-800 text-sm">Failed to load bus data. Please try again later.</p>
+            <p className="text-red-800 text-sm">{translations.map.errorLoadingBuses}</p>
           </div>
         )}
 
         {stopsError && (
           <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 border border-yellow-200 rounded-lg p-3 shadow-lg max-w-md">
-            <p className="text-yellow-800 text-sm">Bus stops unavailable. Map shows buses only.</p>
+            <p className="text-yellow-800 text-sm">{translations.map.stopsUnavailableError}</p>
           </div>
         )}
 
@@ -504,7 +505,7 @@ export default function MapPage() {
 
         {isLoading && !data && (
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white rounded-lg shadow-lg p-6">
-            <p className="text-gray-600">Loading bus locations...</p>
+            <p className="text-gray-600">{translations.map.loadingBusLocations}</p>
           </div>
         )}
 
