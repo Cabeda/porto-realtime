@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import useSWR from "swr";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import "leaflet/dist/leaflet.css";
 import { translations } from "@/lib/translations";
 import { logger } from "@/lib/logger";
@@ -83,17 +84,20 @@ function LeafletMap({
   stops,
   userLocation,
   showStops,
+  highlightedStationId,
 }: {
   buses: Bus[];
   stops: Stop[];
   userLocation: [number, number] | null;
   showStops: boolean;
+  highlightedStationId: string | null;
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const stopMarkersRef = useRef<any[]>([]);
   const locationMarkerRef = useRef<any>(null);
+  const highlightedMarkerRef = useRef<any>(null);
 
   useEffect(() => {
     // Only initialize once
@@ -333,16 +337,115 @@ function LeafletMap({
     });
   }, [userLocation]);
 
+  // Handle highlighted station
+  useEffect(() => {
+    if (!highlightedStationId || !mapInstanceRef.current || stops.length === 0) {
+      // Remove highlighted marker if no station is highlighted
+      if (highlightedMarkerRef.current) {
+        highlightedMarkerRef.current.remove();
+        highlightedMarkerRef.current = null;
+      }
+      return;
+    }
+
+    const highlightedStop = stops.find((stop) => stop.gtfsId === highlightedStationId);
+    if (!highlightedStop) return;
+
+    import("leaflet").then((L) => {
+      // Remove old highlighted marker if exists
+      if (highlightedMarkerRef.current) {
+        highlightedMarkerRef.current.remove();
+      }
+
+      // Create pulsing icon for highlighted station
+      const highlightedIcon = L.divIcon({
+        html: `
+          <div style="position: relative;">
+            <!-- Pulsing ring -->
+            <div style="
+              position: absolute;
+              width: 40px;
+              height: 40px;
+              background: rgba(239, 68, 68, 0.3);
+              border-radius: 50%;
+              animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+            "></div>
+            <!-- Inner dot -->
+            <div style="
+              position: absolute;
+              width: 20px;
+              height: 20px;
+              background: #ef4444;
+              border: 3px solid white;
+              border-radius: 50%;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+            "></div>
+          </div>
+          <style>
+            @keyframes pulse {
+              0%, 100% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+              }
+              50% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1.5);
+              }
+            }
+          </style>
+        `,
+        className: "custom-highlighted-stop-marker",
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+        popupAnchor: [0, -20],
+      });
+
+      highlightedMarkerRef.current = L.marker([highlightedStop.lat, highlightedStop.lon], { 
+        icon: highlightedIcon,
+        zIndexOffset: 1000 // Ensure it's above other markers
+      })
+        .addTo(mapInstanceRef.current)
+        .bindPopup(`
+          <div class="stop-popup text-sm" style="min-width: 200px; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="font-size: 14px; font-weight: bold; color: #ef4444; margin-bottom: 6px;">
+              ${highlightedStop.name}
+            </div>
+            ${highlightedStop.code ? `<div style="margin-bottom: 4px; font-size: 12px;"><strong>Código:</strong> ${highlightedStop.code}</div>` : ''}
+            ${highlightedStop.desc ? `<div style="margin-bottom: 6px; font-size: 12px; color: #6b7280;">${highlightedStop.desc}</div>` : ''}
+            <a href="/station?gtfsId=${highlightedStop.gtfsId}" 
+               style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #2563eb; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;"
+               target="_blank">
+              Ver Horários →
+            </a>
+          </div>
+        `)
+        .openPopup(); // Auto-open the popup
+
+      // Fly to highlighted station
+      mapInstanceRef.current.flyTo([highlightedStop.lat, highlightedStop.lon], 17, { duration: 1.5 });
+    });
+  }, [highlightedStationId, stops]);
+
   return <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />;
 }
 
-export default function MapPage() {
+function MapPageContent() {
+  const searchParams = useSearchParams();
   const [isMounted, setIsMounted] = useState(false);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [showStops, setShowStops] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Get highlighted station from URL params (e.g., /?station=2:BRRS2)
+  const highlightedStationId = searchParams?.get("station");
   
   // Load selected routes from localStorage on mount
   const [selectedRoutes, setSelectedRoutes] = useState<string[]>(() => {
@@ -620,6 +723,20 @@ export default function MapPage() {
           </div>
         )}
 
+        {highlightedStationId && stopsData?.data?.stops && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-lg max-w-md">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📍</span>
+              <div>
+                <p className="text-blue-900 text-sm font-semibold">
+                  {stopsData.data.stops.find((s) => s.gtfsId === highlightedStationId)?.name || "Estação selecionada"}
+                </p>
+                <p className="text-blue-700 text-xs">Centrado no mapa</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {isLoading && !data && (
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white rounded-lg shadow-lg p-6">
             <p className="text-gray-600">{translations.map.loadingBusLocations}</p>
@@ -632,6 +749,7 @@ export default function MapPage() {
             stops={stopsData.data.stops}
             userLocation={userLocation}
             showStops={showStops}
+            highlightedStationId={highlightedStationId || null}
           />
         ) : data ? (
           <LeafletMap 
@@ -639,6 +757,7 @@ export default function MapPage() {
             stops={[]}
             userLocation={userLocation}
             showStops={false}
+            highlightedStationId={null}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
@@ -653,5 +772,13 @@ export default function MapPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function MapPage() {
+  return (
+    <Suspense fallback={<MapSkeleton />}>
+      <MapPageContent />
+    </Suspense>
   );
 }
