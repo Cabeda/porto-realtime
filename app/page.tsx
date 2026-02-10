@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import { translations } from "@/lib/translations";
 import { logger } from "@/lib/logger";
 import { MapSkeleton } from "@/components/LoadingSkeletons";
+import { storage } from "@/lib/storage";
 
 interface Bus {
   id: string;
@@ -40,6 +41,41 @@ interface StopsResponse {
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+// Fetcher with localStorage fallback for stations (they change infrequently)
+const stationsFetcher = async (url: string): Promise<StopsResponse> => {
+  // Try to get from localStorage first (instant load)
+  const cached = storage.get<StopsResponse>("cachedStations");
+  
+  // If we have cached data, return it immediately while fetching fresh data in background
+  if (cached) {
+    logger.log("Loading stations from localStorage cache");
+    
+    // Fetch fresh data in background (don't await)
+    fetch(url)
+      .then((res) => res.json())
+      .then((freshData) => {
+        // Update cache with fresh data
+        storage.set("cachedStations", freshData, 7); // Expire in 7 days
+        logger.log("Updated stations cache with fresh data");
+      })
+      .catch((err) => {
+        logger.error("Failed to update stations cache:", err);
+      });
+    
+    return cached;
+  }
+  
+  // No cache - fetch from network
+  logger.log("Fetching stations from network (first time)");
+  const response = await fetch(url);
+  const data = await response.json();
+  
+  // Store in localStorage for next time
+  storage.set("cachedStations", data, 7); // Expire in 7 days
+  
+  return data;
+};
 
 // Wrapper component that prevents re-initialization
 function LeafletMap({
@@ -322,15 +358,16 @@ export default function MapPage() {
     revalidateOnFocus: true,
   });
 
-  // Only fetch stations when user wants to show stops (deferred loading for performance)
+  // Stations/stops change infrequently - use localStorage cache for instant loads
   const { data: stopsData, error: stopsError } = useSWR<StopsResponse>(
-    showStops ? "/api/stations" : null,  // Conditional fetching
-    fetcher,
+    "/api/stations",
+    stationsFetcher,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 30 * 24 * 60 * 60 * 1000, // 30 days - don't refetch within this period
-      revalidateIfStale: false, // Don't revalidate even if stale
+      dedupingInterval: 7 * 24 * 60 * 60 * 1000, // 7 days
+      revalidateIfStale: false,
+      // fallbackData will be loaded from localStorage synchronously via stationsFetcher
     }
   );
 

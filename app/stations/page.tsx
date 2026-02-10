@@ -9,13 +9,45 @@ import { useRouter } from "next/navigation";
 import { translations } from "@/lib/translations";
 import { logger } from "@/lib/logger";
 import { StationsSkeleton } from "@/components/LoadingSkeletons";
+import { storage } from "@/lib/storage";
 
-const fetcher = async (url: string) => {
+// Fetcher with localStorage fallback for stations (they change infrequently)
+const stationsFetcher = async (url: string) => {
+  // Try to get from localStorage first (instant load)
+  const cached = storage.get<any>("cachedStations");
+  
+  if (cached) {
+    logger.log("Loading stations from localStorage cache");
+    
+    // Fetch fresh data in background
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(translations.stations.errorLoading);
+        return res.json();
+      })
+      .then((freshData) => {
+        storage.set("cachedStations", freshData, 7);
+        logger.log("Updated stations cache with fresh data");
+      })
+      .catch((err) => {
+        logger.error("Failed to update stations cache:", err);
+      });
+    
+    return cached;
+  }
+  
+  // No cache - fetch from network
+  logger.log("Fetching stations from network (first time)");
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(translations.stations.errorLoading);
   }
-  return response.json();
+  const data = await response.json();
+  
+  // Store in localStorage for next time
+  storage.set("cachedStations", data, 7);
+  
+  return data;
 };
 
 export default function Home() {
@@ -59,12 +91,11 @@ export default function Home() {
     data: stations,
     error: stationsError,
     isLoading: boolean,
-  } = useSWR("/api/stations", fetcher, {
-    // Cache stops data for 30 days
-    dedupingInterval: 30 * 24 * 60 * 60 * 1000, // 30 days
-    revalidateIfStale: false, // Don't revalidate even if stale
-    revalidateOnFocus: false, // Don't revalidate when window gains focus
-    revalidateOnReconnect: false, // Don't revalidate on network reconnect
+  } = useSWR("/api/stations", stationsFetcher, {
+    dedupingInterval: 7 * 24 * 60 * 60 * 1000, // 7 days
+    revalidateIfStale: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
   });
 
   const [filter, setFilter] = useState("");
