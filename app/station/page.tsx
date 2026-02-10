@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import useSWR from "swr";
-import liveWhite from "./live-white.svg";
+import liveWhite from "./live-white.svg"; // Already correct - file exists in app/station/
 import Image from "next/image";
 import router from "next/navigation";
 import Link from "next/link";

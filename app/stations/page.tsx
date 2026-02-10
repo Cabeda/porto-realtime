@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import Image from "next/image";
-import star from "./star-white.svg";
+import star from "../star-white.svg";
 import { useRouter } from "next/navigation";
 
 const fetcher = async (url: string) => {
