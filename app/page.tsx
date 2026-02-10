@@ -548,6 +548,7 @@ function MapPageContent() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [showStops, setShowStops] = useState(false);
+  const [showStopsInitialized, setShowStopsInitialized] = useState(false);
   const [showRoutes, setShowRoutes] = useState(true); // Show routes by default
   const [isRefreshing, setIsRefreshing] = useState(false);
   
@@ -591,6 +592,14 @@ function MapPageContent() {
       dedupingInterval: 24 * 60 * 60 * 1000, // 24 hours
     }
   );
+
+  // Auto-enable stops display once data is loaded (only on initial load)
+  useEffect(() => {
+    if (stopsData?.data?.stops && !showStopsInitialized) {
+      setShowStops(true);
+      setShowStopsInitialized(true);
+    }
+  }, [stopsData, showStopsInitialized]);
 
   const handleLocateMe = () => {
     setIsLocating(true);
