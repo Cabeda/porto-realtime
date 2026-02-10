@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import useSWR from "swr";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import "leaflet/dist/leaflet.css";
 import { translations } from "@/lib/translations";
@@ -612,6 +611,7 @@ function MapPageContent() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showRouteFilter, setShowRouteFilter] = useState(false); // Collapsible route filter
+  const [lastRefreshTime, setLastRefreshTime] = useState(0); // Track last manual refresh
   
   // Get highlighted station from URL params (e.g., /?station=2:BRRS2)
   const highlightedStationId = searchParams?.get("station");
@@ -696,28 +696,17 @@ function MapPageContent() {
   };
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    
-    // Refresh bus data
-    await mutate();
-    
-    // Refresh user location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation([latitude, longitude]);
-        },
-        (error) => {
-          logger.log(translations.map.locationRefreshFailed);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0,
-        }
-      );
+    // Prevent refresh spam - require at least 5 seconds between manual refreshes
+    const now = Date.now();
+    if (now - lastRefreshTime < 5000) {
+      return;
     }
+    
+    setIsRefreshing(true);
+    setLastRefreshTime(now);
+    
+    // Refresh bus data only (location has its own button)
+    await mutate();
     
     // Keep refresh indicator for at least 500ms so user sees the feedback
     setTimeout(() => {
@@ -815,10 +804,6 @@ function MapPageContent() {
                 <span className="hidden sm:inline">ℹ️ Sobre</span>
               </button>
               <DarkModeToggle />
-              <Link href="/stations" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-lg sm:text-base whitespace-nowrap">
-                <span className="sm:hidden">📍</span>
-                <span className="hidden sm:inline">📍 {translations.nav.stations}</span>
-              </Link>
             </div>
           </div>
         </div>
