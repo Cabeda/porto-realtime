@@ -42,6 +42,22 @@ interface StopsResponse {
   };
 }
 
+interface PatternGeometry {
+  patternId: string;
+  routeShortName: string;
+  routeLongName: string;
+  headsign: string;
+  directionId: number;
+  geometry: {
+    type: string;
+    coordinates: [number, number][];
+  };
+}
+
+interface RoutePatternsResponse {
+  patterns: PatternGeometry[];
+}
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 // Fetcher with localStorage fallback for stations (they change infrequently)
@@ -86,12 +102,18 @@ function LeafletMap({
   userLocation,
   showStops,
   highlightedStationId,
+  routePatterns,
+  selectedRoutes,
+  showRoutes,
 }: {
   buses: Bus[];
   stops: Stop[];
   userLocation: [number, number] | null;
   showStops: boolean;
   highlightedStationId: string | null;
+  routePatterns: PatternGeometry[];
+  selectedRoutes: string[];
+  showRoutes: boolean;
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -99,6 +121,7 @@ function LeafletMap({
   const stopMarkersRef = useRef<any[]>([]);
   const locationMarkerRef = useRef<any>(null);
   const highlightedMarkerRef = useRef<any>(null);
+  const routeLayersRef = useRef<any[]>([]);
 
   useEffect(() => {
     // Only initialize once
@@ -156,7 +179,6 @@ function LeafletMap({
 
       // Add bus markers with line numbers and destinations
       buses.forEach((bus) => {
-        logger.log(`Adding marker for bus ${bus.routeShortName} at [${bus.lat}, ${bus.lon}]`);
         
         const destinationText = bus.routeLongName || 'Destino desconhecido';
         
@@ -245,7 +267,6 @@ function LeafletMap({
         markersRef.current.push(marker);
       });
       
-      logger.log(`Successfully added ${markersRef.current.length} markers`);
     });
   }, [buses]);
 
@@ -433,6 +454,90 @@ function LeafletMap({
     });
   }, [highlightedStationId, stops]);
 
+  // Update route polylines when selected routes or patterns change
+  useEffect(() => {
+    if (!mapInstanceRef.current || !routePatterns || routePatterns.length === 0) {
+      return;
+    }
+
+    import("leaflet").then((L) => {
+      // Clear existing route layers
+      routeLayersRef.current.forEach((layer) => layer.remove());
+      routeLayersRef.current = [];
+
+      // If route visualization is disabled or no routes selected, stop here
+      if (!showRoutes || selectedRoutes.length === 0) {
+        return;
+      }
+
+      logger.log(`Rendering ${selectedRoutes.length} route paths`);
+
+      // Color palette for routes (vibrant colors that work in light and dark mode)
+      const routeColors = [
+        '#3b82f6', // blue
+        '#ef4444', // red
+        '#10b981', // green
+        '#f59e0b', // amber
+        '#8b5cf6', // purple
+        '#ec4899', // pink
+        '#14b8a6', // teal
+        '#f97316', // orange
+        '#06b6d4', // cyan
+        '#84cc16', // lime
+      ];
+
+      // Group patterns by route
+      const routeColorMap = new Map<string, string>();
+      selectedRoutes.forEach((route, index) => {
+        routeColorMap.set(route, routeColors[index % routeColors.length]);
+      });
+
+      // Filter patterns for selected routes
+      const relevantPatterns = routePatterns.filter((pattern) =>
+        selectedRoutes.includes(pattern.routeShortName)
+      );
+
+      logger.log(`Found ${relevantPatterns.length} patterns for selected routes`);
+
+      // Draw polylines for each pattern
+      relevantPatterns.forEach((pattern) => {
+        const color = routeColorMap.get(pattern.routeShortName) || '#3b82f6';
+        
+        // Convert coordinates from [lon, lat] to [lat, lon] for Leaflet
+        const latLngs = pattern.geometry.coordinates.map(
+          (coord) => [coord[1], coord[0]] as [number, number]
+        );
+
+        const polyline = L.polyline(latLngs, {
+          color: color,
+          weight: 4,
+          opacity: 0.7,
+          smoothFactor: 1,
+        })
+          .addTo(mapInstanceRef.current)
+          .bindPopup(`
+            <div class="route-popup text-sm" style="min-width: 200px; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="font-size: 16px; font-weight: bold; color: ${color}; margin-bottom: 4px;">
+                Linha ${pattern.routeShortName}
+              </div>
+              <div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">
+                → ${pattern.headsign}
+              </div>
+              <div style="font-size: 11px; color: #6b7280;">
+                ${pattern.routeLongName}
+              </div>
+            </div>
+          `);
+
+        // Send route layers to back so they don't cover markers
+        polyline.bringToBack();
+        routeLayersRef.current.push(polyline);
+      });
+
+      logger.log(`Successfully rendered ${routeLayersRef.current.length} route polylines`);
+    });
+  }, [routePatterns, selectedRoutes, showRoutes]);
+
   return <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />;
 }
 
@@ -443,6 +548,7 @@ function MapPageContent() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [showStops, setShowStops] = useState(false);
+  const [showRoutes, setShowRoutes] = useState(true); // Show routes by default
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Get highlighted station from URL params (e.g., /?station=2:BRRS2)
@@ -472,6 +578,17 @@ function MapPageContent() {
       dedupingInterval: 7 * 24 * 60 * 60 * 1000, // 7 days
       revalidateIfStale: false,
       // fallbackData will be loaded from localStorage synchronously via stationsFetcher
+    }
+  );
+
+  // Fetch route patterns (cached for 24 hours server-side)
+  const { data: routePatternsData } = useSWR<RoutePatternsResponse>(
+    "/api/route-shapes",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 24 * 60 * 60 * 1000, // 24 hours
     }
   );
 
@@ -707,6 +824,28 @@ function MapPageContent() {
               )}
             </span>
           </button>
+
+          <button
+            onClick={() => setShowRoutes(!showRoutes)}
+            disabled={selectedRoutes.length === 0 || !routePatternsData?.patterns}
+            className={`font-semibold py-3 px-4 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              showRoutes
+                ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-600 dark:border-blue-500"
+                : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
+            }`}
+            title={
+              selectedRoutes.length === 0
+                ? "Selecione rotas para visualizar caminhos"
+                : showRoutes
+                  ? "Esconder Caminhos das Rotas"
+                  : "Mostrar Caminhos das Rotas"
+            }
+          >
+            <span className="flex items-center gap-2">
+              <span>{showRoutes ? "🛣️" : "🛣️"}</span>
+              <span className="text-sm">{showRoutes ? "Esconder Caminhos" : "Mostrar Caminhos"}</span>
+            </span>
+          </button>
         </div>
 
         {error && (
@@ -754,6 +893,9 @@ function MapPageContent() {
             userLocation={userLocation}
             showStops={showStops}
             highlightedStationId={highlightedStationId || null}
+            routePatterns={routePatternsData?.patterns || []}
+            selectedRoutes={selectedRoutes}
+            showRoutes={showRoutes}
           />
         ) : data ? (
           <LeafletMap 
@@ -762,6 +904,9 @@ function MapPageContent() {
             userLocation={userLocation}
             showStops={false}
             highlightedStationId={null}
+            routePatterns={routePatternsData?.patterns || []}
+            selectedRoutes={selectedRoutes}
+            showRoutes={showRoutes}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">

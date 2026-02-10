@@ -17,6 +17,7 @@
     "test:perf:ui": "playwright test tests/performance --ui"
   },
   "dependencies": {
+    "@mapbox/polyline": "^1.2.1",
     "graphql": "^16.8.1",
     "leaflet": "^1.9.4",
     "next": "16.1.6",
