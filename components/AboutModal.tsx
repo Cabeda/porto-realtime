@@ -2,9 +2,10 @@
 
 interface AboutModalProps {
   onClose: () => void;
+  onResetOnboarding: () => void;
 }
 
-export function AboutModal({ onClose }: AboutModalProps) {
+export function AboutModal({ onClose, onResetOnboarding }: AboutModalProps) {
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 z-[2000] flex items-center justify-center p-4"
@@ -61,6 +62,15 @@ export function AboutModal({ onClose }: AboutModalProps) {
 
           <div className="text-xs text-gray-500 dark:text-gray-400 pt-2">
             Dados fornecidos pela API OpenTripPlanner do Porto
+          </div>
+
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={onResetOnboarding}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+            >
+              🔄 Repetir introdução
+            </button>
           </div>
 
           <div className="text-xs text-gray-400 dark:text-gray-500 pt-2 font-mono">
