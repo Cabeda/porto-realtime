@@ -18,7 +18,7 @@ async function gql(query, variables) {
   });
   assert.equal(res.ok, true, `HTTP ${res.status}`);
   const json = await res.json();
-  assert.equal(json.errors, undefined, JSON.stringify(json.errors));
+  assert.ok(!json.errors?.length, json.errors ? JSON.stringify(json.errors) : "");
   return json.data;
 }
 
