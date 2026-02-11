@@ -76,8 +76,10 @@ describe('Route 701: OTP vs FIWARE comparison', () => {
   it('vehicle counts are similar', () => {
     const diff = Math.abs(otpBuses.length - fiwareBuses.length);
     console.log(`\n  Count difference: ${diff}`);
-    // Allow some variance — FIWARE may include parked/depot buses
-    assert.ok(diff <= Math.max(otpBuses.length, fiwareBuses.length), 'Counts should be in same ballpark');
+    // Allow some variance — FIWARE may include parked/depot buses, but require reasonable similarity
+    const maxCount = Math.max(otpBuses.length, fiwareBuses.length);
+    const allowedDiff = 0.3 * maxCount; // allow up to 30% difference
+    assert.ok(diff <= allowedDiff, `Counts should be within 30% of each other (diff=${diff}, max=${maxCount})`);
   });
 
   it('trip IDs match between sources', () => {
