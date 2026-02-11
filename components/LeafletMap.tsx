@@ -111,8 +111,9 @@ export function LeafletMap({
 
         const iconHtml = `
           <div style="display:flex;align-items:center;gap:4px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
-            <div style="min-width:44px;height:32px;background:${routeColor};border:2px solid white;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;font-family:system-ui,sans-serif;cursor:pointer;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">
+            <div style="position:relative;min-width:44px;height:32px;background:${routeColor};border:2px solid white;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;font-family:system-ui,sans-serif;cursor:pointer;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">
               ${escapeHtml(bus.routeShortName)}
+              <svg width="10" height="10" viewBox="0 0 10 10" style="position:absolute;top:-6px;right:-4px;transform:rotate(${bus.heading}deg);" fill="white" stroke="${routeColor}" stroke-width="1"><polygon points="5,0 10,10 5,7 0,10"/></svg>
             </div>
             <div style="background:rgba(255,255,255,0.98);border:1px solid #cbd5e1;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:600;color:#1e40af;font-family:system-ui,sans-serif;white-space:nowrap;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.2);max-width:150px;overflow:hidden;text-overflow:ellipsis;">
               ${escapeHtml(truncatedDestination)}
