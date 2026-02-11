@@ -229,7 +229,7 @@ export function LeafletMap({
 
                   el.innerHTML = upcoming.map((d: { departureMs: number; realtime?: boolean; headsign?: string; trip: { gtfsId: string; route: { shortName: string } } }) => {
                     const mins = Math.floor((d.departureMs - now) / 60000);
-                    const timeStr = mins <= 0 ? '<1 min' : `${mins} min`;
+                    const timeStr = mins <= 0 ? '&lt;1 min' : `${mins} min`;
                     const color = mins <= 2 ? '#ef4444' : mins <= 5 ? '#f59e0b' : '#3b82f6';
                     const rt = d.realtime ? '<span style="display:inline-block;width:6px;height:6px;background:#22c55e;border-radius:50%;margin-right:4px;vertical-align:middle;animation:rtpulse 1.5s ease-in-out infinite;"></span>' : '';
                     const tripIdPart = d.trip.gtfsId.replace(/^2:/, '');
