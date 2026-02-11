@@ -11,7 +11,7 @@
     "preinstall": "npx only-allow pnpm",
     "dev": "next dev",
     "prebuild": "node scripts/update-sw-version.js",
-    "build": "next build",
+    "build": "node scripts/update-sw-version.js && next build",
     "start": "next start",
     "lint": "next lint",
     "test:integration": "node --test tests/integration/otp.test.mjs",
