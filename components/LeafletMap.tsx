@@ -18,6 +18,70 @@ export const getRouteColor = (routeShortName: string, selectedRoutes: string[]):
   return index === -1 ? '#2563eb' : ROUTE_COLORS[index % ROUTE_COLORS.length];
 };
 
+// --- Snap-to-route helpers ---
+
+function nearestPointOnSegment(
+  px: number, py: number,
+  ax: number, ay: number,
+  bx: number, by: number
+): [number, number] {
+  const dx = bx - ax, dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return [ax, ay];
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+  return [ax + t * dx, ay + t * dy];
+}
+
+/** Snap a lat/lon to the nearest point on any polyline for the given route. Returns original position if no route within 150 m. */
+function snapToRoute(
+  lat: number, lon: number,
+  routeShortName: string,
+  patterns: PatternGeometry[],
+  busId: string,
+  segmentMap: Map<string, { pIdx: number; sIdx: number }>,
+): [number, number] {
+  const routePs: PatternGeometry[] = [];
+  for (const p of patterns) if (p.routeShortName === routeShortName) routePs.push(p);
+  if (routePs.length === 0) return [lat, lon];
+
+  const cosLat = Math.cos(lat * Math.PI / 180);
+  const distSq = (nlat: number, nlon: number) => {
+    const dLat = (nlat - lat) * 111_320;
+    const dLon = (nlon - lon) * 111_320 * cosLat;
+    return dLat * dLat + dLon * dLon;
+  };
+
+  // Local search around last known segment (±15 segments, 50 m threshold)
+  const hint = segmentMap.get(busId);
+  if (hint && hint.pIdx < routePs.length) {
+    const coords = routePs[hint.pIdx].geometry.coordinates;
+    const lo = Math.max(0, hint.sIdx - 15);
+    const hi = Math.min(coords.length - 1, hint.sIdx + 15);
+    let bestD = Infinity, bestPt: [number, number] = [lat, lon], bestS = hint.sIdx;
+    for (let i = lo; i < hi; i++) {
+      const [nl, no] = nearestPointOnSegment(lat, lon, coords[i][1], coords[i][0], coords[i + 1][1], coords[i + 1][0]);
+      const d = distSq(nl, no);
+      if (d < bestD) { bestD = d; bestPt = [nl, no]; bestS = i; }
+    }
+    if (bestD <= 50 * 50) { segmentMap.set(busId, { pIdx: hint.pIdx, sIdx: bestS }); return bestPt; }
+  }
+
+  // Global search across all patterns (150 m threshold)
+  let bestD = Infinity, best: [number, number] = [lat, lon], bestP = 0, bestS = 0;
+  for (let pi = 0; pi < routePs.length; pi++) {
+    const coords = routePs[pi].geometry.coordinates;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const [nl, no] = nearestPointOnSegment(lat, lon, coords[i][1], coords[i][0], coords[i + 1][1], coords[i + 1][0]);
+      const d = distSq(nl, no);
+      if (d < bestD) { bestD = d; best = [nl, no]; bestP = pi; bestS = i; }
+    }
+  }
+  if (bestD <= 150 * 150) { segmentMap.set(busId, { pIdx: bestP, sIdx: bestS }); return best; }
+  return [lat, lon];
+}
+
+const ANIM_DURATION = 1500; // ms
+
 interface LeafletMapProps {
   buses: Bus[];
   allBuses: Bus[];
@@ -51,6 +115,8 @@ export function LeafletMap({
   const locationMarkerRef = useRef<Marker | null>(null);
   const highlightedMarkerRef = useRef<Marker | null>(null);
   const routeLayersRef = useRef<Polyline[]>([]);
+  const animFramesRef = useRef<Map<string, number>>(new Map());
+  const busSegmentRef = useRef<Map<string, { pIdx: number; sIdx: number }>>(new Map());
   const [isMapReady, setIsMapReady] = useState(false);
 
   useEffect(() => {
@@ -97,6 +163,9 @@ export function LeafletMap({
       // Remove stale markers
       busMarkersMapRef.current.forEach((marker, id) => {
         if (!currentBusIds.has(id)) {
+          const af = animFramesRef.current.get(id);
+          if (af) { cancelAnimationFrame(af); animFramesRef.current.delete(id); }
+          busSegmentRef.current.delete(id);
           marker.remove();
           busMarkersMapRef.current.delete(id);
         }
@@ -138,11 +207,37 @@ export function LeafletMap({
 
         const existing = busMarkersMapRef.current.get(bus.id);
         if (existing) {
-          existing.setLatLng([bus.lat, bus.lon]);
+          // Snap target to route if polylines available
+          const target = snapToRoute(bus.lat, bus.lon, bus.routeShortName, routePatterns, bus.id, busSegmentRef.current);
+          const cur = existing.getLatLng();
+
+          // Cancel any running animation for this bus
+          const prev = animFramesRef.current.get(bus.id);
+          if (prev) cancelAnimationFrame(prev);
+
+          const dLat = target[0] - cur.lat;
+          const dLon = target[1] - cur.lng;
+          // Skip animation for large jumps (>500m) — likely GPS error or reassignment
+          const jumpM = Math.sqrt((dLat * 111_320) ** 2 + (dLon * 111_320 * Math.cos(cur.lat * Math.PI / 180)) ** 2);
+          if (jumpM > 500) {
+            existing.setLatLng(target);
+          } else if (dLat * dLat + dLon * dLon > 1e-12) {
+            const t0 = performance.now();
+            const step = (now: number) => {
+              const p = Math.min((now - t0) / ANIM_DURATION, 1);
+              const e = 1 - (1 - p) * (1 - p) * (1 - p); // ease-out cubic
+              existing.setLatLng([cur.lat + dLat * e, cur.lng + dLon * e]);
+              if (p < 1) animFramesRef.current.set(bus.id, requestAnimationFrame(step));
+              else animFramesRef.current.delete(bus.id);
+            };
+            animFramesRef.current.set(bus.id, requestAnimationFrame(step));
+          }
+
           existing.setIcon(busIcon);
           existing.setPopupContent(popupHtml);
         } else {
-          const marker = L.marker([bus.lat, bus.lon], {
+          const snapped = snapToRoute(bus.lat, bus.lon, bus.routeShortName, routePatterns, bus.id, busSegmentRef.current);
+          const marker = L.marker(snapped, {
             icon: busIcon,
             title: `Linha ${bus.routeShortName} → ${destinationText}`
           })
@@ -152,7 +247,7 @@ export function LeafletMap({
         }
       });
     });
-  }, [buses, isMapReady, selectedRoutes]);
+  }, [buses, isMapReady, selectedRoutes, routePatterns]);
 
   // Viewport-based stop rendering
   useEffect(() => {
