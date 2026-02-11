@@ -1,7 +1,5 @@
 "use client";
 
-import { ROUTE_COLORS } from "@/components/LeafletMap";
-
 interface RouteFilterPanelProps {
   availableRoutes: string[];
   selectedRoutes: string[];
