@@ -236,10 +236,16 @@ function MapPageContent() {
     setHasCompletedOnboarding(true);
   };
 
+  const handleOnboardingSkip = () => {
+    localStorage.setItem('onboarding-completed', 'skipped');
+    setShowOnboarding(false);
+    setHasCompletedOnboarding(true);
+  };
+
   if (!isMounted) return <MapSkeleton />;
 
   if (showOnboarding && availableRoutes.length > 0) {
-    return <OnboardingFlow availableRoutes={availableRoutes} onComplete={handleOnboardingComplete} />;
+    return <OnboardingFlow availableRoutes={availableRoutes} onComplete={handleOnboardingComplete} onSkip={handleOnboardingSkip} />;
   }
 
   return (
@@ -418,7 +424,7 @@ function MapPageContent() {
           </div>
         )}
 
-        {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
+        {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowAboutModal(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} />}
       </main>
     </div>
   );

@@ -5,9 +5,10 @@ import { useState, useEffect } from "react";
 interface OnboardingFlowProps {
   availableRoutes: string[];
   onComplete: (selectedRoutes: string[], locationGranted: boolean) => void;
+  onSkip: () => void;
 }
 
-export function OnboardingFlow({ availableRoutes, onComplete }: OnboardingFlowProps) {
+export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: OnboardingFlowProps) {
   const [step, setStep] = useState(0);
   const [selectedRoutes, setSelectedRoutes] = useState<string[]>([]);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
@@ -106,6 +107,12 @@ export function OnboardingFlow({ availableRoutes, onComplete }: OnboardingFlowPr
               className="w-full py-4 px-8 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-semibold text-lg shadow-lg transition-all transform hover:scale-105"
             >
               Começar
+            </button>
+            <button
+              onClick={onSkip}
+              className="mt-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm transition-colors"
+            >
+              Saltar tudo
             </button>
           </div>
         )}
