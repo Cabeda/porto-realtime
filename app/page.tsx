@@ -71,7 +71,10 @@ function MapPageContent() {
   });
   const [favoritesAppliedOnLoad, setFavoritesAppliedOnLoad] = useState(false);
 
-  const { data, error, isLoading, mutate } = useSWR<BusesResponse>("/api/buses", busesFetcher, {
+  const simulateParam = searchParams?.get("simulate");
+  const busesUrl = simulateParam ? `/api/buses?simulate=${encodeURIComponent(simulateParam)}` : "/api/buses";
+
+  const { data, error, isLoading, mutate } = useSWR<BusesResponse>(busesUrl, busesFetcher, {
     refreshInterval: 30000,
     revalidateOnFocus: true,
   });

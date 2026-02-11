@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { getSimulatedBuses } from "@/lib/simulate";
 
 interface Bus {
   id: string;
@@ -377,6 +378,14 @@ export default async function handler(
           tripId,
         };
       });
+
+    // Inject simulated buses if requested (dev mode)
+    const simulate = req.query.simulate;
+    if (simulate) {
+      const routes = Array.isArray(simulate) ? simulate : simulate.split(",");
+      const simBuses = await getSimulatedBuses(routes);
+      buses.push(...simBuses);
+    }
 
     // Update last successful data
     lastSuccessfulBusData = buses;
