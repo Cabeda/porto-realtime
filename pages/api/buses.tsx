@@ -122,7 +122,7 @@ async function fetchRouteDestinations(): Promise<Map<string, RouteDirectionMap>>
 
   try {
     const response = await fetchWithRetry(
-      "https://otp.services.porto.digital/otp/routers/default/index/graphql",
+      "https://otp.portodigital.pt/otp/routers/default/index/graphql",
       {
         method: "POST",
         headers: {

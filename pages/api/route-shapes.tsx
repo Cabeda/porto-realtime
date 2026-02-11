@@ -66,7 +66,7 @@ export default async function handler(
     console.log("Fetching route shapes from OTP...");
     
     const response = await fetch(
-      "https://otp.services.porto.digital/otp/routers/default/index/graphql",
+      "https://otp.portodigital.pt/otp/routers/default/index/graphql",
       {
         method: "POST",
         headers: {

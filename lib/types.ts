@@ -60,6 +60,7 @@ export interface StoptimesWithoutPatterns {
   departureDelay: number;
   realtime: boolean;
   serviceDay: number;
+  headsign: string;
   trip: {
     pattern: { code: string; id: string };
     route: {

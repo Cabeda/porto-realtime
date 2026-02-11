@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const OTP_URL =
-  "https://otp.services.porto.digital/otp/routers/default/index/graphql";
+  "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 
 const QUERY = `
   query StopDepartures(
@@ -28,6 +28,7 @@ const QUERY = `
         departureDelay
         realtime
         serviceDay
+        headsign
         trip {
           pattern { code id }
           route { gtfsId shortName longName mode color id }

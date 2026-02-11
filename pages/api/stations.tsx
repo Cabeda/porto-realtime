@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const OTP_URL =
-  "https://otp.services.porto.digital/otp/routers/default/index/graphql";
+  "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 
 const CACHE_DURATION = 30 * 24 * 60 * 60; // 30 days in seconds
 
