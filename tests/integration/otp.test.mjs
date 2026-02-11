@@ -27,14 +27,13 @@ async function gql(query, variables) {
  * If before 6am, returns 8am today; otherwise returns current time.
  */
 function getStartTimeForTests() {
-  const now = Math.floor(Date.now() / 1000);
   const hourOfDay = new Date().getHours();
   if (hourOfDay < 6) {
     const today8am = new Date();
     today8am.setHours(8, 0, 0, 0);
     return Math.floor(today8am.getTime() / 1000);
   }
-  return now;
+  return Math.floor(Date.now() / 1000);
 }
 
 describe("OTP endpoint (otp.portodigital.pt)", () => {
@@ -116,8 +115,9 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
       // Make assertion conditional: verify real-time capability exists,
       // but don't fail if no UPDATED departures during off-peak hours
       if (deps.length > 0) {
-        const hasRealtimeState = deps.some((d) => d.realtimeState);
-        assert.ok(hasRealtimeState, "Expected departures to have realtimeState field");
+        const validStates = ["SCHEDULED", "UPDATED", "CANCELED"];
+        const hasRealtimeState = deps.some((d) => validStates.includes(d.realtimeState));
+        assert.ok(hasRealtimeState, "Expected departures to have valid realtimeState field");
         
         // Log real-time status for debugging but don't fail
         const updatedCount = deps.filter((d) => d.realtimeState === "UPDATED").length;
