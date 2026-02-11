@@ -177,16 +177,58 @@ export function LeafletMap({
               popupAnchor: [0, -5],
             });
 
+            const popupContent = `
+                <div class="stop-popup text-sm" style="min-width:220px;max-width:280px;font-family:system-ui,sans-serif;">
+                  <div class="stop-popup-title">${escapeHtml(stop.name)}</div>
+                  <div id="departures-${stop.gtfsId.replace(/[^a-zA-Z0-9]/g, '_')}" style="margin:8px 0;">
+                    <div style="color:#9ca3af;font-size:12px;">A carregar próximos...</div>
+                  </div>
+                  <a href="/station?gtfsId=${encodeURIComponent(stop.gtfsId)}" class="stop-popup-link">Ver todos os horários →</a>
+                </div>
+              `;
+
             const marker = L.marker([stop.lat, stop.lon], { icon: stopIcon })
               .addTo(map)
-              .bindPopup(`
-                <div class="stop-popup text-sm" style="min-width:200px;font-family:system-ui,sans-serif;">
-                  <div class="stop-popup-title">${escapeHtml(stop.name)}</div>
-                  ${stop.code ? `<div class="stop-popup-code"><strong>Código:</strong> ${escapeHtml(stop.code)}</div>` : ''}
-                  ${stop.desc ? `<div class="stop-popup-desc">${escapeHtml(stop.desc)}</div>` : ''}
-                  <a href="/station?gtfsId=${encodeURIComponent(stop.gtfsId)}" class="stop-popup-link" target="_blank">Ver Horários →</a>
-                </div>
-              `);
+              .bindPopup(popupContent);
+
+            marker.on('popupopen', () => {
+              const containerId = `departures-${stop.gtfsId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+              const el = document.getElementById(containerId);
+              if (!el) return;
+
+              fetch(`/api/station?gtfsId=${encodeURIComponent(stop.gtfsId)}`)
+                .then(r => r.json())
+                .then(data => {
+                  const deps = data?.data?.stop?.stoptimesWithoutPatterns || [];
+                  const now = Date.now();
+                  const upcoming = deps
+                    .map((d: { serviceDay: number; realtimeDeparture: number; headsign?: string; realtime?: boolean; trip: { route: { shortName: string } } }) => ({
+                      ...d,
+                      departureMs: (d.serviceDay + d.realtimeDeparture) * 1000,
+                    }))
+                    .filter((d: { departureMs: number }) => d.departureMs > now)
+                    .slice(0, 4);
+
+                  if (upcoming.length === 0) {
+                    el.innerHTML = '<div style="color:#9ca3af;font-size:12px;">Sem partidas próximas</div>';
+                    return;
+                  }
+
+                  el.innerHTML = upcoming.map((d: { departureMs: number; realtime?: boolean; headsign?: string; trip: { route: { shortName: string } } }) => {
+                    const mins = Math.round((d.departureMs - now) / 60000);
+                    const timeStr = mins <= 0 ? '<1 min' : `${mins} min`;
+                    const color = mins <= 2 ? '#ef4444' : mins <= 5 ? '#f59e0b' : '#3b82f6';
+                    const rt = d.realtime ? '⚡' : '';
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px;">
+                      <span><strong>${escapeHtml(d.trip.route.shortName)}</strong> <span style="color:#6b7280;">${escapeHtml(d.headsign || '')}</span></span>
+                      <span style="color:${color};font-weight:600;white-space:nowrap;">${rt}${timeStr}</span>
+                    </div>`;
+                  }).join('');
+                })
+                .catch(() => {
+                  el.innerHTML = '<div style="color:#ef4444;font-size:12px;">Erro ao carregar</div>';
+                });
+            });
             stopMarkersRef.current.push(marker);
           });
       });
