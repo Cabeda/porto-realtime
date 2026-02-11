@@ -30,6 +30,7 @@ const QUERY = `
         serviceDay
         headsign
         trip {
+          gtfsId
           pattern { code id }
           route { gtfsId shortName longName mode color id }
           id
