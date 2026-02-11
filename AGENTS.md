@@ -82,10 +82,12 @@ interface StoptimesWithoutPatterns {
 ## External APIs
 
 ### Porto OpenTripPlanner
-- **URL**: `https://otp.services.porto.digital/otp/routers/default/index/graphql`
+- **URL**: `https://otp.portodigital.pt/otp/routers/default/index/graphql`
 - **Protocol**: GraphQL over HTTP POST
 - **Auth**: None (requires `Origin: https://explore.porto.pt` header)
-- **Known issue**: GTFS schedule data expired Dec 31, 2025. Stops/routes exist but departures return empty arrays. The app handles this gracefully with a user-facing message.
+- **Service range**: Sep 2025 – Feb 2027 (check `serviceTimeRange` query)
+- **Features**: Real-time departures (`realtimeState: "UPDATED"`), stops, routes, pattern geometries
+- **Previous endpoint**: `otp.services.porto.digital` (GTFS expired Dec 31, 2025 — do not use)
 
 ### FIWARE Urban Platform (Bus Positions)
 - **URL**: `https://broker.fiware.urbanplatform.portodigital.pt/v2/entities?q=vehicleType==bus&limit=1000`
@@ -165,8 +167,7 @@ porto-realtime/
 5. **Components**: Extract to `components/` directory
 
 ### Known Issues
-- GTFS schedule data on OTP server expired Dec 31, 2025 — station departures return empty
-- Bus positions (FIWARE) continue to work independently
+- Bus positions (FIWARE) work independently from OTP schedule data
 
 ## Environment
 - No environment variables required
