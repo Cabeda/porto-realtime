@@ -218,7 +218,7 @@ export function LeafletMap({
                     const mins = Math.round((d.departureMs - now) / 60000);
                     const timeStr = mins <= 0 ? '<1 min' : `${mins} min`;
                     const color = mins <= 2 ? '#ef4444' : mins <= 5 ? '#f59e0b' : '#3b82f6';
-                    const rt = d.realtime ? '⚡' : '';
+                    const rt = d.realtime ? '🔴 ' : '';
                     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px;">
                       <span><strong>${escapeHtml(d.trip.route.shortName)}</strong> <span style="color:#6b7280;">${escapeHtml(d.headsign || '')}</span></span>
                       <span style="color:${color};font-weight:600;white-space:nowrap;">${rt}${timeStr}</span>
