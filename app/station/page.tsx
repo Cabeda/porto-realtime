@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { translations } from "@/lib/translations";
@@ -26,6 +26,13 @@ function SearchStation() {
     { refreshInterval: 30000 }
   );
 
+  // Live countdown tick
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
   // Use serviceDay + departureSeconds for correct time calculation
   const convertToTime = (serviceDay: number, departureSeconds: number) => {
     const date = new Date((serviceDay + departureSeconds) * 1000);
@@ -34,7 +41,7 @@ function SearchStation() {
 
   const getDiffMinutes = (serviceDay: number, departureSeconds: number) => {
     const departureMs = (serviceDay + departureSeconds) * 1000;
-    return Math.floor((departureMs - Date.now()) / 60000);
+    return Math.floor((departureMs - now) / 60000);
   };
 
   const getDepartureDisplay = (minutes: number) => {
