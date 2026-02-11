@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import type { Map as LMap, Marker, LatLngBounds, Polyline } from "leaflet";
 import { logger } from "@/lib/logger";
 import { escapeHtml } from "@/lib/sanitize";
@@ -17,6 +17,105 @@ export const getRouteColor = (routeShortName: string, selectedRoutes: string[]):
   const index = selectedRoutes.indexOf(routeShortName);
   return index === -1 ? '#2563eb' : ROUTE_COLORS[index % ROUTE_COLORS.length];
 };
+
+// --- Snap-to-route helpers ---
+
+function nearestPointOnSegment(
+  px: number, py: number,
+  ax: number, ay: number,
+  bx: number, by: number
+): [number, number] {
+  // Perform projection in an equirectangular-like space where longitude is
+  // scaled by cos(latitude), to match the distance metric used elsewhere.
+  const rad = Math.PI / 180;
+  const cosLat = Math.cos(py * rad);
+
+  // If cosLat is 0 (at the poles), fall back to unscaled degrees to avoid
+  // division-by-zero; distances are degenerate there anyway.
+  const scale = cosLat === 0 ? 1 : cosLat;
+
+  // Convert to scaled coordinates: x = lon * scale, y = lat.
+  const pxScaled = px * scale;
+  const pyScaled = py;
+  const axScaled = ax * scale;
+  const ayScaled = ay;
+  const bxScaled = bx * scale;
+  const byScaled = by;
+
+  const dx = bxScaled - axScaled;
+  const dy = byScaled - ayScaled;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) {
+    // Degenerate segment: return the single endpoint.
+    return [ax, ay];
+  }
+
+  const t = Math.max(
+    0,
+    Math.min(
+      1,
+      ((pxScaled - axScaled) * dx + (pyScaled - ayScaled) * dy) / lenSq,
+    ),
+  );
+
+  const projXScaled = axScaled + t * dx;
+  const projYScaled = ayScaled + t * dy;
+
+  // Convert back from scaled coordinates to lon/lat degrees.
+  const projLon = scale === 0 ? ax : projXScaled / scale;
+  const projLat = projYScaled;
+
+  return [projLon, projLat];
+}
+
+/** Snap a lat/lon to the nearest point on any polyline for the given route. Returns original position if no route within 150 m. */
+function snapToRoute(
+  lat: number, lon: number,
+  routeShortName: string,
+  routePatternsMap: Map<string, PatternGeometry[]>,
+  busId: string,
+  segmentMap: Map<string, { pIdx: number; sIdx: number }>,
+): [number, number] {
+  const routePs = routePatternsMap.get(routeShortName);
+  if (!routePs || routePs.length === 0) return [lat, lon];
+
+  const cosLat = Math.cos(lat * Math.PI / 180);
+  const distSq = (nlat: number, nlon: number) => {
+    const dLat = (nlat - lat) * 111_320;
+    const dLon = (nlon - lon) * 111_320 * cosLat;
+    return dLat * dLat + dLon * dLon;
+  };
+
+  // Local search around last known segment (±15 segments, 50 m threshold)
+  const hint = segmentMap.get(busId);
+  if (hint && hint.pIdx < routePs.length) {
+    const coords = routePs[hint.pIdx].geometry.coordinates;
+    const lo = Math.max(0, hint.sIdx - 15);
+    const hi = Math.min(coords.length - 1, hint.sIdx + 15);
+    let bestD = Infinity, bestPt: [number, number] = [lat, lon], bestS = hint.sIdx;
+    for (let i = lo; i < hi; i++) {
+      const [nl, no] = nearestPointOnSegment(lat, lon, coords[i][1], coords[i][0], coords[i + 1][1], coords[i + 1][0]);
+      const d = distSq(nl, no);
+      if (d < bestD) { bestD = d; bestPt = [nl, no]; bestS = i; }
+    }
+    if (bestD <= 50 * 50) { segmentMap.set(busId, { pIdx: hint.pIdx, sIdx: bestS }); return bestPt; }
+  }
+
+  // Global search across all patterns (150 m threshold)
+  let bestD = Infinity, best: [number, number] = [lat, lon], bestP = 0, bestS = 0;
+  for (let pi = 0; pi < routePs.length; pi++) {
+    const coords = routePs[pi].geometry.coordinates;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const [nl, no] = nearestPointOnSegment(lat, lon, coords[i][1], coords[i][0], coords[i + 1][1], coords[i + 1][0]);
+      const d = distSq(nl, no);
+      if (d < bestD) { bestD = d; best = [nl, no]; bestP = pi; bestS = i; }
+    }
+  }
+  if (bestD <= 150 * 150) { segmentMap.set(busId, { pIdx: bestP, sIdx: bestS }); return best; }
+  return [lat, lon];
+}
+
+const ANIM_DURATION = 1500; // ms
 
 interface LeafletMapProps {
   buses: Bus[];
@@ -51,7 +150,23 @@ export function LeafletMap({
   const locationMarkerRef = useRef<Marker | null>(null);
   const highlightedMarkerRef = useRef<Marker | null>(null);
   const routeLayersRef = useRef<Polyline[]>([]);
+  const animFramesRef = useRef<Map<string, number>>(new Map());
+  const busSegmentRef = useRef<Map<string, { pIdx: number; sIdx: number }>>(new Map());
   const [isMapReady, setIsMapReady] = useState(false);
+
+  // Pre-group route patterns by routeShortName for efficient lookup
+  const routePatternsMap = useMemo(() => {
+    const map = new Map<string, PatternGeometry[]>();
+    for (const pattern of routePatterns) {
+      const existing = map.get(pattern.routeShortName);
+      if (existing) {
+        existing.push(pattern);
+      } else {
+        map.set(pattern.routeShortName, [pattern]);
+      }
+    }
+    return map;
+  }, [routePatterns]);
 
   useEffect(() => {
     if (mapInstanceRef.current) return;
@@ -86,6 +201,12 @@ export function LeafletMap({
     if (!mapInstanceRef.current) return;
 
     if (buses.length === 0) {
+      // Cancel all running animations
+      animFramesRef.current.forEach((frameId) => cancelAnimationFrame(frameId));
+      animFramesRef.current.clear();
+      // Clear all segment hints
+      busSegmentRef.current.clear();
+      // Remove all markers
       busMarkersMapRef.current.forEach((marker) => marker.remove());
       busMarkersMapRef.current.clear();
       return;
@@ -97,6 +218,9 @@ export function LeafletMap({
       // Remove stale markers
       busMarkersMapRef.current.forEach((marker, id) => {
         if (!currentBusIds.has(id)) {
+          const af = animFramesRef.current.get(id);
+          if (af) { cancelAnimationFrame(af); animFramesRef.current.delete(id); }
+          busSegmentRef.current.delete(id);
           marker.remove();
           busMarkersMapRef.current.delete(id);
         }
@@ -138,11 +262,40 @@ export function LeafletMap({
 
         const existing = busMarkersMapRef.current.get(bus.id);
         if (existing) {
-          existing.setLatLng([bus.lat, bus.lon]);
+          // Snap target to route if polylines available
+          const target = snapToRoute(bus.lat, bus.lon, bus.routeShortName, routePatternsMap, bus.id, busSegmentRef.current);
+          const cur = existing.getLatLng();
+
+          // Cancel any running animation for this bus
+          const prev = animFramesRef.current.get(bus.id);
+          if (prev !== undefined) {
+            cancelAnimationFrame(prev);
+            animFramesRef.current.delete(bus.id);
+          }
+
+          const dLat = target[0] - cur.lat;
+          const dLon = target[1] - cur.lng;
+          // Skip animation for large jumps (>500m) — likely GPS error or reassignment
+          const jumpM = Math.sqrt((dLat * 111_320) ** 2 + (dLon * 111_320 * Math.cos(cur.lat * Math.PI / 180)) ** 2);
+          if (jumpM > 500) {
+            existing.setLatLng(target);
+          } else if (dLat * dLat + dLon * dLon > 1e-12) {
+            const t0 = performance.now();
+            const step = (now: number) => {
+              const p = Math.min((now - t0) / ANIM_DURATION, 1);
+              const e = 1 - (1 - p) * (1 - p) * (1 - p); // ease-out cubic
+              existing.setLatLng([cur.lat + dLat * e, cur.lng + dLon * e]);
+              if (p < 1) animFramesRef.current.set(bus.id, requestAnimationFrame(step));
+              else animFramesRef.current.delete(bus.id);
+            };
+            animFramesRef.current.set(bus.id, requestAnimationFrame(step));
+          }
+
           existing.setIcon(busIcon);
           existing.setPopupContent(popupHtml);
         } else {
-          const marker = L.marker([bus.lat, bus.lon], {
+          const snapped = snapToRoute(bus.lat, bus.lon, bus.routeShortName, routePatternsMap, bus.id, busSegmentRef.current);
+          const marker = L.marker(snapped, {
             icon: busIcon,
             title: `Linha ${bus.routeShortName} → ${destinationText}`
           })
@@ -152,7 +305,7 @@ export function LeafletMap({
         }
       });
     });
-  }, [buses, isMapReady, selectedRoutes]);
+  }, [buses, isMapReady, selectedRoutes, routePatterns]);
 
   // Viewport-based stop rendering
   useEffect(() => {
