@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from "react";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 export function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string>("");
@@ -73,7 +78,7 @@ export function PWAInstallPrompt() {
       e.preventDefault();
       
       // Store the event for later use
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
       
       // Check if user has dismissed the prompt before
       const dismissed = localStorage.getItem('pwa-install-dismissed');

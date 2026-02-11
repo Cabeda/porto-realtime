@@ -22,6 +22,7 @@ interface FiwareResponse {
       coordinates: [number, number];
     };
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
@@ -93,8 +94,8 @@ async function fetchWithRetry(
       }
 
       throw new Error(`API returned ${response.status} after ${maxRetries} attempts`);
-    } catch (error: any) {
-      if (error.name === "AbortError") {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === "AbortError") {
         console.error(`Request timeout (${timeoutMs}ms) on attempt ${attempt + 1}`);
       }
 
@@ -103,7 +104,7 @@ async function fetchWithRetry(
       }
 
       const backoffMs = Math.min(1000 * Math.pow(2, attempt), 10000);
-      console.log(`Retry ${attempt + 1}/${maxRetries} after ${backoffMs}ms due to: ${error.message}`);
+      console.log(`Retry ${attempt + 1}/${maxRetries} after ${backoffMs}ms due to: ${error instanceof Error ? error.message : error}`);
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
   }
