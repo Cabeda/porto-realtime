@@ -1,6 +1,6 @@
 // Build version - updated automatically during build
 const APP_VERSION = '2.0.0';
-const BUILD_TIMESTAMP = '1770806823216';
+const BUILD_TIMESTAMP = '1770834090073';
 const CACHE_NAME = `porto-realtime-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
 const RUNTIME_CACHE = `porto-realtime-runtime-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
 
@@ -114,8 +114,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets - Stale-while-revalidate strategy
-  // Serve from cache immediately, but fetch fresh copy in background
+  // Navigation requests (HTML pages) - Network first
+  // Always get the latest page, fall back to cache if offline
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('/offline')))
+    );
+    return;
+  }
+
+  // Static assets (JS/CSS/images) - Stale-while-revalidate
+  // Next.js hashes these filenames, so cached versions are safe to serve
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)

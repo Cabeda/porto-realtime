@@ -15,9 +15,9 @@ console.log('[Build] Updating service worker to version:', appVersion, 'Build:',
 // Read the service worker file
 let swContent = fs.readFileSync(swPath, 'utf8');
 
-// Replace the placeholders with actual values
-swContent = swContent.replace(/{{APP_VERSION}}/g, appVersion);
-swContent = swContent.replace(/{{BUILD_TIMESTAMP}}/g, buildTimestamp);
+// Replace the version and timestamp values
+swContent = swContent.replace(/const APP_VERSION = '[^']*';/, `const APP_VERSION = '${appVersion}';`);
+swContent = swContent.replace(/const BUILD_TIMESTAMP = '[^']*';/, `const BUILD_TIMESTAMP = '${buildTimestamp}';`);
 
 // Write back
 fs.writeFileSync(swPath, swContent, 'utf8');
