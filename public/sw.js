@@ -1,6 +1,6 @@
 // Build version - updated automatically during build
-const APP_VERSION = '{{APP_VERSION}}';
-const BUILD_TIMESTAMP = '{{BUILD_TIMESTAMP}}';
+const APP_VERSION = '2.0.0';
+const BUILD_TIMESTAMP = '1770806823216';
 const CACHE_NAME = `porto-realtime-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
 const RUNTIME_CACHE = `porto-realtime-runtime-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
 

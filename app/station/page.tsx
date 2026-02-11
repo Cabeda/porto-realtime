@@ -6,6 +6,7 @@ import useSWR from "swr";
 import Link from "next/link";
 import { translations } from "@/lib/translations";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
+import type { StationResponse, StoptimesWithoutPatterns } from "@/lib/types";
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -19,28 +20,21 @@ function SearchStation() {
   const searchParams = useSearchParams();
   const id = searchParams?.get("gtfsId");
 
-  const { data: station, error } = useSWR(
+  const { data: station, error } = useSWR<StationResponse>(
     `/api/station?gtfsId=${id}`,
     fetcher,
     { refreshInterval: 30000 }
   );
 
-  const convertToTime = (time: number) => {
-    const timeOffset = new Date().getTimezoneOffset() / 60;
-    const hour = new Date(time * 1000).getHours() + timeOffset;
-    const minute = new Date(time * 1000)
-      .getMinutes()
-      .toString()
-      .padStart(2, "0");
-    return `${hour}:${minute}`;
+  // Use serviceDay + departureSeconds for correct time calculation
+  const convertToTime = (serviceDay: number, departureSeconds: number) => {
+    const date = new Date((serviceDay + departureSeconds) * 1000);
+    return date.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
   };
 
-  const diffCurrentimetoRealtimetime = (time: number) => {
-    const currentTime = Date.now();
-    const realtimeTimestamp = new Date().setHours(0, 0, 0, 0) + time * 1000;
-    const diffMinutes = Math.floor((realtimeTimestamp - currentTime) / 60000);
-
-    return diffMinutes;
+  const getDiffMinutes = (serviceDay: number, departureSeconds: number) => {
+    const departureMs = (serviceDay + departureSeconds) * 1000;
+    return Math.floor((departureMs - Date.now()) / 60000);
   };
 
   const getDepartureDisplay = (minutes: number) => {
@@ -48,7 +42,7 @@ function SearchStation() {
     if (minutes <= 2) return { text: `${minutes} min`, color: "text-red-600 dark:text-red-400 font-bold" };
     if (minutes <= 5) return { text: `${minutes} min`, color: "text-orange-600 dark:text-orange-400 font-semibold" };
     if (minutes <= 10) return { text: `${minutes} min`, color: "text-blue-600 dark:text-blue-400 font-semibold" };
-    return { text: convertToTime(0), color: "text-gray-700 dark:text-gray-300" };
+    return { text: "", color: "text-gray-700 dark:text-gray-300" };
   };
 
   if (error) {
@@ -68,14 +62,12 @@ function SearchStation() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="animate-pulse">
-          {/* Header skeleton */}
           <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
             <div className="max-w-4xl mx-auto px-4 py-4">
               <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
               <div className="h-10 w-64 bg-gray-300 dark:bg-gray-600 rounded"></div>
             </div>
           </div>
-          {/* Departures skeleton */}
           <div className="max-w-4xl mx-auto px-4 py-6 space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 h-24"></div>
@@ -86,7 +78,7 @@ function SearchStation() {
     );
   }
 
-  const departures = station.data.stop._stoptimesWithoutPatterns285iU7 || [];
+  const departures = station.data.stop.stoptimesWithoutPatterns || [];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
@@ -148,8 +140,8 @@ function SearchStation() {
 
         {departures.length > 0 ? (
           <div className="space-y-3">
-            {departures.map((item: any, index: number) => {
-              const diff = diffCurrentimetoRealtimetime(item.realtimeDeparture);
+            {departures.map((item: StoptimesWithoutPatterns, index: number) => {
+              const diff = getDiffMinutes(item.serviceDay, item.realtimeDeparture);
               const departure = getDepartureDisplay(diff);
               const isRealtime = item.realtimeState === "UPDATED";
               const isLeaving = diff <= 2 && diff > 0;
@@ -166,7 +158,6 @@ function SearchStation() {
                   }`}
                 >
                   <div className="flex items-center justify-between gap-4">
-                    {/* Route Badge */}
                     <div className="flex-shrink-0">
                       <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 rounded-xl flex items-center justify-center shadow-md">
                         <span className="text-white text-xl font-bold">
@@ -175,7 +166,6 @@ function SearchStation() {
                       </div>
                     </div>
 
-                    {/* Destination */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
@@ -194,10 +184,13 @@ function SearchStation() {
                       </div>
                     </div>
 
-                    {/* Departure Time */}
                     <div className="flex-shrink-0 text-right">
                       <div className={`text-3xl font-bold ${departure.color}`}>
-                        {diff > 10 ? convertToTime(item.realtimeDeparture) : `${diff}`}
+                        {diff > 10
+                          ? convertToTime(item.serviceDay, item.realtimeDeparture)
+                          : diff <= 0
+                            ? departure.text
+                            : `${diff}`}
                       </div>
                       {diff <= 10 && diff > 0 && (
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -212,10 +205,9 @@ function SearchStation() {
                     </div>
                   </div>
 
-                  {/* Additional Info */}
                   {diff > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                      <span>Hora programada: {convertToTime(item.scheduledDeparture)}</span>
+                      <span>Hora programada: {convertToTime(item.serviceDay, item.scheduledDeparture)}</span>
                       {item.departureDelay !== 0 && (
                         <span className={item.departureDelay > 0 ? "text-orange-600 dark:text-orange-400" : "text-green-600 dark:text-green-400"}>
                           {item.departureDelay > 0 ? '+' : ''}{Math.floor(item.departureDelay / 60)} min
@@ -229,20 +221,23 @@ function SearchStation() {
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
-            <div className="text-6xl mb-4">🕐</div>
+            <div className="text-6xl mb-4">⚠️</div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              {translations.station.noDepartures}
+              Horários temporariamente indisponíveis
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Não há partidas previstas para esta paragem de momento.
+              Os dados de horários podem estar desatualizados no servidor.
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">
-              Esta página atualiza automaticamente. Aguarde alguns momentos.
+              Os autocarros continuam a circular — consulte o{" "}
+              <Link href="/" className="text-blue-600 dark:text-blue-400 hover:underline">
+                mapa em tempo real
+              </Link>{" "}
+              para ver as posições atuais.
             </p>
           </div>
         )}
 
-        {/* Footer info */}
         {departures.length > 0 && (
           <div className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
             A mostrar {departures.length} {departures.length === 1 ? 'partida' : 'partidas'}

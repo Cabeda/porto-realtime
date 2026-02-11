@@ -2,189 +2,173 @@
 
 ## Project Overview
 
-Porto Explore is a Next.js 14 web application that provides real-time public transit information for Porto, Portugal. It uses the Porto OpenTripPlanner GraphQL API to fetch live departure times and station data.
+Porto Explore is a Next.js 16 web application providing real-time public transit information for Porto, Portugal. It shows live bus positions on an interactive map and station departure times via the Porto OpenTripPlanner GraphQL API.
 
 ## Architecture
 
 ### Framework & Routing
-- **Next.js 14** with App Router
+- **Next.js 16** with App Router (pages) + Pages Router (API routes)
 - **TypeScript** for type safety
+- **pnpm** as package manager
 - Client-side rendering for interactive features (`"use client"`)
+- Deployed on **Vercel**
 
 ### Pages Structure
-- `/` - Home page with station list, favorites, and geolocation
-- `/station?gtfsId={id}` - Individual station page with live departures
+- `/` — Live bus map (homepage) with route filtering, onboarding flow
+- `/stations` — Station list with search, favorites, and geolocation
+- `/station?gtfsId={id}` — Individual station page with live departures
 
 ### API Routes (Pages Router)
 Located in `/pages/api/`:
-- `stations.tsx` - Fetches all transit stops from OTP API
-- `station.tsx` - Fetches real-time departures for a specific station by `gtfsId`
+- `buses.tsx` — Fetches real-time bus positions from FIWARE Urban Platform, enriches with OTP route data
+- `stations.tsx` — Fetches all transit stops from OTP GraphQL API
+- `station.tsx` — Fetches real-time departures for a specific station by `gtfsId`
+- `route-shapes.tsx` — Fetches route pattern geometries from OTP, decodes polylines
 
 ## Key Technologies
 
+- **React 18** with hooks for state management
+- **SWR** for data fetching with auto-revalidation and localStorage caching
+- **Leaflet + react-leaflet** for interactive maps
+- **Tailwind CSS** for styling
+- **PWA** with service worker for offline support
+
 ### Data Fetching
-- **SWR** for client-side data fetching with automatic revalidation
-- Station page auto-refreshes every 30 seconds (`refreshInterval: 30000`)
-- Stations list cached for 1 week (`revalidate: 604800`)
-
-### State Management
-- React hooks (`useState`, `useEffect`)
-- Local storage for favorites persistence
-- Browser Geolocation API for finding nearby stations
-
-### Styling
-- **Tailwind CSS** for utility-first styling
-- Responsive design with mobile-first approach
-- Custom SVG icons for favorites and live indicators
+- Bus positions refresh every 30 seconds via SWR
+- Station departures refresh every 30 seconds
+- Stations list cached for 7 days in localStorage
+- Shared fetchers in `lib/fetchers.ts` with localStorage fallback for instant loads
 
 ## Data Models
 
-### Station/Stop
+Shared types are defined in `lib/types.ts`:
+
+### Bus
 ```typescript
-interface Stop {
-  id: string;
-  code: string;
-  desc: string;
-  lat: number;
-  lon: number;
-  name: string;
-  gtfsId: string; // Primary identifier (e.g., "2:BRRS2")
+interface Bus {
+  id: string; lat: number; lon: number;
+  routeShortName: string; routeLongName: string;
+  heading: number; speed: number;
+  lastUpdated: string; vehicleNumber: string;
 }
 ```
 
-### Departure/Stoptime
+### Stop
+```typescript
+interface Stop {
+  id: string; code: string; desc: string;
+  lat: number; lon: number; name: string;
+  gtfsId: string; // e.g., "2:BRRS2"
+}
+```
+
+### StoptimesWithoutPatterns
 ```typescript
 interface StoptimesWithoutPatterns {
   realtimeState: string; // "UPDATED" | "SCHEDULED"
-  realtimeDeparture: number; // Unix timestamp (seconds)
+  realtimeDeparture: number; // seconds since midnight
   scheduledDeparture: number;
-  realtimeArrival: number;
-  scheduledArrival: number;
-  arrivalDelay: number;
-  departureDelay: number;
+  serviceDay: number; // unix timestamp for midnight of service day
   realtime: boolean;
-  serviceDay: number;
+  departureDelay: number;
   trip: {
-    route: {
-      gtfsId: string;
-      shortName: string; // Route number
-      longName: string; // Destination
-      mode: string;
-      color: string;
-    };
+    route: { shortName: string; longName: string; mode: string; color: string; };
   };
 }
 ```
 
-## External API
+**Time calculation**: Actual departure time = `(serviceDay + realtimeDeparture) * 1000` (milliseconds).
+
+## External APIs
 
 ### Porto OpenTripPlanner
-- **Base URL**: `https://otp.services.porto.digital/otp/routers/default/index/graphql`
+- **URL**: `https://otp.services.porto.digital/otp/routers/default/index/graphql`
 - **Protocol**: GraphQL over HTTP POST
-- **Authentication**: None required
-- **Headers**: Standard CORS headers with Origin set to `https://explore.porto.pt`
+- **Auth**: None (requires `Origin: https://explore.porto.pt` header)
+- **Known issue**: GTFS schedule data expired Dec 31, 2025. Stops/routes exist but departures return empty arrays. The app handles this gracefully with a user-facing message.
 
-### GraphQL Queries
-
-**Get All Stations:**
-```graphql
-query Request {
-  stops {
-    id code desc lat lon name gtfsId
-  }
-}
-```
-
-**Get Station Departures:**
-```graphql
-query StopRoutes($id_0: String!, $startTime_1: Long!, $timeRange_2: Int!, $numberOfDepartures_3: Int!) {
-  stop(id: $id_0) {
-    id name
-    stoptimesWithoutPatterns(startTime: $startTime_1, timeRange: $timeRange_2, numberOfDepartures: $numberOfDepartures_3, omitCanceled: false) {
-      realtimeState realtimeDeparture scheduledDeparture
-      trip { route { shortName longName mode color } }
-    }
-  }
-}
-```
-
-## Key Features Implementation
-
-### Geolocation
-- Uses browser's `navigator.geolocation.getCurrentPosition()`
-- Calculates distance using Euclidean distance formula
-- Displays 5 closest stations sorted by distance
-
-### Favorites
-- Stored in `localStorage` as JSON array
-- Persisted across sessions
-- Add/remove functionality with star button
-
-### Live Updates
-- Station page uses SWR with 30-second refresh interval
-- Displays "Already left" for departures in the past
-- Shows minutes until departure for upcoming trips (<10 min)
-- Shows actual time for departures >10 minutes away
-- Pulsing animation for departures <5 minutes with realtime data
+### FIWARE Urban Platform (Bus Positions)
+- **URL**: `https://broker.fiware.urbanplatform.portodigital.pt/v2/entities?q=vehicleType==bus&limit=1000`
+- **Protocol**: REST (NGSI v2)
+- **Auth**: None
+- Returns real-time GPS positions for STCP buses
 
 ## File Structure
 
 ```
 porto-realtime/
 ├── app/
-│   ├── page.tsx              # Home page (station list)
-│   ├── layout.tsx            # Root layout
-│   ├── globals.css           # Global styles
-│   ├── station/
-│   │   └── page.tsx          # Station detail page
-│   └── *.svg                 # Icon assets
+│   ├── page.tsx              # Bus map page (homepage)
+│   ├── layout.tsx            # Root layout with PWA support
+│   ├── globals.css           # Global styles + Leaflet popup styles
+│   ├── stations/
+│   │   └── page.tsx          # Station list page
+│   └── station/
+│       └── page.tsx          # Station detail page
+├── components/
+│   ├── LeafletMap.tsx        # Map component with bus/stop markers
+│   ├── RouteFilterPanel.tsx  # Route selection panel
+│   ├── AboutModal.tsx        # About dialog
+│   ├── OnboardingFlow.tsx    # 3-step onboarding (welcome → routes → location)
+│   ├── DarkModeToggle.tsx    # Dark mode toggle button
+│   ├── LoadingSkeletons.tsx  # Skeleton loading states
+│   └── PWAInstallPrompt.tsx  # PWA install + update prompts
+├── lib/
+│   ├── types.ts              # Shared TypeScript interfaces
+│   ├── fetchers.ts           # Shared SWR fetchers with localStorage cache
+│   ├── translations.ts       # Portuguese i18n strings
+│   ├── storage.ts            # localStorage wrapper with expiry
+│   └── logger.ts             # Environment-aware logging
 ├── pages/
 │   └── api/
-│       ├── stations.tsx      # All stations API
-│       └── station.tsx       # Single station API
-├── public/                   # Static assets (favicons)
+│       ├── buses.tsx         # Bus positions API (FIWARE + OTP enrichment)
+│       ├── stations.tsx      # All stops API
+│       ├── station.tsx       # Station departures API
+│       └── route-shapes.tsx  # Route geometries API
+├── public/                   # Static assets, PWA manifest, service worker
 ├── package.json
 ├── tsconfig.json
 ├── tailwind.config.ts
 └── next.config.mjs
 ```
 
+## Key Features
+
+### Bus Map (`/`)
+- Real-time bus markers with route number + destination labels
+- Route filtering with favorites (persisted in localStorage)
+- Route path visualization (polylines from OTP pattern geometries)
+- Stop markers (viewport-based rendering for performance)
+- User geolocation with fly-to animation
+- Station highlighting via URL param (`/?station=2:BRRS2`)
+- 3-step onboarding for first-time users
+- Dark mode support
+
+### Station Departures (`/station`)
+- Live departure times using `serviceDay + departureSeconds` for correct timezone handling
+- Color-coded urgency (red ≤2min, orange ≤5min, blue ≤10min, time >10min)
+- Real-time vs scheduled indicator
+- Graceful handling when GTFS data is unavailable (links to live map)
+
+### Stations List (`/stations`)
+- 5 closest stations via Haversine distance
+- Favorites with localStorage persistence
+- Text search filter
+
 ## Development Guidelines
 
-### When Adding Features
-1. **New API endpoints**: Add to `/pages/api/` using Next.js API routes
-2. **New pages**: Add to `/app/` directory using App Router conventions
-3. **State management**: Use React hooks and localStorage for persistence
-4. **Data fetching**: Use SWR for client-side fetching with appropriate cache/refresh intervals
-
-### Common Tasks
-
-**Add a new station field:**
-1. Update GraphQL query in `/pages/api/stations.tsx`
-2. Update `Stop` interface
-3. Display in `/app/page.tsx` or `/app/station/page.tsx`
-
-**Modify refresh interval:**
-- Station page: Change `refreshInterval` in SWR config
-- Stations list: Change `revalidate` in fetch options
-
-**Add new filter/sort:**
-- Implement in `/app/page.tsx` using array methods
-- Consider adding to localStorage for persistence
+### Adding Features
+1. **New API endpoints**: Add to `/pages/api/`
+2. **New pages**: Add to `/app/` directory
+3. **Shared types**: Add to `lib/types.ts`
+4. **Data fetching**: Use SWR with fetchers from `lib/fetchers.ts`
+5. **Components**: Extract to `components/` directory
 
 ### Known Issues
-- Duplicate `e.preventDefault()` calls in favorite button handlers
-- Unused `router` import in station page
-- Timezone offset calculation may not work correctly for all timezones
-
-## Testing Considerations
-- Test geolocation with browser permission denied
-- Test localStorage in private/incognito mode
-- Test with slow network (30s refresh interval)
-- Verify GTFS ID format compatibility with OTP API
-- Test mobile responsive layout
+- GTFS schedule data on OTP server expired Dec 31, 2025 — station departures return empty
+- Bus positions (FIWARE) continue to work independently
 
 ## Environment
 - No environment variables required
-- API is publicly accessible
+- All APIs are publicly accessible
 - No authentication needed

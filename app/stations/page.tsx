@@ -5,50 +5,18 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import Image from "next/image";
 import star from "../star-white.svg";
-import { useRouter } from "next/navigation";
 import { translations } from "@/lib/translations";
 import { logger } from "@/lib/logger";
 import { StationsSkeleton } from "@/components/LoadingSkeletons";
-import { storage } from "@/lib/storage";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
+import { stationsFetcher } from "@/lib/fetchers";
+import type { Stop, StopsResponse } from "@/lib/types";
 
-// Fetcher with localStorage fallback for stations (they change infrequently)
-const stationsFetcher = async (url: string) => {
-  // Try to get from localStorage first (instant load)
-  const cached = storage.get<any>("cachedStations");
-  
-  if (cached) {
-    // Fetch fresh data in background
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error(translations.stations.errorLoading);
-        return res.json();
-      })
-      .then((freshData) => {
-        storage.set("cachedStations", freshData, 7);
-      })
-      .catch((err) => {
-        logger.error("Failed to update stations cache:", err);
-      });
-    
-    return cached;
-  }
-  
-  // No cache - fetch from network
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(translations.stations.errorLoading);
-  }
-  const data = await response.json();
-  
-  // Store in localStorage for next time
-  storage.set("cachedStations", data, 7);
-  
-  return data;
-};
+interface StopWithDistance extends Stop {
+  distance: number;
+}
 
 export default function Home() {
-  // Store only gtfsId strings in favorites, not full objects
   const [favoriteStationIds, setFavoriteStationIds] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       const savedFavorites = localStorage.getItem("favoriteStations");
@@ -58,9 +26,6 @@ export default function Home() {
   });
   const [location, setLocation] = useState({ latitude: 0, longitude: 0 });
 
-  const router = useRouter();
-
-  // Get user location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((position) => {
@@ -74,22 +39,17 @@ export default function Home() {
     }
   }, []);
 
-  // Persist favorites to localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem(
-        "favoriteStations",
-        JSON.stringify(favoriteStationIds)
-      );
+      localStorage.setItem("favoriteStations", JSON.stringify(favoriteStationIds));
     }
   }, [favoriteStationIds]);
 
   const {
     data: stations,
     error: stationsError,
-    isLoading: boolean,
-  } = useSWR("/api/stations", stationsFetcher, {
-    dedupingInterval: 7 * 24 * 60 * 60 * 1000, // 7 days
+  } = useSWR<StopsResponse>("/api/stations", stationsFetcher, {
+    dedupingInterval: 7 * 24 * 60 * 60 * 1000,
     revalidateIfStale: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -101,27 +61,20 @@ export default function Home() {
     setFilter(event.target.value);
   };
 
-  // Helper functions for favorites
   const toggleFavorite = (gtfsId: string) => {
-    setFavoriteStationIds((prev) => {
-      if (prev.includes(gtfsId)) {
-        return prev.filter((id) => id !== gtfsId);
-      } else {
-        return [...prev, gtfsId];
-      }
-    });
+    setFavoriteStationIds((prev) =>
+      prev.includes(gtfsId) ? prev.filter((id) => id !== gtfsId) : [...prev, gtfsId]
+    );
   };
 
   const isFavorite = (gtfsId: string) => favoriteStationIds.includes(gtfsId);
 
-  // Get favorite station objects from IDs
-  const favoriteStations = stations?.data.stops.filter((station: any) =>
+  const favoriteStations = stations?.data.stops.filter((station: Stop) =>
     favoriteStationIds.includes(station.gtfsId)
   ) || [];
 
-  // Haversine formula for accurate distance calculation
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371; // Earth's radius in kilometers
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a =
@@ -130,21 +83,16 @@ export default function Home() {
       Math.cos(lat2 * Math.PI / 180) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distance in kilometers
+    return R * c;
   };
 
-  const get5ClosestStations = (stations: any, location: any) => {
-    return stations.data.stops
-      .map((station: any) => ({
+  const get5ClosestStations = (stationsData: StopsResponse, loc: { latitude: number; longitude: number }): StopWithDistance[] => {
+    return stationsData.data.stops
+      .map((station: Stop) => ({
         ...station,
-        distance: calculateDistance(
-          location.latitude,
-          location.longitude,
-          station.lat,
-          station.lon
-        ),
+        distance: calculateDistance(loc.latitude, loc.longitude, station.lat, station.lon),
       }))
-      .sort((a: any, b: any) => a.distance - b.distance)
+      .sort((a: StopWithDistance, b: StopWithDistance) => a.distance - b.distance)
       .slice(0, 5);
   };
 
@@ -160,7 +108,7 @@ export default function Home() {
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Porto Explore</h1>
           <div className="flex items-center gap-3">
             <DarkModeToggle />
-            <Link 
+            <Link
               href="/"
               className="px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-semibold shadow-md"
             >
@@ -175,42 +123,39 @@ export default function Home() {
             <h2 className="text-2xl font-bold pt-12 pb-4 text-gray-900 dark:text-white">{translations.stations.closestStations}</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {stations &&
-              get5ClosestStations(stations, location).map(
-                (closeStation: any, index: any) => (
-                  <div
-                    key={`closest-${closeStation.id}`}
-                    className="p-4 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-md hover:shadow-md transition-shadow"
-                  >
-                    <Link href={`/station?gtfsId=${closeStation.gtfsId}`}>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">{closeStation.name}</h3>
-                      <p className="text-gray-600 dark:text-gray-400">{closeStation.gtfsId}</p>
-                      <p className="text-gray-600 dark:text-gray-400">{closeStation.distance.toFixed(2)} {translations.stations.km}</p>
-                    </Link>
-                    <button
-                      className={`mt-2 p-2 text-white rounded transition-colors ${
-                        isFavorite(closeStation.gtfsId) ? "bg-yellow-500 dark:bg-yellow-600" : "bg-blue-500 dark:bg-blue-600"
-                      }`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleFavorite(closeStation.gtfsId);
-                      }}
-                      aria-label={
-                        isFavorite(closeStation.gtfsId)
-                          ? translations.stations.removeFromFavorites
-                          : translations.stations.addToFavorites
-                      }
-                    >
-                      <Image src={star} alt="Favorite" width={24} height={24} />
-                    </button>
-                  </div>
-                )
-              )}
+            {get5ClosestStations(stations, location).map((closeStation: StopWithDistance) => (
+              <div
+                key={`closest-${closeStation.id}`}
+                className="p-4 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-md hover:shadow-md transition-shadow"
+              >
+                <Link href={`/station?gtfsId=${closeStation.gtfsId}`}>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">{closeStation.name}</h3>
+                  <p className="text-gray-600 dark:text-gray-400">{closeStation.gtfsId}</p>
+                  <p className="text-gray-600 dark:text-gray-400">{closeStation.distance.toFixed(2)} {translations.stations.km}</p>
+                </Link>
+                <button
+                  className={`mt-2 p-2 text-white rounded transition-colors ${
+                    isFavorite(closeStation.gtfsId) ? "bg-yellow-500 dark:bg-yellow-600" : "bg-blue-500 dark:bg-blue-600"
+                  }`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    toggleFavorite(closeStation.gtfsId);
+                  }}
+                  aria-label={
+                    isFavorite(closeStation.gtfsId)
+                      ? translations.stations.removeFromFavorites
+                      : translations.stations.addToFavorites
+                  }
+                >
+                  <Image src={star} alt="Favorite" width={24} height={24} />
+                </button>
+              </div>
+            ))}
           </div>
           <h2 className="text-2xl font-bold pt-12 pb-4 text-gray-900 dark:text-white">{translations.stations.favorites}</h2>
           <div className="grid gap-4">
             {favoriteStations.length > 0 ? (
-              favoriteStations.map((favoriteStation: any) => (
+              favoriteStations.map((favoriteStation: Stop) => (
                 <div
                   key={`favorite-${favoriteStation.gtfsId}`}
                   className="p-4 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -244,38 +189,34 @@ export default function Home() {
             placeholder={translations.stations.filterPlaceholder}
             className="p-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
           />
-          {stations &&
-            stations.data.stops
-              .filter((station: any) =>
-                station.name.toLowerCase().includes(filter.toLowerCase())
-              )
-              .map((station: any) => (
-                <Link
-                  key={station.id}
-                  href={`/station?gtfsId=${station.gtfsId}`}
-                >
-                  <div className="p-4 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <p className="font-semibold text-gray-900 dark:text-white">{station.name}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{station.gtfsId}</p>
-                    <button
-                      className={`mt-2 p-2 text-white rounded transition-colors ${
-                        isFavorite(station.gtfsId) ? "bg-yellow-500 dark:bg-yellow-600" : "bg-blue-500 dark:bg-blue-600"
-                      }`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleFavorite(station.gtfsId);
-                      }}
-                      aria-label={
-                        isFavorite(station.gtfsId)
-                          ? translations.stations.removeFromFavorites
-                          : translations.stations.addToFavorites
-                      }
-                    >
-                      <Image src={star} className="fill-current text-white" alt="Favorite" width={24} height={24} />
-                    </button>
-                  </div>
-                </Link>
-              ))}
+          {stations.data.stops
+            .filter((station: Stop) =>
+              station.name.toLowerCase().includes(filter.toLowerCase())
+            )
+            .map((station: Stop) => (
+              <Link key={station.id} href={`/station?gtfsId=${station.gtfsId}`}>
+                <div className="p-4 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                  <p className="font-semibold text-gray-900 dark:text-white">{station.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{station.gtfsId}</p>
+                  <button
+                    className={`mt-2 p-2 text-white rounded transition-colors ${
+                      isFavorite(station.gtfsId) ? "bg-yellow-500 dark:bg-yellow-600" : "bg-blue-500 dark:bg-blue-600"
+                    }`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleFavorite(station.gtfsId);
+                    }}
+                    aria-label={
+                      isFavorite(station.gtfsId)
+                        ? translations.stations.removeFromFavorites
+                        : translations.stations.addToFavorites
+                    }
+                  >
+                    <Image src={star} className="fill-current text-white" alt="Favorite" width={24} height={24} />
+                  </button>
+                </div>
+              </Link>
+            ))}
         </div>
       </div>
     </main>
