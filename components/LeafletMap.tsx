@@ -318,7 +318,7 @@ export function LeafletMap({
         stopMarkersRef.current.forEach((marker) => marker.remove());
         stopMarkersRef.current = [];
 
-        if (!showStops || stops.length === 0) return;
+        if (!showStops || stops.length === 0 || map.getZoom() < 15) return;
 
         const bounds = map.getBounds();
         mapBoundsRef.current = bounds;
