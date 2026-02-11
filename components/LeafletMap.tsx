@@ -25,11 +25,47 @@ function nearestPointOnSegment(
   ax: number, ay: number,
   bx: number, by: number
 ): [number, number] {
-  const dx = bx - ax, dy = by - ay;
+  // Perform projection in an equirectangular-like space where longitude is
+  // scaled by cos(latitude), to match the distance metric used elsewhere.
+  const rad = Math.PI / 180;
+  const cosLat = Math.cos(py * rad);
+
+  // If cosLat is 0 (at the poles), fall back to unscaled degrees to avoid
+  // division-by-zero; distances are degenerate there anyway.
+  const scale = cosLat === 0 ? 1 : cosLat;
+
+  // Convert to scaled coordinates: x = lon * scale, y = lat.
+  const pxScaled = px * scale;
+  const pyScaled = py;
+  const axScaled = ax * scale;
+  const ayScaled = ay;
+  const bxScaled = bx * scale;
+  const byScaled = by;
+
+  const dx = bxScaled - axScaled;
+  const dy = byScaled - ayScaled;
   const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return [ax, ay];
-  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
-  return [ax + t * dx, ay + t * dy];
+  if (lenSq === 0) {
+    // Degenerate segment: return the single endpoint.
+    return [ax, ay];
+  }
+
+  const t = Math.max(
+    0,
+    Math.min(
+      1,
+      ((pxScaled - axScaled) * dx + (pyScaled - ayScaled) * dy) / lenSq,
+    ),
+  );
+
+  const projXScaled = axScaled + t * dx;
+  const projYScaled = ayScaled + t * dy;
+
+  // Convert back from scaled coordinates to lon/lat degrees.
+  const projLon = scale === 0 ? ax : projXScaled / scale;
+  const projLat = projYScaled;
+
+  return [projLon, projLat];
 }
 
 /** Snap a lat/lon to the nearest point on any polyline for the given route. Returns original position if no route within 150 m. */
