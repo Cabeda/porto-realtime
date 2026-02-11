@@ -44,28 +44,36 @@ export default async function handler(
 ) {
   const gtfsId = (req.query.gtfsId as string) || "2:BRRS2";
 
-  const response = await fetch(OTP_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Origin: "https://explore.porto.pt",
-    },
-    body: JSON.stringify({
-      query: QUERY,
-      variables: {
-        id: gtfsId,
-        startTime: Math.floor(Date.now() / 1000),
-        timeRange: 1800,
-        numberOfDepartures: 100,
+  try {
+    const response = await fetch(OTP_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://explore.porto.pt",
       },
-    }),
-  });
+      body: JSON.stringify({
+        query: QUERY,
+        variables: {
+          id: gtfsId,
+          startTime: Math.floor(Date.now() / 1000),
+          timeRange: 1800,
+          numberOfDepartures: 100,
+        },
+      }),
+    });
 
-  const data = await response.json();
+    const data = await response.json();
 
-  if (!response.ok) {
-    return res.status(response.status).json(data);
+    if (!response.ok) {
+      return res.status(response.status).json(data);
+    }
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error("Error fetching station departures:", error);
+    res.status(500).json({
+      error: "Failed to fetch station departures",
+      data: { stop: null }
+    });
   }
-
-  res.status(200).json(data);
 }

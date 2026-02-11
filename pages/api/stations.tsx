@@ -9,27 +9,36 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const response = await fetch(OTP_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Origin: "https://explore.porto.pt",
-    },
-    body: JSON.stringify({
-      query: `query { stops { id code desc lat lon name gtfsId } }`,
-    }),
-  });
+  try {
+    const response = await fetch(OTP_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://explore.porto.pt",
+      },
+      body: JSON.stringify({
+        query: `query { stops { id code desc lat lon name gtfsId } }`,
+      }),
+    });
 
-  const data = await response.json();
+    const data = await response.json();
 
-  if (response.ok) {
-    res.setHeader(
-      "Cache-Control",
-      `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${7 * 24 * 60 * 60}`
-    );
-    res.status(200).json(data);
-  } else {
+    if (response.ok) {
+      res.setHeader(
+        "Cache-Control",
+        `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${7 * 24 * 60 * 60}`
+      );
+      res.status(200).json(data);
+    } else {
+      res.setHeader("Cache-Control", "no-cache");
+      res.status(response.status).json(data);
+    }
+  } catch (error) {
+    console.error("Error fetching stations:", error);
     res.setHeader("Cache-Control", "no-cache");
-    res.status(response.status).json(data);
+    res.status(500).json({
+      error: "Failed to fetch stations",
+      data: { stops: [] }
+    });
   }
 }

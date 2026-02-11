@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import type { Map as LMap, Marker, LatLngBounds, Polyline } from "leaflet";
 import { logger } from "@/lib/logger";
+import { escapeHtml } from "@/lib/sanitize";
 import type { Bus, Stop, PatternGeometry } from "@/lib/types";
 
 // Color palette for routes (vibrant colors that work in light and dark mode)
@@ -107,19 +108,19 @@ export function LeafletMap({
         const iconHtml = `
           <div style="display:flex;align-items:center;gap:4px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
             <div style="min-width:44px;height:32px;background:${routeColor};border:2px solid white;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;font-family:system-ui,sans-serif;cursor:pointer;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">
-              ${bus.routeShortName}
+              ${escapeHtml(bus.routeShortName)}
             </div>
             <div style="background:rgba(255,255,255,0.98);border:1px solid #cbd5e1;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:600;color:#1e40af;font-family:system-ui,sans-serif;white-space:nowrap;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.2);max-width:150px;overflow:hidden;text-overflow:ellipsis;">
-              ${truncatedDestination}
+              ${escapeHtml(truncatedDestination)}
             </div>
           </div>`;
 
         const popupHtml = `
           <div class="bus-popup text-sm" style="min-width:240px;font-family:system-ui,sans-serif;">
-            <div class="bus-popup-title">Linha ${bus.routeShortName}</div>
-            <div class="bus-popup-destination">→ ${destinationText}</div>
+            <div class="bus-popup-title">Linha ${escapeHtml(bus.routeShortName)}</div>
+            <div class="bus-popup-destination">→ ${escapeHtml(destinationText)}</div>
             <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : 'Parado'}</div>
-            ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${bus.vehicleNumber}</div>` : ''}
+            ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${escapeHtml(bus.vehicleNumber)}</div>` : ''}
             <div class="bus-popup-footer">Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}</div>
           </div>`;
 
@@ -180,10 +181,10 @@ export function LeafletMap({
               .addTo(map)
               .bindPopup(`
                 <div class="stop-popup text-sm" style="min-width:200px;font-family:system-ui,sans-serif;">
-                  <div class="stop-popup-title">${stop.name}</div>
-                  ${stop.code ? `<div class="stop-popup-code"><strong>Código:</strong> ${stop.code}</div>` : ''}
-                  ${stop.desc ? `<div class="stop-popup-desc">${stop.desc}</div>` : ''}
-                  <a href="/station?gtfsId=${stop.gtfsId}" class="stop-popup-link" target="_blank">Ver Horários →</a>
+                  <div class="stop-popup-title">${escapeHtml(stop.name)}</div>
+                  ${stop.code ? `<div class="stop-popup-code"><strong>Código:</strong> ${escapeHtml(stop.code)}</div>` : ''}
+                  ${stop.desc ? `<div class="stop-popup-desc">${escapeHtml(stop.desc)}</div>` : ''}
+                  <a href="/station?gtfsId=${encodeURIComponent(stop.gtfsId)}" class="stop-popup-link" target="_blank">Ver Horários →</a>
                 </div>
               `);
             stopMarkersRef.current.push(marker);
@@ -256,9 +257,9 @@ export function LeafletMap({
         .addTo(mapInstanceRef.current!)
         .bindPopup(`
           <div class="stop-popup text-sm" style="min-width:200px;font-family:system-ui,sans-serif;">
-            <div class="stop-popup-title">${highlightedStop.name}</div>
-            ${highlightedStop.code ? `<div class="stop-popup-code"><strong>Código:</strong> ${highlightedStop.code}</div>` : ''}
-            <a href="/station?gtfsId=${highlightedStop.gtfsId}" class="stop-popup-link" target="_blank">Ver Horários →</a>
+            <div class="stop-popup-title">${escapeHtml(highlightedStop.name)}</div>
+            ${highlightedStop.code ? `<div class="stop-popup-code"><strong>Código:</strong> ${escapeHtml(highlightedStop.code)}</div>` : ''}
+            <a href="/station?gtfsId=${encodeURIComponent(highlightedStop.gtfsId)}" class="stop-popup-link" target="_blank">Ver Horários →</a>
           </div>
         `)
         .openPopup();
