@@ -67,9 +67,5 @@ export default async function handler(
     return res.status(response.status).json(data);
   }
 
-  const departures = data.data?.stop?.stoptimesWithoutPatterns || [];
-  res.status(200).json({
-    ...data,
-    dataAvailable: departures.length > 0,
-  });
+  res.status(200).json(data);
 }
