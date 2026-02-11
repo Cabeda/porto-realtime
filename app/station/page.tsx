@@ -169,7 +169,7 @@ function SearchStation() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
-                          {item.trip.route.longName}
+                          {item.headsign || item.trip.route.longName}
                         </h3>
                         {isRealtime && (
                           <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium rounded-full">

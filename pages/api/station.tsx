@@ -28,6 +28,7 @@ const QUERY = `
         departureDelay
         realtime
         serviceDay
+        headsign
         trip {
           pattern { code id }
           route { gtfsId shortName longName mode color id }
