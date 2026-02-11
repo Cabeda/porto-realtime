@@ -201,9 +201,18 @@ export function LeafletMap({
               if (!el) return;
 
               fetch(`/api/station?gtfsId=${encodeURIComponent(stop.gtfsId)}`)
-                .then(r => r.json())
-                .then(data => {
-                  const deps = data?.data?.stop?.stoptimesWithoutPatterns || [];
+                .then((r) => {
+                  if (!r.ok) {
+                    throw new Error(`Failed to load station data (status ${r.status})`);
+                  }
+                  return r.json();
+                })
+                .then((data) => {
+                  if (!data?.data?.stop) {
+                    throw new Error("Invalid station data");
+                  }
+
+                  const deps = data.data.stop.stoptimesWithoutPatterns || [];
                   const now = Date.now();
                   const upcoming = deps
                     .map((d: { serviceDay: number; realtimeDeparture: number; headsign?: string; realtime?: boolean; trip: { gtfsId: string; route: { shortName: string } } }) => ({
