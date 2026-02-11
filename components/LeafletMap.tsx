@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import type { Map as LMap, Marker, LatLngBounds, Polyline } from "leaflet";
 import { logger } from "@/lib/logger";
 import { escapeHtml } from "@/lib/sanitize";
@@ -72,13 +72,12 @@ function nearestPointOnSegment(
 function snapToRoute(
   lat: number, lon: number,
   routeShortName: string,
-  patterns: PatternGeometry[],
+  routePatternsMap: Map<string, PatternGeometry[]>,
   busId: string,
   segmentMap: Map<string, { pIdx: number; sIdx: number }>,
 ): [number, number] {
-  const routePs: PatternGeometry[] = [];
-  for (const p of patterns) if (p.routeShortName === routeShortName) routePs.push(p);
-  if (routePs.length === 0) return [lat, lon];
+  const routePs = routePatternsMap.get(routeShortName);
+  if (!routePs || routePs.length === 0) return [lat, lon];
 
   const cosLat = Math.cos(lat * Math.PI / 180);
   const distSq = (nlat: number, nlon: number) => {
@@ -155,6 +154,20 @@ export function LeafletMap({
   const busSegmentRef = useRef<Map<string, { pIdx: number; sIdx: number }>>(new Map());
   const [isMapReady, setIsMapReady] = useState(false);
 
+  // Pre-group route patterns by routeShortName for efficient lookup
+  const routePatternsMap = useMemo(() => {
+    const map = new Map<string, PatternGeometry[]>();
+    for (const pattern of routePatterns) {
+      const existing = map.get(pattern.routeShortName);
+      if (existing) {
+        existing.push(pattern);
+      } else {
+        map.set(pattern.routeShortName, [pattern]);
+      }
+    }
+    return map;
+  }, [routePatterns]);
+
   useEffect(() => {
     if (mapInstanceRef.current) return;
 
@@ -188,6 +201,12 @@ export function LeafletMap({
     if (!mapInstanceRef.current) return;
 
     if (buses.length === 0) {
+      // Cancel all running animations
+      animFramesRef.current.forEach((frameId) => cancelAnimationFrame(frameId));
+      animFramesRef.current.clear();
+      // Clear all segment hints
+      busSegmentRef.current.clear();
+      // Remove all markers
       busMarkersMapRef.current.forEach((marker) => marker.remove());
       busMarkersMapRef.current.clear();
       return;
@@ -244,7 +263,7 @@ export function LeafletMap({
         const existing = busMarkersMapRef.current.get(bus.id);
         if (existing) {
           // Snap target to route if polylines available
-          const target = snapToRoute(bus.lat, bus.lon, bus.routeShortName, routePatterns, bus.id, busSegmentRef.current);
+          const target = snapToRoute(bus.lat, bus.lon, bus.routeShortName, routePatternsMap, bus.id, busSegmentRef.current);
           const cur = existing.getLatLng();
 
           // Cancel any running animation for this bus
@@ -275,7 +294,7 @@ export function LeafletMap({
           existing.setIcon(busIcon);
           existing.setPopupContent(popupHtml);
         } else {
-          const snapped = snapToRoute(bus.lat, bus.lon, bus.routeShortName, routePatterns, bus.id, busSegmentRef.current);
+          const snapped = snapToRoute(bus.lat, bus.lon, bus.routeShortName, routePatternsMap, bus.id, busSegmentRef.current);
           const marker = L.marker(snapped, {
             icon: busIcon,
             title: `Linha ${bus.routeShortName} → ${destinationText}`
