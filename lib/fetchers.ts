@@ -10,7 +10,10 @@ export const busesFetcher = async (url: string): Promise<BusesResponse> => {
   if (cached) {
     logger.log("Loading buses from localStorage cache");
     fetch(url)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch buses");
+        return res.json();
+      })
       .then((freshData) => {
         storage.set("cachedBuses", freshData, 0.033);
         logger.log("Updated buses cache with fresh data");
@@ -23,6 +26,9 @@ export const busesFetcher = async (url: string): Promise<BusesResponse> => {
 
   logger.log("Fetching buses from network (first time)");
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error("Failed to fetch buses");
+  }
   const data = await response.json();
   storage.set("cachedBuses", data, 0.033);
   return data;
