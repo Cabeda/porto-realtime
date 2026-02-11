@@ -22,6 +22,21 @@ async function gql(query, variables) {
   return json.data;
 }
 
+/**
+ * Returns a start time for queries that avoids off-peak/overnight periods.
+ * If before 6am, returns 8am today; otherwise returns current time.
+ */
+function getStartTimeForTests() {
+  const now = Math.floor(Date.now() / 1000);
+  const hourOfDay = new Date().getHours();
+  if (hourOfDay < 6) {
+    const today8am = new Date();
+    today8am.setHours(8, 0, 0, 0);
+    return Math.floor(today8am.getTime() / 1000);
+  }
+  return now;
+}
+
 describe("OTP endpoint (otp.portodigital.pt)", () => {
   describe("service availability", () => {
     it("should have a valid service time range covering today", async () => {
@@ -62,14 +77,7 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
 
   describe("departures (real-time)", () => {
     it("should return departures for a major stop", async () => {
-      const now = Math.floor(Date.now() / 1000);
-      // Use 8am as start time if we're before 6am (likely to have service)
-      // Otherwise use current time. This helps avoid off-peak/overnight periods.
-      const today = new Date();
-      const hourOfDay = today.getHours();
-      const start = hourOfDay < 6 
-        ? Math.floor(new Date(today.setHours(8, 0, 0, 0)).getTime() / 1000)
-        : now;
+      const start = getStartTimeForTests();
       
       const data = await gql(
         `query($id: String!, $start: Long!, $range: Int!, $n: Int!) {
@@ -92,13 +100,7 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
     });
 
     it("should include real-time updates when available", async () => {
-      const now = Math.floor(Date.now() / 1000);
-      // Use 8am as start time if we're before 6am (likely to have service)
-      const today = new Date();
-      const hourOfDay = today.getHours();
-      const start = hourOfDay < 6 
-        ? Math.floor(new Date(today.setHours(8, 0, 0, 0)).getTime() / 1000)
-        : now;
+      const start = getStartTimeForTests();
       
       const data = await gql(
         `query($id: String!, $start: Long!) {
