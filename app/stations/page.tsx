@@ -33,6 +33,9 @@ function StationCard({ station, isFavorite, onToggleFavorite, distance }: {
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-all p-4 flex items-center gap-4">
       <Link href={`/station?gtfsId=${station.gtfsId}`} className="flex-1 min-w-0">
         <h3 className="font-semibold text-gray-900 dark:text-white truncate">{station.name}</h3>
+        {station.code && (
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{station.code}</p>
+        )}
         {distance !== undefined && (
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">📍 {formatDistance(distance)}</p>
         )}
