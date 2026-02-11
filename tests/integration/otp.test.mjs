@@ -125,7 +125,10 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
         withGeometry.length > 20,
         `Expected >20 routes with geometry, got ${withGeometry.length}`
       );
-      const sample = data.routes[0].patterns[0];
+      const routeWithGeometry = withGeometry[0];
+      const sample =
+        routeWithGeometry.patterns.find((p) => p.patternGeometry?.points);
+      assert.ok(sample, "Expected at least one pattern with geometry");
       assert.ok(sample.patternGeometry.points, "Missing encoded polyline");
       assert.ok(sample.patternGeometry.length > 0, "Polyline length should be > 0");
     });
