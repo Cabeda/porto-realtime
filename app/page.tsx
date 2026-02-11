@@ -53,7 +53,14 @@ function MapPageContent() {
   const [showLocationSuccess, setShowLocationSuccess] = useState(false);
 
   const highlightedStationId = searchParams?.get("station");
-
+  const [showStationToast, setShowStationToast] = useState(true);
+  useEffect(() => {
+    if (highlightedStationId) {
+      setShowStationToast(true);
+      const t = setTimeout(() => setShowStationToast(false), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [highlightedStationId]);
   const [selectedRoutes, setSelectedRoutes] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("selectedRoutes");
@@ -381,7 +388,7 @@ function MapPageContent() {
           </div>
         )}
 
-        {highlightedStationId && stopsData?.data?.stops && (
+        {showStationToast && highlightedStationId && stopsData?.data?.stops && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 shadow-lg max-w-md">
             <div className="flex items-center gap-2">
               <span className="text-lg">📍</span>
