@@ -29,7 +29,7 @@ function SearchStation() {
   // Live countdown tick
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(id);
   }, []);
 
