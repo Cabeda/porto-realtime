@@ -404,6 +404,7 @@ function MapPageContent() {
         {data ? (
           <LeafletMap
             buses={filteredBuses}
+            allBuses={data?.buses || []}
             stops={stopsData?.data?.stops || []}
             userLocation={userLocation}
             showStops={showStops && !!stopsData?.data?.stops}
@@ -411,6 +412,7 @@ function MapPageContent() {
             routePatterns={routePatternsData?.patterns || []}
             selectedRoutes={selectedRoutes}
             showRoutes={showRoutes}
+            onSelectRoute={(route) => setSelectedRoutes(prev => prev.includes(route) ? prev : [...prev, route])}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">

@@ -20,6 +20,7 @@ export const getRouteColor = (routeShortName: string, selectedRoutes: string[]):
 
 interface LeafletMapProps {
   buses: Bus[];
+  allBuses: Bus[];
   stops: Stop[];
   userLocation: [number, number] | null;
   showStops: boolean;
@@ -27,10 +28,12 @@ interface LeafletMapProps {
   routePatterns: PatternGeometry[];
   selectedRoutes: string[];
   showRoutes: boolean;
+  onSelectRoute?: (route: string) => void;
 }
 
 export function LeafletMap({
   buses,
+  allBuses,
   stops,
   userLocation,
   showStops,
@@ -38,6 +41,7 @@ export function LeafletMap({
   routePatterns,
   selectedRoutes,
   showRoutes,
+  onSelectRoute,
 }: LeafletMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<LMap | null>(null);
@@ -231,9 +235,14 @@ export function LeafletMap({
                     row.addEventListener('click', () => {
                       const tripId = row.getAttribute('data-trip-id');
                       const route = row.getAttribute('data-route');
+                      // Enable route filter if not already selected
+                      if (route && selectedRoutes.length > 0 && !selectedRoutes.includes(route) && onSelectRoute) {
+                        onSelectRoute(route);
+                      }
                       // Match by trip ID first (exact), fall back to route name
-                      const matchingBus = buses.find(b => b.tripId === tripId)
-                        || buses.find(b => b.routeShortName === route);
+                      // Use allBuses (unfiltered) since we just enabled the route
+                      const matchingBus = allBuses.find(b => b.tripId === tripId)
+                        || allBuses.find(b => b.routeShortName === route);
                       if (matchingBus) {
                         map.closePopup();
                         map.flyTo([matchingBus.lat, matchingBus.lon], 16, { duration: 0.8 });
