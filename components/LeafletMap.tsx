@@ -213,7 +213,10 @@ export function LeafletMap({
 
           // Cancel any running animation for this bus
           const prev = animFramesRef.current.get(bus.id);
-          if (prev) cancelAnimationFrame(prev);
+          if (prev !== undefined) {
+            cancelAnimationFrame(prev);
+            animFramesRef.current.delete(bus.id);
+          }
 
           const dLat = target[0] - cur.lat;
           const dLon = target[1] - cur.lng;
