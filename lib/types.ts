@@ -10,6 +10,7 @@ export interface Bus {
   speed: number;
   lastUpdated: string;
   vehicleNumber: string;
+  tripId: string;
 }
 
 export interface BusesResponse {

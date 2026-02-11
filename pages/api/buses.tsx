@@ -10,6 +10,7 @@ interface Bus {
   speed: number;
   lastUpdated: string;
   vehicleNumber: string;
+  tripId: string;
 }
 
 interface FiwareResponse {
@@ -282,6 +283,7 @@ export default async function handler(
         // Extract direction from FIWARE annotations
         // Example: annotations.value = ["stcp:route:700", "stcp:sentido:1"]
         let directionId: number | null = null;
+        let tripId = "";
         if (entity.annotations?.value && Array.isArray(entity.annotations.value)) {
           const sentidoAnnotation = entity.annotations.value.find((ann: string) => 
             typeof ann === 'string' && ann.startsWith('stcp:sentido:')
@@ -291,6 +293,12 @@ export default async function handler(
             if (match && match[1]) {
               directionId = parseInt(match[1], 10);
             }
+          }
+          const viagemAnnotation = entity.annotations.value.find((ann: string) =>
+            typeof ann === 'string' && ann.startsWith('stcp:nr_viagem:')
+          );
+          if (viagemAnnotation) {
+            tripId = viagemAnnotation.replace('stcp:nr_viagem:', '');
           }
         }
         
@@ -366,6 +374,7 @@ export default async function handler(
           speed: Number(speed),
           lastUpdated: String(lastUpdated),
           vehicleNumber: String(cleanVehicleNumber),
+          tripId,
         };
       });
 

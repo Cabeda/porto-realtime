@@ -202,7 +202,7 @@ export function LeafletMap({
                   const deps = data?.data?.stop?.stoptimesWithoutPatterns || [];
                   const now = Date.now();
                   const upcoming = deps
-                    .map((d: { serviceDay: number; realtimeDeparture: number; headsign?: string; realtime?: boolean; trip: { route: { shortName: string } } }) => ({
+                    .map((d: { serviceDay: number; realtimeDeparture: number; headsign?: string; realtime?: boolean; trip: { gtfsId: string; route: { shortName: string } } }) => ({
                       ...d,
                       departureMs: (d.serviceDay + d.realtimeDeparture) * 1000,
                     }))
@@ -214,22 +214,26 @@ export function LeafletMap({
                     return;
                   }
 
-                  el.innerHTML = upcoming.map((d: { departureMs: number; realtime?: boolean; headsign?: string; trip: { route: { shortName: string } } }) => {
+                  el.innerHTML = upcoming.map((d: { departureMs: number; realtime?: boolean; headsign?: string; trip: { gtfsId: string; route: { shortName: string } } }) => {
                     const mins = Math.round((d.departureMs - now) / 60000);
                     const timeStr = mins <= 0 ? '<1 min' : `${mins} min`;
                     const color = mins <= 2 ? '#ef4444' : mins <= 5 ? '#f59e0b' : '#3b82f6';
                     const rt = d.realtime ? '<span style="display:inline-block;width:6px;height:6px;background:#22c55e;border-radius:50%;margin-right:4px;vertical-align:middle;animation:rtpulse 1.5s ease-in-out infinite;"></span>' : '';
-                    return `<div data-route="${escapeHtml(d.trip.route.shortName)}" style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;cursor:pointer;border-radius:4px;padding-left:4px;padding-right:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+                    const tripIdPart = d.trip.gtfsId.replace(/^2:/, '');
+                    return `<div data-trip-id="${escapeHtml(tripIdPart)}" data-route="${escapeHtml(d.trip.route.shortName)}" style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;cursor:pointer;border-radius:4px;padding-left:4px;padding-right:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
                       <span><strong>${escapeHtml(d.trip.route.shortName)}</strong> <span style="color:#6b7280;">${escapeHtml(d.headsign || '')}</span></span>
                       <span style="display:inline-flex;align-items:center;color:${color};font-weight:600;white-space:nowrap;">${rt}${timeStr}</span>
                     </div>`;
                   }).join('');
 
                   // Attach click handlers to snap to bus on map
-                  el.querySelectorAll('[data-route]').forEach(row => {
+                  el.querySelectorAll('[data-trip-id]').forEach(row => {
                     row.addEventListener('click', () => {
+                      const tripId = row.getAttribute('data-trip-id');
                       const route = row.getAttribute('data-route');
-                      const matchingBus = buses.find(b => b.routeShortName === route);
+                      // Match by trip ID first (exact), fall back to route name
+                      const matchingBus = buses.find(b => b.tripId === tripId)
+                        || buses.find(b => b.routeShortName === route);
                       if (matchingBus) {
                         map.closePopup();
                         map.flyTo([matchingBus.lat, matchingBus.lon], 16, { duration: 0.8 });
