@@ -257,7 +257,7 @@ export function LeafletMap({
       });
 
       buses.forEach((bus) => {
-        const destinationText = bus.routeLongName || 'Destino desconhecido';
+        const destinationText = (bus.routeLongName || 'Destino desconhecido').replace(/^\*+/, '').trim();
         const truncatedDestination = destinationText.length > 20
           ? destinationText.substring(0, 17) + '...'
           : destinationText;
@@ -275,8 +275,8 @@ export function LeafletMap({
 
         const popupHtml = `
           <div class="bus-popup text-sm" style="min-width:240px;font-family:system-ui,sans-serif;">
-            <a href="/reviews/line?id=${encodeURIComponent(bus.routeShortName)}" class="bus-popup-title" style="color:inherit;text-decoration:none;display:block;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Linha ${escapeHtml(bus.routeShortName)} →</a>
-            <div class="bus-popup-destination">→ ${escapeHtml(destinationText)}</div>
+            <a href="/reviews/line?id=${encodeURIComponent(bus.routeShortName)}" class="bus-popup-title" style="color:inherit;text-decoration:none;display:block;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Linha ${escapeHtml(bus.routeShortName)}</a>
+            <div class="bus-popup-destination">${escapeHtml(destinationText)}</div>
             <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : 'Parado'}</div>
             ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> <a href="/reviews/vehicle?id=${encodeURIComponent(bus.vehicleNumber)}" style="color:#4f46e5;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(bus.vehicleNumber)}</a></div>` : ''}
             <div class="bus-popup-footer">Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}</div>
