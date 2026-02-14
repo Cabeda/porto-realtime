@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE"] as const;
+const MAX_TARGET_ID_LENGTH = 100;
 
 // GET /api/feedback/rankings?type=LINE&sort=avg&order=desc&limit=50
 // Optional: &targetId=205 — returns single target with full distribution
@@ -33,6 +34,12 @@ export async function GET(request: NextRequest) {
 
     // Single target detail mode — return full distribution
     if (targetId) {
+      if (targetId.length > MAX_TARGET_ID_LENGTH) {
+        return NextResponse.json(
+          { error: `targetId must be at most ${MAX_TARGET_ID_LENGTH} chars` },
+          { status: 400 }
+        );
+      }
       const [summaryResult, distribution] = await Promise.all([
         prisma.feedback.groupBy({
           by: ["targetId"],

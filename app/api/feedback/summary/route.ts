@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE"] as const;
+const MAX_TARGET_ID_LENGTH = 100;
 
 // GET /api/feedback/summary?type=STOP&targetIds=2:BRRS2,2:ABCDE,2:XYZQR
 // Returns { "2:BRRS2": { avg: 4.2, count: 15 }, "2:ABCDE": { avg: 3.8, count: 7 }, ... }
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
   const targetIds = targetIdsParam
     .split(",")
     .map((id) => id.trim())
-    .filter((id) => id.length > 0);
+    .filter((id) => id.length > 0 && id.length <= MAX_TARGET_ID_LENGTH);
 
   if (targetIds.length === 0) {
     return NextResponse.json(

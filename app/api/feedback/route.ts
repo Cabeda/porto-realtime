@@ -1,10 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkComment } from "@/lib/content-filter";
 
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE"] as const;
 const MAX_COMMENT_LENGTH = 500;
+const MAX_TARGET_ID_LENGTH = 100;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_MAX = 20; // max 20 submissions per hour
+
+// Global IP-based rate limit to prevent anonymous ID minting attacks
+const IP_RATE_LIMIT_MAX = 60; // max 60 submissions per IP per hour
+const ipSubmissions = new Map<string, { count: number; resetAt: number }>();
+
+// UUID v4 format: 8-4-4-4-12 hex chars
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function checkIpRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = ipSubmissions.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    ipSubmissions.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+
+  entry.count++;
+  return entry.count <= IP_RATE_LIMIT_MAX;
+}
+
+// Periodic cleanup of expired IP entries to prevent memory leak
+// Runs at most once per 10 minutes
+let lastIpCleanup = 0;
+function cleanupIpMap() {
+  const now = Date.now();
+  if (now - lastIpCleanup < 600_000) return;
+  lastIpCleanup = now;
+  for (const [ip, entry] of ipSubmissions) {
+    if (now > entry.resetAt) ipSubmissions.delete(ip);
+  }
+}
 
 function stripHtml(str: string): string {
   return str.replace(/<[^>]*>/g, "").trim();
@@ -37,6 +71,8 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get("page") || "0", 10);
   const limit = Math.min(parseInt(searchParams.get("limit") || "10", 10), 50);
   const anonId = request.headers.get("x-anonymous-id");
+  // Only use anonId if it's a valid UUID format
+  const validAnonId = anonId && UUID_REGEX.test(anonId) ? anonId : null;
 
   if (!type || !targetId) {
     return NextResponse.json(
@@ -77,13 +113,13 @@ export async function GET(request: NextRequest) {
         where: { type: feedbackType, targetId },
       }),
       // Get the current user's feedback if they have one
-      anonId
+      validAnonId
         ? prisma.feedback
             .findFirst({
               where: {
                 type: feedbackType,
                 targetId,
-                user: { anonId },
+                user: { anonId: validAnonId },
               },
               select: {
                 id: true,
@@ -120,9 +156,24 @@ export async function GET(request: NextRequest) {
 // Body: { type: "LINE" | "STOP" | "VEHICLE", targetId: string, rating: 1-5, comment?: string, metadata?: { lineContext?: string } }
 // Header: x-anonymous-id: <uuid>
 export async function POST(request: NextRequest) {
+  // IP-based rate limit — prevents minting unlimited anonymous IDs
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || request.headers.get("x-real-ip")
+    || "unknown";
+
+  cleanupIpMap();
+
+  if (!checkIpRateLimit(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests. Try again later." },
+      { status: 429 }
+    );
+  }
+
   const anonId = request.headers.get("x-anonymous-id");
 
-  if (!anonId || anonId.length < 10) {
+  // Validate UUID v4 format — prevents arbitrary strings as user IDs
+  if (!anonId || !UUID_REGEX.test(anonId)) {
     return NextResponse.json(
       { error: "Missing or invalid x-anonymous-id header" },
       { status: 401 }
@@ -147,9 +198,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate targetId
-  if (!targetId || typeof targetId !== "string" || targetId.length === 0) {
+  if (!targetId || typeof targetId !== "string" || targetId.length === 0 || targetId.length > MAX_TARGET_ID_LENGTH) {
     return NextResponse.json(
-      { error: "targetId is required and must be a non-empty string" },
+      { error: `targetId is required and must be a non-empty string (max ${MAX_TARGET_ID_LENGTH} chars)` },
       { status: 400 }
     );
   }
@@ -174,6 +225,17 @@ export async function POST(request: NextRequest) {
     sanitizedComment = stripHtml(comment).slice(0, MAX_COMMENT_LENGTH);
     if (sanitizedComment.length === 0) {
       sanitizedComment = null;
+    }
+  }
+
+  // Run content filter on the sanitized comment
+  if (sanitizedComment) {
+    const filterResult = checkComment(sanitizedComment);
+    if (!filterResult.clean) {
+      return NextResponse.json(
+        { error: filterResult.reason },
+        { status: 400 }
+      );
     }
   }
 
