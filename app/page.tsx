@@ -16,7 +16,7 @@ import { BottomSheet } from "@/components/BottomSheet";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { busesFetcher, stationsFetcher, fetcher } from "@/lib/fetchers";
-import { useFeedbackList, useFeedbackSummaries } from "@/lib/hooks/useFeedback";
+import { useFeedbackList } from "@/lib/hooks/useFeedback";
 import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem } from "@/lib/types";
 
 function MapPageContent() {
@@ -260,9 +260,6 @@ function MapPageContent() {
   useEffect(() => { localStorage.setItem("showRoutes", JSON.stringify(showRoutes)); }, [showRoutes]);
   useEffect(() => { localStorage.setItem("showRouteFilter", JSON.stringify(showRouteFilter)); }, [showRouteFilter]);
 
-  // Batch fetch line feedback summaries for all available routes
-  const { data: lineFeedbackSummaries } = useFeedbackSummaries("LINE", availableRouteNames);
-
   const handleRateLine = useCallback((route: string) => {
     setFeedbackLineId(route);
     setFeedbackLineName(`${t.reviews.line} ${route}`);
@@ -415,8 +412,6 @@ function MapPageContent() {
             onToggleRoute={toggleRoute}
             onClearFilters={() => setSelectedRoutes([])}
             onToggleFavorite={toggleFavorite}
-            feedbackSummaries={lineFeedbackSummaries}
-            onRateLine={handleRateLine}
           />
 
           <div className="flex gap-2">

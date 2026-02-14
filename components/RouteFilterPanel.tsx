@@ -1,8 +1,7 @@
 "use client";
 
 import { useTranslations } from "@/lib/hooks/useTranslations";
-import { FeedbackSummary } from "@/components/FeedbackSummary";
-import type { FeedbackSummaryData, RouteInfo } from "@/lib/types";
+import type { RouteInfo } from "@/lib/types";
 
 interface RouteFilterPanelProps {
   allRoutes: RouteInfo[];
@@ -14,8 +13,6 @@ interface RouteFilterPanelProps {
   onToggleRoute: (route: string) => void;
   onClearFilters: () => void;
   onToggleFavorite: (route: string) => void;
-  feedbackSummaries?: Record<string, FeedbackSummaryData>;
-  onRateLine?: (route: string) => void;
 }
 
 export function RouteFilterPanel({
@@ -28,8 +25,6 @@ export function RouteFilterPanel({
   onToggleRoute,
   onClearFilters,
   onToggleFavorite,
-  feedbackSummaries,
-  onRateLine,
 }: RouteFilterPanelProps) {
   const t = useTranslations();
 
@@ -74,15 +69,6 @@ export function RouteFilterPanel({
                 <span className="text-gray-400 dark:text-gray-500 hover:text-yellow-500">&#9734;</span>
               )}
             </button>
-            {feedbackSummaries && (
-              <div className="mt-1">
-                <FeedbackSummary
-                  summary={feedbackSummaries[route.shortName]}
-                  compact
-                  onClick={onRateLine ? () => onRateLine(route.shortName) : undefined}
-                />
-              </div>
-            )}
           </div>
         );
       })}
