@@ -120,7 +120,7 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
         aria-modal="true"
         aria-labelledby="bottom-sheet-title"
         tabIndex={-1}
-        className={`absolute bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:right-auto sm:max-w-lg sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2 bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-xl transition-transform duration-300 ease-out max-h-[85vh] flex flex-col outline-none ${
+        className={`absolute bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:right-auto sm:max-w-lg sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2 bg-surface-raised rounded-t-2xl sm:rounded-2xl shadow-xl transition-transform duration-300 ease-out max-h-[85vh] flex flex-col outline-none ${
           isAnimating
             ? "translate-y-0 sm:translate-y-[-50%]"
             : "translate-y-full sm:translate-y-[-40%] sm:opacity-0"
@@ -131,17 +131,17 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
       >
         {/* Drag handle (mobile only) */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
-          <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
+          <div className="w-10 h-1 bg-content-muted rounded-full" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="bottom-sheet-title" className="text-lg font-bold text-gray-900 dark:text-white">{title}</h2>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+          <h2 id="bottom-sheet-title" className="text-lg font-bold text-content">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-xl"
+            className="w-8 h-8 flex items-center justify-center rounded-full text-content-muted hover:text-content hover:bg-surface-sunken transition-colors text-xl"
           >
             &times;
           </button>

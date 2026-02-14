@@ -1,8 +1,8 @@
 export function MapSkeleton() {
   return (
-    <div className="h-screen w-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="h-screen w-screen flex flex-col bg-gradient-to-b from-accent-subtle to-surface">
       {/* Header Skeleton */}
-      <header className="bg-white shadow-sm z-10">
+      <header className="bg-surface shadow-sm z-10">
         <div className="px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center">
             <div>
@@ -15,11 +15,11 @@ export function MapSkeleton() {
       </header>
 
       {/* Map Skeleton */}
-      <main className="flex-1 relative bg-gray-100">
+      <main className="flex-1 relative bg-surface-sunken">
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600 text-sm">A carregar mapa...</p>
+            <p className="mt-4 text-content-secondary text-sm">A carregar mapa...</p>
           </div>
         </div>
 

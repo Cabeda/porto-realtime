@@ -3,13 +3,73 @@
 @tailwind utilities;
 
 :root {
+  /* Surface */
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #f1f5f9;
+  --color-surface-overlay: rgba(255, 255, 255, 0.95);
+
+  /* Content / text */
+  --color-content: #0f172a;
+  --color-content-secondary: #475569;
+  --color-content-muted: #94a3b8;
+  --color-content-inverse: #ffffff;
+
+  /* Accent — muted teal-blue, transit-appropriate */
+  --color-accent: #0d9488;
+  --color-accent-hover: #0f766e;
+  --color-accent-subtle: #f0fdfa;
+
+  /* Borders */
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+
+  /* Status */
+  --color-status-live: #16a34a;
+  --color-status-delayed: #d97706;
+  --color-status-error: #dc2626;
+  --color-status-urgent: #ef4444;
+
   --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
+  --background-start-rgb: 241, 245, 249;
   --background-end-rgb: 255, 255, 255;
 }
 
+.dark {
+  /* Surface */
+  --color-surface: #0f172a;
+  --color-surface-raised: #1e293b;
+  --color-surface-sunken: #020617;
+  --color-surface-overlay: rgba(15, 23, 42, 0.95);
+
+  /* Content / text */
+  --color-content: #f1f5f9;
+  --color-content-secondary: #94a3b8;
+  --color-content-muted: #64748b;
+  --color-content-inverse: #0f172a;
+
+  /* Accent */
+  --color-accent: #2dd4bf;
+  --color-accent-hover: #5eead4;
+  --color-accent-subtle: rgba(13, 148, 136, 0.15);
+
+  /* Borders */
+  --color-border: #1e293b;
+  --color-border-strong: #334155;
+
+  /* Status */
+  --color-status-live: #4ade80;
+  --color-status-delayed: #fbbf24;
+  --color-status-error: #f87171;
+  --color-status-urgent: #ef4444;
+
+  --foreground-rgb: 241, 245, 249;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 15, 23, 42;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.dark):not(:has(.dark)) {
     --foreground-rgb: 255, 255, 255;
     --background-start-rgb: 0, 0, 0;
     --background-end-rgb: 0, 0, 0;
@@ -33,46 +93,38 @@ body {
 
 /* Dark mode for Leaflet popups */
 .dark .leaflet-popup-content-wrapper {
-  background-color: #1f2937 !important; /* gray-800 */
-  color: #f3f4f6 !important; /* gray-100 */
-  border: 1px solid #374151 !important; /* gray-700 */
+  background-color: var(--color-surface-raised) !important;
+  color: var(--color-content) !important;
+  border: 1px solid var(--color-border-strong) !important;
 }
 
 .dark .leaflet-popup-tip {
-  background-color: #1f2937 !important; /* gray-800 */
+  background-color: var(--color-surface-raised) !important;
 }
 
 .dark .leaflet-popup-content a {
-  color: #60a5fa !important; /* blue-400 */
+  color: var(--color-accent) !important;
 }
 
 .dark .leaflet-popup-content a:hover {
-  color: #93c5fd !important; /* blue-300 */
+  color: var(--color-accent-hover) !important;
 }
 
 /* Popup content styling for both light and dark modes */
 .bus-popup-title {
   font-size: 18px;
   font-weight: bold;
-  color: #3b82f6;
+  color: var(--color-accent);
   margin-bottom: 4px;
-}
-
-.dark .bus-popup-title {
-  color: #93c5fd; /* Brighter blue for dark mode */
 }
 
 .bus-popup-destination {
   font-size: 15px;
   font-weight: 600;
-  color: #60a5fa;
+  color: var(--color-accent);
   margin-bottom: 10px;
   padding-bottom: 8px;
-  border-bottom: 2px solid rgba(229, 231, 235, 0.3);
-}
-
-.dark .bus-popup-destination {
-  color: #93c5fd; /* Brighter blue for dark mode */
+  border-bottom: 2px solid var(--color-border);
 }
 
 
@@ -84,24 +136,16 @@ body {
 .bus-popup-footer {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(229, 231, 235, 0.3);
+  border-top: 1px solid var(--color-border);
   font-size: 11px;
   opacity: 0.8;
-}
-
-.dark .bus-popup-footer {
-  border-top-color: rgba(156, 163, 175, 0.3);
 }
 
 .stop-popup-title {
   font-size: 14px;
   font-weight: bold;
-  color: #ef4444;
+  color: var(--color-status-error);
   margin-bottom: 6px;
-}
-
-.dark .stop-popup-title {
-  color: #fca5a5; /* Brighter red for dark mode */
 }
 
 .stop-popup-code {
@@ -119,8 +163,8 @@ body {
   display: inline-block;
   margin-top: 8px;
   padding: 6px 12px;
-  background: #3b82f6;
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-content-inverse);
   text-decoration: none;
   border-radius: 4px;
   font-size: 12px;
@@ -128,7 +172,7 @@ body {
 }
 
 .stop-popup-link:hover {
-  background: #2563eb;
+  background: var(--color-accent-hover);
 }
 
 .route-popup-title {

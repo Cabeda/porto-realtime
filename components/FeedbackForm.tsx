@@ -90,11 +90,11 @@ export function FeedbackForm({
   return (
     <div className="space-y-4">
       {/* Target label */}
-      <div className="text-sm text-gray-500 dark:text-gray-400">
+      <div className="text-sm text-content-muted">
         {type === "LINE" ? t.rateThisLine : type === "VEHICLE" ? t.rateThisVehicle : t.rateThisStop}:{" "}
-        <span className="font-semibold text-gray-900 dark:text-white">{targetName}</span>
+        <span className="font-semibold text-content">{targetName}</span>
         {type === "VEHICLE" && metadata?.lineContext && (
-          <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+          <div className="text-xs text-content-muted mt-0.5">
             {t.vehicleOnLine(metadata.lineContext)}
           </div>
         )}
@@ -116,7 +116,7 @@ export function FeedbackForm({
               className={
                 star <= (hoverRating || rating)
                   ? "text-yellow-400"
-                  : "text-gray-300 dark:text-gray-600"
+                  : "text-content-muted"
               }
             >
               ★
@@ -124,7 +124,7 @@ export function FeedbackForm({
           </button>
         ))}
         {rating > 0 && (
-          <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">{rating}/5</span>
+          <span className="ml-2 text-sm text-content-muted">{rating}/5</span>
         )}
       </div>
 
@@ -135,9 +135,9 @@ export function FeedbackForm({
           onChange={(e) => setComment(e.target.value.slice(0, maxComment))}
           placeholder={t.commentPlaceholder}
           rows={3}
-          className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+          className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-content placeholder-content-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none text-sm"
         />
-        <div className="text-xs text-gray-400 dark:text-gray-500 text-right mt-1">
+        <div className="text-xs text-content-muted text-right mt-1">
           {t.characters(comment.length, maxComment)}
         </div>
       </div>
@@ -146,7 +146,7 @@ export function FeedbackForm({
       <button
         onClick={handleSubmit}
         disabled={rating === 0 || isSubmitting}
-        className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white shadow-md active:scale-[0.98]"
+        className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-accent hover:bg-accent-hover text-content-inverse shadow-md active:scale-[0.98]"
       >
         {isSubmitting ? t.submitting : isEditing ? t.update : t.submit}
       </button>

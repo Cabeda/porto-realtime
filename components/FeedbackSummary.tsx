@@ -22,9 +22,9 @@ export function FeedbackSummary({ summary, onClick, compact }: FeedbackSummaryPr
     return (
       <button
         onClick={onClick}
-        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-accent bg-accent-subtle rounded-full hover:bg-accent-subtle transition-colors"
       >
-        <span className="text-gray-400 dark:text-gray-500">☆</span>
+        <span className="text-content-muted">☆</span>
         {t.rate}
       </button>
     );
@@ -41,7 +41,7 @@ export function FeedbackSummary({ summary, onClick, compact }: FeedbackSummaryPr
       </span>
       <span className="font-semibold">{displayAvg}</span>
       {!compact && (
-        <span className="text-gray-400 dark:text-gray-500">
+        <span className="text-content-muted">
           ({t.ratings(summary.count)})
         </span>
       )}
@@ -50,9 +50,9 @@ export function FeedbackSummary({ summary, onClick, compact }: FeedbackSummaryPr
 
   const className = `inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${
     onClick
-      ? "cursor-pointer bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-      : "bg-gray-100 dark:bg-gray-700"
-  } text-gray-700 dark:text-gray-300`;
+      ? "cursor-pointer bg-surface-sunken hover:bg-border transition-colors"
+      : "bg-surface-sunken"
+  } text-content-secondary`;
 
   if (onClick) {
     return (

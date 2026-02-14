@@ -321,13 +321,13 @@ function MapPageContent() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 transition-colors">
-      <header className="bg-white dark:bg-gray-800 shadow-sm z-[1000] relative transition-colors">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-surface-sunken transition-colors">
+      <header className="bg-surface dark:bg-surface-raised shadow-sm z-[1000] relative transition-colors">
         <div className="px-3 sm:px-6 lg:px-8 py-2 sm:py-3">
            <div className="flex justify-between items-center gap-2">
             <div className="flex-shrink-0 min-w-0">
               <h1
-                className="text-base sm:text-xl font-bold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-2"
+                className="text-base sm:text-xl font-bold text-content cursor-pointer hover:text-accent transition-colors flex items-center gap-2"
                 onClick={handleRefresh}
                 title={t.map.refreshTitle}
               >
@@ -335,12 +335,12 @@ function MapPageContent() {
                 <span className="sm:hidden">{t.map.appName}</span>
                 {isRefreshing && <span className="animate-spin text-base">🔄</span>}
               </h1>
-              <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
+              <p className="text-xs text-content-secondary flex items-center gap-2">
                 {data ? (
                   <>
                     {t.map.busesCount(filteredBuses.length)}
-                    {selectedRoutes.length > 0 && <span className="text-gray-500 dark:text-gray-500"> / {data.buses.length}</span>}
-                    {timeSinceUpdate && <span className="text-gray-400 dark:text-gray-500">· {timeSinceUpdate}</span>}
+                    {selectedRoutes.length > 0 && <span className="text-content-muted"> / {data.buses.length}</span>}
+                    {timeSinceUpdate && <span className="text-content-muted">· {timeSinceUpdate}</span>}
                     {isDataStale && <span className="text-amber-600 dark:text-amber-400 font-medium">· {t.map.cachedData}</span>}
                   </>
                 ) : t.map.loading}
@@ -349,13 +349,13 @@ function MapPageContent() {
             <div className="hidden sm:flex items-center gap-1">
               <Link
                 href="/stations"
-                className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
               >
                 🚏 {t.nav.stations}
               </Link>
               <Link
                 href="/reviews"
-                className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
               >
                 ⭐ {t.nav.reviews}
               </Link>
@@ -365,7 +365,7 @@ function MapPageContent() {
             </div>
             <button
               onClick={() => setShowSettings(true)}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
               title={t.nav.settings}
               aria-label={t.nav.settings}
             >
@@ -388,7 +388,7 @@ function MapPageContent() {
               ? "bg-blue-500 border-blue-600 animate-pulse"
               : userLocation
                 ? "bg-blue-500 hover:bg-blue-600 border-blue-600 text-white"
-                : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
+                : "bg-surface-raised hover:bg-surface-sunken border-border"
           }`}
           style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
           title={isLocating ? t.map.gettingLocation : userLocation ? t.map.updateLocation : t.map.getMyLocation}
@@ -421,7 +421,7 @@ function MapPageContent() {
               className={`flex-1 font-semibold py-2 px-3 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
                 showStops
                   ? "bg-red-500 hover:bg-red-600 text-white border-red-600 dark:border-red-500"
-                  : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
+                  : "bg-surface-raised hover:bg-surface-sunken text-content-secondary border-border"
               }`}
               title={!stopsData?.data?.stops ? t.map.stopsUnavailable : showStops ? t.map.hideStops : t.map.showStops}
             >
@@ -434,7 +434,7 @@ function MapPageContent() {
               className={`flex-1 font-semibold py-2 px-3 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
                 showRoutes
                   ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-600 dark:border-blue-500"
-                  : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
+                  : "bg-surface-raised hover:bg-surface-sunken text-content-secondary border-border"
               }`}
               title={selectedRoutes.length === 0 ? t.map.selectLinesToSeePaths : showRoutes ? t.map.hidePaths : t.map.showPaths}
             >
@@ -486,8 +486,8 @@ function MapPageContent() {
         )}
 
         {isLoading && !data && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <p className="text-gray-600 dark:text-gray-300">{t.map.loadingBusLocations}</p>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-surface-raised rounded-lg shadow-lg p-6">
+            <p className="text-content-secondary">{t.map.loadingBusLocations}</p>
           </div>
         )}
 
@@ -506,13 +506,13 @@ function MapPageContent() {
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
-            <p className="text-gray-600 dark:text-gray-400">Initializing map...</p>
+            <p className="text-content-secondary">Initializing map...</p>
           </div>
         )}
 
         {data && data.buses.length === 0 && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <p className="text-gray-600 dark:text-gray-300">No buses currently tracked.</p>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-surface-raised rounded-lg shadow-lg p-6">
+            <p className="text-content-secondary">No buses currently tracked.</p>
           </div>
         )}
 
@@ -532,8 +532,8 @@ function MapPageContent() {
             onSuccess={handleFeedbackSuccess}
           />
           {feedbackList && feedbackList.feedbacks.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <div className="mt-6 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-content-secondary mb-3">
                 {t.feedback.recentComments}
               </h3>
               <div className="space-y-3">
@@ -541,16 +541,16 @@ function MapPageContent() {
                   .filter((f) => f.comment)
                   .slice(0, 5)
                   .map((f) => (
-                    <div key={f.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                    <div key={f.id} className="bg-surface-sunken rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-yellow-400 text-xs">
                           {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
                         </span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                        <span className="text-xs text-content-muted">
                           {new Date(f.createdAt).toLocaleDateString("pt-PT")}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">{f.comment}</p>
+                      <p className="text-sm text-content-secondary">{f.comment}</p>
                     </div>
                   ))}
               </div>
@@ -573,8 +573,8 @@ function MapPageContent() {
             onSuccess={handleFeedbackSuccess}
           />
           {vehicleFeedbackList && vehicleFeedbackList.feedbacks.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <div className="mt-6 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-content-secondary mb-3">
                 {t.feedback.recentComments}
               </h3>
               <div className="space-y-3">
@@ -582,7 +582,7 @@ function MapPageContent() {
                   .filter((f) => f.comment)
                   .slice(0, 5)
                   .map((f) => (
-                    <div key={f.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                    <div key={f.id} className="bg-surface-sunken rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-yellow-400 text-xs">
                           {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
@@ -592,11 +592,11 @@ function MapPageContent() {
                             Linha {f.metadata.lineContext}
                           </span>
                         )}
-                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                        <span className="text-xs text-content-muted">
                           {new Date(f.createdAt).toLocaleDateString("pt-PT")}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">{f.comment}</p>
+                      <p className="text-sm text-content-secondary">{f.comment}</p>
                     </div>
                   ))}
               </div>
