@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Avaliações - Porto Bus",
+  title: "Avaliações - PortoMove",
   description:
     "Avaliações e opiniões sobre linhas de autocarro, paragens e veículos no Porto. Partilhe a sua experiência com os transportes públicos.",
   openGraph: {
-    title: "Avaliações - Porto Bus",
+    title: "Avaliações - PortoMove",
     description:
       "Avaliações e opiniões sobre linhas de autocarro, paragens e veículos no Porto.",
     type: "website",

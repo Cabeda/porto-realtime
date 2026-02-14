@@ -278,7 +278,7 @@ export function LeafletMap({
             <a href="/reviews/line?id=${encodeURIComponent(bus.routeShortName)}" class="bus-popup-title" style="color:inherit;text-decoration:none;display:block;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Linha ${escapeHtml(bus.routeShortName)} →</a>
             <div class="bus-popup-destination">→ ${escapeHtml(destinationText)}</div>
             <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : 'Parado'}</div>
-            ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${escapeHtml(bus.vehicleNumber)}</div>` : ''}
+            ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> <a href="/reviews/vehicle?id=${encodeURIComponent(bus.vehicleNumber)}" style="color:#4f46e5;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(bus.vehicleNumber)}</a></div>` : ''}
             <div class="bus-popup-footer">Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}</div>
             <div style="display:flex;gap:6px;margin-top:8px;">
               <button data-rate-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="flex:1;padding:6px 12px;background:#eab308;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Linha ${escapeHtml(bus.routeShortName)}</button>

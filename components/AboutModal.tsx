@@ -27,7 +27,7 @@ export function AboutModal({ onClose, onResetOnboarding }: AboutModalProps) {
 
         <div className="space-y-4 text-gray-700 dark:text-gray-300">
           <p>
-            <strong>Porto Explore</strong> é uma aplicação web que fornece informações de transportes públicos em tempo real para o Porto, Portugal.
+            <strong>PortoMove</strong> é uma aplicação web que fornece informações de transportes públicos em tempo real para o Porto, Portugal.
           </p>
 
           <div>
@@ -41,6 +41,7 @@ export function AboutModal({ onClose, onResetOnboarding }: AboutModalProps) {
               <li>Localização de autocarros em tempo real</li>
               <li>Horários de paragens</li>
               <li>Visualização de rotas</li>
+              <li>Avaliações da comunidade</li>
               <li>Modo escuro</li>
               <li>PWA com suporte offline</li>
             </ul>

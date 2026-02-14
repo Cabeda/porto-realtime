@@ -1,7 +1,7 @@
 {
-  "name": "Porto Realtime - Bus Tracker",
-  "short_name": "Porto Buses",
-  "description": "Track Porto buses in real-time with live map and departure times",
+  "name": "PortoMove - Transportes em Tempo Real",
+  "short_name": "PortoMove",
+  "description": "Autocarros em tempo real no Porto. Mapa ao vivo, horários, avaliações e feedback da comunidade.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

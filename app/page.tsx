@@ -322,7 +322,7 @@ function MapPageContent() {
                 title={translations.map.refreshTitle}
               >
                 <span className="hidden sm:inline">Mapa de Autocarros</span>
-                <span className="sm:hidden">Porto Buses</span>
+                <span className="sm:hidden">PortoMove</span>
                 {isRefreshing && <span className="animate-spin text-base">🔄</span>}
               </h1>
               <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">

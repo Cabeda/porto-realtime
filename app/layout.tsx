@@ -6,13 +6,13 @@ import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Porto Bus - Mapa em Tempo Real",
-  description: "Mapa de autocarros em tempo real no Porto. Veja onde estão os autocarros e horários das paragens.",
+  title: "PortoMove - Transportes em Tempo Real",
+  description: "Autocarros em tempo real no Porto. Mapa ao vivo, horários, avaliações e feedback da comunidade.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Porto Bus",
+    title: "PortoMove",
   },
   formatDetection: {
     telephone: false,
