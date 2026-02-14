@@ -135,12 +135,21 @@ export async function GET(request: NextRequest) {
         : null,
     ]);
 
+    const headers: Record<string, string> = {
+      "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
+    };
+
+    // When an anonymous user ID is present, the response can contain
+    // user-specific `userFeedback`. Avoid leaking this from shared caches.
+    if (anonId) {
+      headers["Cache-Control"] = "private, no-store";
+      headers["Vary"] = "x-anonymous-id";
+    }
+
     return NextResponse.json(
       { feedbacks, total, userFeedback },
       {
-        headers: {
-          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
-        },
+        headers,
       }
     );
   } catch (error) {
