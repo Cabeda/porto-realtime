@@ -248,12 +248,8 @@ export function LeafletMap({
           : destinationText;
         const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
 
-        // Calculate rotation from heading (0° = North, clockwise)
-        // The heading value from API is in degrees (0-360)
-        const rotation = bus.heading;
-
         const iconHtml = `
-          <div style="display:flex;align-items:center;gap:4px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));transform:rotate(${rotation}deg);transform-origin:center;transition:transform 1.5s ease-out;">
+          <div style="display:flex;align-items:center;gap:4px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));transform:rotate(${bus.heading}deg);transform-origin:center;transition:transform 1.5s ease-out;">
             <div style="min-width:44px;height:32px;background:${routeColor};border:2px solid white;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;font-family:system-ui,sans-serif;cursor:pointer;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">
               ${escapeHtml(bus.routeShortName)}
             </div>
