@@ -1,35 +1,37 @@
 import { NextResponse } from "next/server";
 
+const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 const CACHE_DURATION = 5 * 60; // 5 minutes in seconds
-
-// Explore Porto API endpoint for bike parks
-const EXPLORE_BIKE_PARKS_URL = "https://explore.porto.pt/api/bicycle-parks";
 
 export async function GET() {
   try {
-    const response = await fetch(EXPLORE_BIKE_PARKS_URL, {
+    const response = await fetch(OTP_URL, {
+      method: "POST",
       headers: {
-        "Accept": "application/json",
-        "User-Agent": "PortoRealtime/1.0",
+        "Content-Type": "application/json",
+        Origin: "https://explore.porto.pt",
       },
+      body: JSON.stringify({
+        query: `{ bikeRentalStations { id name lat lon spacesAvailable bikesAvailable } }`,
+      }),
     });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch bike parks: ${response.status}`);
     }
 
-    const data = await response.json();
-    
-    // Transform the data to match our BikePark interface
-    const parks = data.map((park: any) => ({
-      id: park.id || String(Math.random()).slice(2),
-      name: park.name || park.address || `Bike Park ${park.id?.slice(-4) || 'Unknown'}`,
-      lat: park.lat || park.latitude || 0,
-      lon: park.lon || park.longitude || 0,
-      capacity: park.capacity || park.totalSpaces || 0,
-      occupied: park.occupied || park.occupiedSpaces || 0,
-      available: park.available || park.availableSpaces || (park.capacity - park.occupied) || 0,
-      lastUpdated: park.lastUpdated || new Date().toISOString(),
+    const raw = await response.json();
+    const stations = raw?.data?.bikeRentalStations || [];
+
+    const parks = stations.map((station: any) => ({
+      id: station.id,
+      name: station.name || "Parque desconhecido",
+      lat: station.lat,
+      lon: station.lon,
+      capacity: (station.spacesAvailable || 0) + (station.bikesAvailable || 0),
+      occupied: station.bikesAvailable || 0,
+      available: station.spacesAvailable || 0,
+      lastUpdated: new Date().toISOString(),
     }));
 
     return NextResponse.json({ parks }, {
