@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { translations } from "@/lib/translations";
+import { useTranslations } from "@/lib/hooks/useTranslations";
 import { getAnonymousId } from "@/lib/anonymous-id";
 import type { FeedbackType, FeedbackItem, FeedbackMetadata } from "@/lib/types";
 
@@ -24,7 +24,7 @@ export function FeedbackForm({
   metadata,
   onSuccess,
 }: FeedbackFormProps) {
-  const t = translations.feedback;
+  const t = useTranslations().feedback;
   const [rating, setRating] = useState(existingFeedback?.rating ?? 0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState(existingFeedback?.comment ?? "");

@@ -4,8 +4,8 @@ import { Suspense, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
-import { translations } from "@/lib/translations";
-import { DarkModeToggle } from "@/components/DarkModeToggle";
+import { useTranslations } from "@/lib/hooks/useTranslations";
+import { SettingsModal } from "@/components/SettingsModal";
 import { BottomSheet } from "@/components/BottomSheet";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { RatingDistribution } from "@/components/RatingDistribution";
@@ -22,9 +22,10 @@ interface TargetDetail {
 const jsonFetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function VehicleReviewsContent() {
+  const t = useTranslations();
   const searchParams = useSearchParams();
   const vehicleId = searchParams?.get("id") || "";
-  const t = translations.reviews;
+  const [showSettings, setShowSettings] = useState(false);
 
   const { data: detail } = useSWR<TargetDetail>(
     vehicleId ? `/api/feedback/rankings?type=VEHICLE&targetId=${encodeURIComponent(vehicleId)}` : null,
@@ -44,7 +45,7 @@ function VehicleReviewsContent() {
   if (!vehicleId) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <p className="text-gray-500 dark:text-gray-400">Veículo não especificado</p>
+        <p className="text-gray-500 dark:text-gray-400">{t.reviews.vehicle}</p>
       </div>
     );
   }
@@ -62,9 +63,19 @@ function VehicleReviewsContent() {
               className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm transition-colors"
             >
               <span className="mr-2">←</span>
-              {t.backToReviews}
+              {t.reviews.backToReviews}
             </Link>
-            <DarkModeToggle />
+            <button
+              onClick={() => setShowSettings(true)}
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+              title={t.nav.settings}
+              aria-label={t.nav.settings}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500 rounded-xl flex items-center justify-center shadow-md">
@@ -72,7 +83,7 @@ function VehicleReviewsContent() {
             </div>
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Veículo {vehicleId}
+                {t.reviews.vehicle} {vehicleId}
               </h1>
               {detail && detail.count > 0 && (
                 <div className="flex items-center gap-2 mt-1">
@@ -83,7 +94,7 @@ function VehicleReviewsContent() {
                     {detail.avg.toFixed(1)}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    ({translations.feedback.ratings(detail.count)})
+                    ({t.feedback.ratings(detail.count)})
                   </span>
                 </div>
               )}
@@ -92,7 +103,7 @@ function VehicleReviewsContent() {
               onClick={() => setShowFeedbackSheet(true)}
               className="flex items-center gap-1.5 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors text-sm font-medium"
             >
-              ★ {translations.feedback.rate}
+              ★ {t.feedback.rate}
             </button>
           </div>
         </div>
@@ -107,7 +118,7 @@ function VehicleReviewsContent() {
         {feedbackList && feedbackList.feedbacks.length > 0 ? (
           <div className="space-y-3 mt-6">
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              {translations.feedback.recentComments} ({feedbackList.total})
+              {t.feedback.recentComments} ({feedbackList.total})
             </h2>
             {feedbackList.feedbacks.map((f) => (
               <div key={f.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
@@ -117,7 +128,7 @@ function VehicleReviewsContent() {
                   </span>
                   {f.metadata?.lineContext && (
                     <span className="text-xs text-indigo-500 dark:text-indigo-400 font-medium bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">
-                      {t.onLine(f.metadata.lineContext)}
+                      {t.reviews.onLine(f.metadata.lineContext)}
                     </span>
                   )}
                   <span className="text-xs text-gray-400 dark:text-gray-500">
@@ -141,7 +152,7 @@ function VehicleReviewsContent() {
                   disabled={page === 0}
                   className="px-3 py-1.5 text-sm rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
-                  ← Anterior
+                  ← {t.reviews.previous}
                 </button>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {page + 1} / {totalPages}
@@ -151,7 +162,7 @@ function VehicleReviewsContent() {
                   disabled={page >= totalPages - 1}
                   className="px-3 py-1.5 text-sm rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
-                  Seguinte →
+                  {t.reviews.next} →
                 </button>
               </div>
             )}
@@ -160,10 +171,10 @@ function VehicleReviewsContent() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center mt-6">
             <div className="text-5xl mb-4">📝</div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {translations.reviews.noReviews}
+              {t.reviews.noReviews}
             </h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">
-              {translations.reviews.noReviewsDesc}
+              {t.reviews.noReviewsDesc}
             </p>
           </div>
         ) : (
@@ -178,16 +189,18 @@ function VehicleReviewsContent() {
       <BottomSheet
         isOpen={showFeedbackSheet}
         onClose={() => setShowFeedbackSheet(false)}
-        title={translations.feedback.vehicleFeedback}
+        title={t.feedback.vehicleFeedback}
       >
         <FeedbackForm
           type="VEHICLE"
           targetId={vehicleId}
-          targetName={`Veículo ${vehicleId}`}
+          targetName={`${t.reviews.vehicle} ${vehicleId}`}
           existingFeedback={feedbackList?.userFeedback}
           onSuccess={handleFeedbackSuccess}
         />
       </BottomSheet>
+
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

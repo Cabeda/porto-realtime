@@ -1,6 +1,6 @@
 "use client";
 
-import { translations } from "@/lib/translations";
+import { useTranslations } from "@/lib/hooks/useTranslations";
 import type { FeedbackSummaryData } from "@/lib/types";
 
 interface FeedbackSummaryProps {
@@ -14,7 +14,7 @@ interface FeedbackSummaryProps {
  * Renders as a clickable pill if onClick is provided.
  */
 export function FeedbackSummary({ summary, onClick, compact }: FeedbackSummaryProps) {
-  const t = translations.feedback;
+  const t = useTranslations().feedback;
 
   if (!summary || summary.count === 0) {
     if (!onClick) return null;

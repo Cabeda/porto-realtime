@@ -3,23 +3,23 @@
 import { useEffect, useState, Suspense, useCallback } from "react";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import "leaflet/dist/leaflet.css";
-import { translations } from "@/lib/translations";
+import { useTranslations } from "@/lib/hooks/useTranslations";
 import { logger } from "@/lib/logger";
 import { MapSkeleton } from "@/components/LoadingSkeletons";
-import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { LeafletMap } from "@/components/LeafletMap";
 import { RouteFilterPanel } from "@/components/RouteFilterPanel";
-import { AboutModal } from "@/components/AboutModal";
+import { SettingsModal } from "@/components/SettingsModal";
 import { BottomSheet } from "@/components/BottomSheet";
 import { FeedbackForm } from "@/components/FeedbackForm";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { busesFetcher, stationsFetcher, fetcher } from "@/lib/fetchers";
 import { useFeedbackList, useFeedbackSummaries } from "@/lib/hooks/useFeedback";
 import type { BusesResponse, StopsResponse, RoutePatternsResponse, FeedbackItem } from "@/lib/types";
 
 function MapPageContent() {
+  const t = useTranslations();
   const searchParams = useSearchParams();
   const [isMounted, setIsMounted] = useState(false);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -40,7 +40,7 @@ function MapPageContent() {
     return true;
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showRouteFilter, setShowRouteFilter] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("showRouteFilter");
@@ -75,13 +75,13 @@ function MapPageContent() {
       const detail = (e as CustomEvent).detail;
       if (detail?.routeShortName) {
         setFeedbackLineId(detail.routeShortName);
-        setFeedbackLineName(`Linha ${detail.routeShortName}`);
+        setFeedbackLineName(`${t.reviews.line} ${detail.routeShortName}`);
         setShowFeedbackSheet(true);
       }
     };
     window.addEventListener("open-line-feedback", handleLineFeedback);
     return () => window.removeEventListener("open-line-feedback", handleLineFeedback);
-  }, []);
+  }, [t]);
 
   // Listen for custom event from bus popup "Rate Vehicle" button
   useEffect(() => {
@@ -89,14 +89,14 @@ function MapPageContent() {
       const detail = (e as CustomEvent).detail;
       if (detail?.vehicleNumber) {
         setFeedbackVehicleId(detail.vehicleNumber);
-        setFeedbackVehicleName(`Veículo ${detail.vehicleNumber}`);
+        setFeedbackVehicleName(`${t.reviews.vehicle} ${detail.vehicleNumber}`);
         setFeedbackVehicleLineContext(detail.lineContext || "");
         setShowVehicleFeedbackSheet(true);
       }
     };
     window.addEventListener("open-vehicle-feedback", handleVehicleFeedback);
     return () => window.removeEventListener("open-vehicle-feedback", handleVehicleFeedback);
-  }, []);
+  }, [t]);
 
   const handleFeedbackSuccess = useCallback((_feedback: FeedbackItem) => {
     // Feedback saved — BottomSheet stays open so user sees success message
@@ -177,7 +177,7 @@ function MapPageContent() {
     setLocationError(null);
 
     if (!navigator.geolocation) {
-      setLocationError("Localização não suportada neste navegador");
+      setLocationError(t.map.geolocationNotSupported);
       setIsLocating(false);
       return;
     }
@@ -194,16 +194,16 @@ function MapPageContent() {
         setIsLocating(false);
         switch (err.code) {
           case err.PERMISSION_DENIED:
-            setLocationError("Permissão de localização negada. Verifique as definições do navegador.");
+            setLocationError(t.map.locationPermissionDenied);
             break;
           case err.POSITION_UNAVAILABLE:
-            setLocationError("Localização indisponível. Verifique o GPS/Wi-Fi.");
+            setLocationError(t.map.unableToGetLocation);
             break;
           case err.TIMEOUT:
-            setLocationError("Tempo esgotado ao obter localização. Tente novamente.");
+            setLocationError(t.map.locationRefreshFailed);
             break;
           default:
-            setLocationError(translations.map.unableToGetLocation);
+            setLocationError(t.map.unableToGetLocation);
         }
       },
       { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
@@ -252,9 +252,9 @@ function MapPageContent() {
 
   const handleRateLine = useCallback((route: string) => {
     setFeedbackLineId(route);
-    setFeedbackLineName(`Linha ${route}`);
+    setFeedbackLineName(`${t.reviews.line} ${route}`);
     setShowFeedbackSheet(true);
-  }, []);
+  }, [t]);
 
   // Auto-filter to favorite routes on first data load
   useEffect(() => {
@@ -314,47 +314,42 @@ function MapPageContent() {
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 transition-colors">
       <header className="bg-white dark:bg-gray-800 shadow-sm z-[1000] relative transition-colors">
         <div className="px-3 sm:px-6 lg:px-8 py-2 sm:py-3">
-          <div className="flex justify-between items-center">
-            <div className="flex-1 min-w-0">
+           <div className="flex justify-between items-center gap-2">
+            <div className="flex-shrink-0 min-w-0">
               <h1
                 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-2"
                 onClick={handleRefresh}
-                title={translations.map.refreshTitle}
+                title={t.map.refreshTitle}
               >
-                <span className="hidden sm:inline">Mapa de Autocarros</span>
-                <span className="sm:hidden">PortoMove</span>
+                <span className="hidden sm:inline">{t.map.busMap}</span>
+                <span className="sm:hidden">{t.map.appName}</span>
                 {isRefreshing && <span className="animate-spin text-base">🔄</span>}
               </h1>
               <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
                 {data ? (
                   <>
-                    {filteredBuses.length} {filteredBuses.length === 1 ? 'autocarro' : 'autocarros'}
+                    {t.map.busesCount(filteredBuses.length)}
                     {selectedRoutes.length > 0 && <span className="text-gray-500 dark:text-gray-500"> / {data.buses.length}</span>}
                     {timeSinceUpdate && <span className="text-gray-400 dark:text-gray-500">· {timeSinceUpdate}</span>}
-                    {isDataStale && <span className="text-amber-600 dark:text-amber-400 font-medium">· dados em cache</span>}
+                    {isDataStale && <span className="text-amber-600 dark:text-amber-400 font-medium">· {t.map.cachedData}</span>}
                   </>
-                ) : translations.map.loading}
+                ) : t.map.loading}
               </p>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Link
-                href="/reviews"
-                className="text-gray-600 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 text-lg sm:text-base transition-colors"
-                title="Avaliações"
-              >
-                <span className="sm:hidden">★</span>
-                <span className="hidden sm:inline">★ Avaliações</span>
-              </Link>
-              <button
-                onClick={() => setShowAboutModal(true)}
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-lg sm:text-base transition-colors"
-                title="Sobre este projeto"
-              >
-                <span className="sm:hidden">ℹ️</span>
-                <span className="hidden sm:inline">ℹ️ Sobre</span>
-              </button>
-              <DarkModeToggle />
+            <div className="hidden sm:block flex-1 max-w-xs">
+              <GlobalSearch availableRoutes={availableRoutes} />
             </div>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+              title={t.nav.settings}
+              aria-label={t.nav.settings}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
           </div>
         </div>
       </header>
@@ -372,7 +367,7 @@ function MapPageContent() {
                 : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
           }`}
           style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
-          title={isLocating ? "A obter localização..." : userLocation ? "Atualizar localização" : "Obter a minha localização"}
+          title={isLocating ? t.map.gettingLocation : userLocation ? t.map.updateLocation : t.map.getMyLocation}
         >
           {isLocating ? (
             <span className="text-xl text-white">⏳</span>
@@ -405,9 +400,9 @@ function MapPageContent() {
                   ? "bg-red-500 hover:bg-red-600 text-white border-red-600 dark:border-red-500"
                   : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
               }`}
-              title={!stopsData?.data?.stops ? translations.map.stopsUnavailable : showStops ? translations.map.hideStops : translations.map.showStops}
+              title={!stopsData?.data?.stops ? t.map.stopsUnavailable : showStops ? t.map.hideStops : t.map.showStops}
             >
-              🚏 {showStops ? 'Ocultar' : 'Paragens'}
+              🚏 {showStops ? t.map.hide : t.map.stops}
             </button>
 
             <button
@@ -418,9 +413,9 @@ function MapPageContent() {
                   ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-600 dark:border-blue-500"
                   : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
               }`}
-              title={selectedRoutes.length === 0 ? "Selecione linhas para ver caminhos" : showRoutes ? "Ocultar Caminhos" : "Mostrar Caminhos"}
+              title={selectedRoutes.length === 0 ? t.map.selectLinesToSeePaths : showRoutes ? t.map.hidePaths : t.map.showPaths}
             >
-              🛣️ {showRoutes ? 'Ocultar' : 'Caminhos'}
+              🛣️ {showRoutes ? t.map.hide : t.map.paths}
             </button>
           </div>
         </div>
@@ -428,13 +423,13 @@ function MapPageContent() {
         {/* Notification banners */}
         {error && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-lg max-w-md">
-            <p className="text-red-800 dark:text-red-200 text-sm">{translations.map.errorLoadingBuses}</p>
+            <p className="text-red-800 dark:text-red-200 text-sm">{t.map.errorLoadingBuses}</p>
           </div>
         )}
 
         {stopsError && (
           <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
-            <p className="text-yellow-800 dark:text-yellow-200 text-sm">{translations.map.stopsUnavailableError}</p>
+            <p className="text-yellow-800 dark:text-yellow-200 text-sm">{t.map.stopsUnavailableError}</p>
           </div>
         )}
 
@@ -448,7 +443,7 @@ function MapPageContent() {
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1001] bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 shadow-lg max-w-md animate-fade-in">
             <div className="flex items-center gap-2">
               <span className="text-lg">✓</span>
-              <p className="text-green-800 dark:text-green-200 text-sm font-medium">Localização obtida com sucesso</p>
+              <p className="text-green-800 dark:text-green-200 text-sm font-medium">{t.map.locationSuccess}</p>
             </div>
           </div>
         )}
@@ -469,7 +464,7 @@ function MapPageContent() {
 
         {isLoading && !data && (
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <p className="text-gray-600 dark:text-gray-300">{translations.map.loadingBusLocations}</p>
+            <p className="text-gray-600 dark:text-gray-300">{t.map.loadingBusLocations}</p>
           </div>
         )}
 
@@ -498,13 +493,13 @@ function MapPageContent() {
           </div>
         )}
 
-        {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowAboutModal(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} />}
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowSettings(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} />}
 
         {/* Line Feedback Bottom Sheet */}
         <BottomSheet
           isOpen={showFeedbackSheet}
           onClose={() => setShowFeedbackSheet(false)}
-          title={translations.feedback.lineFeedback}
+          title={t.feedback.lineFeedback}
         >
           <FeedbackForm
             type="LINE"
@@ -516,7 +511,7 @@ function MapPageContent() {
           {feedbackList && feedbackList.feedbacks.length > 0 && (
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                {translations.feedback.recentComments}
+                {t.feedback.recentComments}
               </h3>
               <div className="space-y-3">
                 {feedbackList.feedbacks
@@ -544,7 +539,7 @@ function MapPageContent() {
         <BottomSheet
           isOpen={showVehicleFeedbackSheet}
           onClose={() => setShowVehicleFeedbackSheet(false)}
-          title={translations.feedback.vehicleFeedback}
+          title={t.feedback.vehicleFeedback}
         >
           <FeedbackForm
             type="VEHICLE"
@@ -557,7 +552,7 @@ function MapPageContent() {
           {vehicleFeedbackList && vehicleFeedbackList.feedbacks.length > 0 && (
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                {translations.feedback.recentComments}
+                {t.feedback.recentComments}
               </h3>
               <div className="space-y-3">
                 {vehicleFeedbackList.feedbacks

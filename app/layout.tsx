@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { Providers } from "@/components/Providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -49,8 +50,10 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://opendata.porto.digital" />
       </head>
       <body className={inter.className}>
-        {children}
-        <PWAInstallPrompt />
+        <Providers>
+          {children}
+          <PWAInstallPrompt />
+        </Providers>
       </body>
     </html>
   );

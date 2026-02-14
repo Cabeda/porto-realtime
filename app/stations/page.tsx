@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import useSWR from "swr";
-import { translations } from "@/lib/translations";
+import { useTranslations } from "@/lib/hooks/useTranslations";
 import { logger } from "@/lib/logger";
 import { StationsSkeleton } from "@/components/LoadingSkeletons";
-import { DarkModeToggle } from "@/components/DarkModeToggle";
+import { SettingsModal } from "@/components/SettingsModal";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { FeedbackSummary } from "@/components/FeedbackSummary";
 import { stationsFetcher } from "@/lib/fetchers";
 import { useFeedbackSummaries } from "@/lib/hooks/useFeedback";
@@ -31,6 +32,7 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 function StationCard({ station, isFavorite, onToggleFavorite, distance, feedbackSummary }: {
   station: Stop; isFavorite: boolean; onToggleFavorite: () => void; distance?: number; feedbackSummary?: FeedbackSummaryData;
 }) {
+  const t = useTranslations();
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-all p-4 flex items-center gap-4">
       <Link href={`/station?gtfsId=${station.gtfsId}`} className="flex-1 min-w-0">
@@ -51,8 +53,8 @@ function StationCard({ station, isFavorite, onToggleFavorite, distance, feedback
         <Link
           href={`/?station=${encodeURIComponent(station.gtfsId)}`}
           className="w-9 h-9 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-sm"
-          title="Ver no mapa"
-          aria-label="Ver no mapa"
+          title={t.stations.viewOnMap}
+          aria-label={t.stations.viewOnMap}
         >
           🗺️
         </Link>
@@ -63,7 +65,7 @@ function StationCard({ station, isFavorite, onToggleFavorite, distance, feedback
               ? "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-500"
               : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-yellow-500"
           }`}
-          aria-label={isFavorite ? translations.stations.removeFromFavorites : translations.stations.addToFavorites}
+          aria-label={isFavorite ? t.stations.removeFromFavorites : t.stations.addToFavorites}
         >
           {isFavorite ? "★" : "☆"}
         </button>
@@ -73,6 +75,8 @@ function StationCard({ station, isFavorite, onToggleFavorite, distance, feedback
 }
 
 export default function StationsPage() {
+  const t = useTranslations();
+  const [showSettings, setShowSettings] = useState(false);
   const [favoriteStationIds, setFavoriteStationIds] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("favoriteStations");
@@ -136,7 +140,7 @@ export default function StationsPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="text-center">
         <span className="text-4xl">⚠️</span>
-        <p className="mt-2 text-red-600 dark:text-red-400">{translations.stations.errorLoading}</p>
+        <p className="mt-2 text-red-600 dark:text-red-400">{t.stations.errorLoading}</p>
       </div>
     </div>
   );
@@ -146,29 +150,34 @@ export default function StationsPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Paragens</h1>
-          <div className="flex items-center gap-2">
-            <DarkModeToggle />
-            <Link href="/reviews" className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors text-sm font-medium">
-              ★ Avaliações
-            </Link>
-            <Link href="/" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-              🗺️ Mapa
-            </Link>
-          </div>
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white flex-shrink-0">{t.stations.stopsLabel}</h1>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+            title={t.nav.settings}
+            aria-label={t.nav.settings}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
         </div>
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-8">
-        {/* Search */}
+        {/* Global Search */}
+        <GlobalSearch />
+
+        {/* Station filter */}
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
           <input
             type="text"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder={translations.stations.filterPlaceholder}
+            placeholder={t.stations.filterPlaceholder}
             className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
           />
         </div>
@@ -177,7 +186,7 @@ export default function StationsPage() {
         {filter.length >= 2 && (
           <section>
             <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-              Resultados ({filteredStations.length}{filteredStations.length === 30 ? "+" : ""})
+              {t.stations.results} ({filteredStations.length}{filteredStations.length === 30 ? "+" : ""})
             </h2>
             {filteredStations.length > 0 ? (
               <div className="space-y-2">
@@ -186,7 +195,7 @@ export default function StationsPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-sm italic">Nenhuma paragem encontrada</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm italic">{t.stations.noStopsFound}</p>
             )}
           </section>
         )}
@@ -195,7 +204,7 @@ export default function StationsPage() {
         {filter.length < 2 && closestStations.length > 0 && (
           <section>
             <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-              📍 Mais próximas
+              📍 {t.stations.nearest}
             </h2>
             <div className="space-y-2">
               {closestStations.map((s) => (
@@ -209,7 +218,7 @@ export default function StationsPage() {
         {filter.length < 2 && (
           <section>
             <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-              ⭐ Favoritas
+              ⭐ {t.stations.favorites}
             </h2>
             {favoriteStations.length > 0 ? (
               <div className="space-y-2">
@@ -219,12 +228,13 @@ export default function StationsPage() {
               </div>
             ) : (
               <p className="text-gray-500 dark:text-gray-400 text-sm italic">
-                Toque ☆ numa paragem para a adicionar aos favoritos
+                {t.stations.tapToFavorite}
               </p>
             )}
           </section>
         )}
       </div>
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
-import { translations } from "@/lib/translations";
-import { DarkModeToggle } from "@/components/DarkModeToggle";
+import { useTranslations } from "@/lib/hooks/useTranslations";
+import { SettingsModal } from "@/components/SettingsModal";
 import type { FeedbackType, FeedbackMetadata } from "@/lib/types";
 
 interface RankingComment {
@@ -29,12 +29,6 @@ interface RankingsResponse {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-const TABS: { key: FeedbackType; label: string; icon: string }[] = [
-  { key: "LINE", label: translations.reviews.lines, icon: "🚌" },
-  { key: "STOP", label: translations.reviews.stops, icon: "🚏" },
-  { key: "VEHICLE", label: translations.reviews.vehicles, icon: "🚍" },
-];
-
 function StarRating({ rating }: { rating: number }) {
   const stars = Math.round(rating);
   return (
@@ -46,7 +40,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 function RankingCard({ item, type, rank }: { item: RankingItem; type: FeedbackType; rank: number }) {
-  const t = translations.reviews;
+  const t = useTranslations();
   const detailHref =
     type === "LINE"
       ? `/reviews/line?id=${encodeURIComponent(item.targetId)}`
@@ -56,9 +50,9 @@ function RankingCard({ item, type, rank }: { item: RankingItem; type: FeedbackTy
 
   const label =
     type === "LINE"
-      ? `Linha ${item.targetId}`
+      ? `${t.reviews.line} ${item.targetId}`
       : type === "VEHICLE"
-        ? `Veículo ${item.targetId}`
+        ? `${t.reviews.vehicle} ${item.targetId}`
         : item.targetId;
 
   const bgColor =
@@ -90,7 +84,7 @@ function RankingCard({ item, type, rank }: { item: RankingItem; type: FeedbackTy
               <StarRating rating={item.avg} />
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {translations.feedback.ratings(item.count)}
+              {t.feedback.ratings(item.count)}
             </p>
           </div>
           <span className="text-gray-400 dark:text-gray-500 text-sm">→</span>
@@ -109,7 +103,7 @@ function RankingCard({ item, type, rank }: { item: RankingItem; type: FeedbackTy
               </div>
             ))}
             {item.recentComments.length > 2 && (
-              <p className="text-xs text-blue-500 dark:text-blue-400">{t.seeAll}</p>
+              <p className="text-xs text-blue-500 dark:text-blue-400">{t.reviews.seeAll}</p>
             )}
           </div>
         )}
@@ -119,9 +113,16 @@ function RankingCard({ item, type, rank }: { item: RankingItem; type: FeedbackTy
 }
 
 export default function ReviewsPage() {
-  const t = translations.reviews;
+  const t = useTranslations();
+  const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState<FeedbackType>("LINE");
   const [sort, setSort] = useState<"count" | "avg">("count");
+
+  const tabs: { key: FeedbackType; label: string; icon: string }[] = [
+    { key: "LINE", label: t.reviews.lines, icon: "🚌" },
+    { key: "STOP", label: t.reviews.stops, icon: "🚏" },
+    { key: "VEHICLE", label: t.reviews.vehicles, icon: "🚍" },
+  ];
 
   const { data, isLoading } = useSWR<RankingsResponse>(
     `/api/feedback/rankings?type=${activeTab}&sort=${sort}&order=desc&limit=50`,
@@ -140,20 +141,30 @@ export default function ReviewsPage() {
               className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm transition-colors"
             >
               <span className="mr-2">←</span>
-              Mapa
+              {t.nav.map}
             </Link>
-            <DarkModeToggle />
+            <button
+              onClick={() => setShowSettings(true)}
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+              title={t.nav.settings}
+              aria-label={t.nav.settings}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t.title}
+            {t.reviews.title}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {t.subtitle}
+            {t.reviews.subtitle}
           </p>
 
           {/* Tabs */}
           <div className="flex gap-1 mt-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
@@ -177,9 +188,9 @@ export default function ReviewsPage() {
           <div className="text-sm text-gray-500 dark:text-gray-400">
             {data && (
               <>
-                {t.totalTargets(data.totalTargets)}
+                {t.reviews.totalTargets(data.totalTargets)}
                 <span className="mx-1">·</span>
-                {t.totalReviews(data.rankings.reduce((sum, r) => sum + r.count, 0))}
+                {t.reviews.totalReviews(data.rankings.reduce((sum, r) => sum + r.count, 0))}
               </>
             )}
           </div>
@@ -192,7 +203,7 @@ export default function ReviewsPage() {
                   : "text-gray-500 dark:text-gray-400"
               }`}
             >
-              {t.sortByCount}
+              {t.reviews.sortByCount}
             </button>
             <button
               onClick={() => setSort("avg")}
@@ -202,7 +213,7 @@ export default function ReviewsPage() {
                   : "text-gray-500 dark:text-gray-400"
               }`}
             >
-              {t.sortByRating}
+              {t.reviews.sortByRating}
             </button>
           </div>
         </div>
@@ -232,23 +243,23 @@ export default function ReviewsPage() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
             <div className="text-5xl mb-4">📝</div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {t.noReviews}
+              {t.reviews.noReviews}
             </h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-              {t.noReviewsDesc}
+              {t.reviews.noReviewsDesc}
             </p>
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               <Link
                 href="/"
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
               >
-                🗺️ Ver mapa
+                🗺️ {t.reviews.viewMap}
               </Link>
               <Link
                 href="/stations"
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
               >
-                🚏 Ver paragens
+                🚏 {t.reviews.viewStops}
               </Link>
             </div>
           </div>
@@ -260,18 +271,19 @@ export default function ReviewsPage() {
         <div className="flex justify-around py-2">
           <Link href="/" className="flex flex-col items-center gap-0.5 px-3 py-1 text-gray-500 dark:text-gray-400">
             <span className="text-lg">🗺️</span>
-            <span className="text-[10px]">{translations.nav.map}</span>
+            <span className="text-[10px]">{t.nav.map}</span>
           </Link>
           <Link href="/stations" className="flex flex-col items-center gap-0.5 px-3 py-1 text-gray-500 dark:text-gray-400">
             <span className="text-lg">🚏</span>
-            <span className="text-[10px]">{translations.nav.stations}</span>
+            <span className="text-[10px]">{t.nav.stations}</span>
           </Link>
           <Link href="/reviews" className="flex flex-col items-center gap-0.5 px-3 py-1 text-blue-600 dark:text-blue-400">
             <span className="text-lg">⭐</span>
-            <span className="text-[10px] font-medium">{t.title}</span>
+            <span className="text-[10px] font-medium">{t.reviews.title}</span>
           </Link>
         </div>
       </nav>
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
