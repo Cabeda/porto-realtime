@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import useSWR from "swr";
 import { translations } from "@/lib/translations";
 import { logger } from "@/lib/logger";
 import { StationsSkeleton } from "@/components/LoadingSkeletons";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
+import { FeedbackSummary } from "@/components/FeedbackSummary";
 import { stationsFetcher } from "@/lib/fetchers";
-import type { Stop, StopsResponse } from "@/lib/types";
+import { useFeedbackSummaries } from "@/lib/hooks/useFeedback";
+import type { Stop, StopsResponse, FeedbackSummaryData } from "@/lib/types";
 
 interface StopWithDistance extends Stop {
   distance: number;
@@ -26,13 +28,18 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function StationCard({ station, isFavorite, onToggleFavorite, distance }: {
-  station: Stop; isFavorite: boolean; onToggleFavorite: () => void; distance?: number;
+function StationCard({ station, isFavorite, onToggleFavorite, distance, feedbackSummary }: {
+  station: Stop; isFavorite: boolean; onToggleFavorite: () => void; distance?: number; feedbackSummary?: FeedbackSummaryData;
 }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-all p-4 flex items-center gap-4">
       <Link href={`/station?gtfsId=${station.gtfsId}`} className="flex-1 min-w-0">
-        <h3 className="font-semibold text-gray-900 dark:text-white truncate">{station.name}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-gray-900 dark:text-white truncate">{station.name}</h3>
+          {feedbackSummary && feedbackSummary.count > 0 && (
+            <FeedbackSummary summary={feedbackSummary} compact />
+          )}
+        </div>
         {station.code && (
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{station.code}</p>
         )}
@@ -124,6 +131,17 @@ export default function StationsPage() {
     ? stops.filter((s) => s.name.toLowerCase().includes(filter.toLowerCase())).slice(0, 30)
     : [];
 
+  // Collect visible station IDs for batch feedback summary
+  const visibleStationIds = useMemo(() => {
+    const ids = new Set<string>();
+    closestStations.forEach((s) => ids.add(s.gtfsId));
+    favoriteStations.forEach((s) => ids.add(s.gtfsId));
+    filteredStations.forEach((s) => ids.add(s.gtfsId));
+    return Array.from(ids);
+  }, [closestStations, favoriteStations, filteredStations]);
+
+  const { data: stopSummaries } = useFeedbackSummaries("STOP", visibleStationIds);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Header */}
@@ -161,7 +179,7 @@ export default function StationsPage() {
             {filteredStations.length > 0 ? (
               <div className="space-y-2">
                 {filteredStations.map((s) => (
-                  <StationCard key={s.id} station={s} isFavorite={isFavorite(s.gtfsId)} onToggleFavorite={() => toggleFavorite(s.gtfsId)} />
+                  <StationCard key={s.id} station={s} isFavorite={isFavorite(s.gtfsId)} onToggleFavorite={() => toggleFavorite(s.gtfsId)} feedbackSummary={stopSummaries?.[s.gtfsId]} />
                 ))}
               </div>
             ) : (
@@ -178,7 +196,7 @@ export default function StationsPage() {
             </h2>
             <div className="space-y-2">
               {closestStations.map((s) => (
-                <StationCard key={`near-${s.id}`} station={s} isFavorite={isFavorite(s.gtfsId)} onToggleFavorite={() => toggleFavorite(s.gtfsId)} distance={s.distance} />
+                <StationCard key={`near-${s.id}`} station={s} isFavorite={isFavorite(s.gtfsId)} onToggleFavorite={() => toggleFavorite(s.gtfsId)} distance={s.distance} feedbackSummary={stopSummaries?.[s.gtfsId]} />
               ))}
             </div>
           </section>
@@ -193,7 +211,7 @@ export default function StationsPage() {
             {favoriteStations.length > 0 ? (
               <div className="space-y-2">
                 {favoriteStations.map((s) => (
-                  <StationCard key={`fav-${s.gtfsId}`} station={s} isFavorite onToggleFavorite={() => toggleFavorite(s.gtfsId)} />
+                  <StationCard key={`fav-${s.gtfsId}`} station={s} isFavorite onToggleFavorite={() => toggleFavorite(s.gtfsId)} feedbackSummary={stopSummaries?.[s.gtfsId]} />
                 ))}
               </div>
             ) : (
