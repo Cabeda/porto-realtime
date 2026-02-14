@@ -7,6 +7,7 @@ import type {
   FeedbackListResponse,
   FeedbackType,
   FeedbackItem,
+  FeedbackMetadata,
 } from "@/lib/types";
 
 const jsonFetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -66,7 +67,8 @@ export async function submitFeedback(
   type: FeedbackType,
   targetId: string,
   rating: number,
-  comment?: string
+  comment?: string,
+  metadata?: FeedbackMetadata
 ): Promise<FeedbackItem> {
   const anonId = getAnonymousId();
   if (!anonId) throw new Error("No anonymous ID");
@@ -77,7 +79,7 @@ export async function submitFeedback(
       "Content-Type": "application/json",
       "x-anonymous-id": anonId,
     },
-    body: JSON.stringify({ type, targetId, rating, comment }),
+    body: JSON.stringify({ type, targetId, rating, comment, ...(metadata ? { metadata } : {}) }),
   });
 
   if (res.status === 429) throw new Error("RATE_LIMITED");

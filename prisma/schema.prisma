@@ -17,15 +17,16 @@ model User {
   feedbacks Feedback[]
 }
 
-// Feedback on lines and stops (extensible to ROUTE_PROPOSAL, FEATURE_REQUEST)
+// Feedback on lines, stops, and vehicles (extensible to ROUTE_PROPOSAL, FEATURE_REQUEST)
 model Feedback {
   id        String       @id @default(cuid())
   userId    String
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      FeedbackType
-  targetId  String // line shortName (e.g. "205") or stop gtfsId (e.g. "2:BRRS2")
+  targetId  String // line shortName (e.g. "205"), stop gtfsId (e.g. "2:BRRS2"), or vehicleNumber (e.g. "3245")
   rating    Int // 1-5 stars
   comment   String? // optional, max 500 chars
+  metadata  Json? // optional context: e.g. { "lineContext": "205" } for vehicle feedback
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -38,4 +39,5 @@ enum FeedbackType {
   BUS // deprecated alias kept for compat — maps to LINE
   LINE
   STOP
+  VEHICLE // feedback on a specific physical bus (by vehicleNumber)
 }

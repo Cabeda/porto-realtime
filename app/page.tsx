@@ -61,9 +61,16 @@ function MapPageContent() {
   const [feedbackLineName, setFeedbackLineName] = useState("");
   const { data: feedbackList } = useFeedbackList("LINE", showFeedbackSheet ? feedbackLineId : null);
 
-  // Listen for custom event from bus popup "Rate" button
+  // Vehicle feedback state
+  const [showVehicleFeedbackSheet, setShowVehicleFeedbackSheet] = useState(false);
+  const [feedbackVehicleId, setFeedbackVehicleId] = useState("");
+  const [feedbackVehicleName, setFeedbackVehicleName] = useState("");
+  const [feedbackVehicleLineContext, setFeedbackVehicleLineContext] = useState("");
+  const { data: vehicleFeedbackList } = useFeedbackList("VEHICLE", showVehicleFeedbackSheet ? feedbackVehicleId : null);
+
+  // Listen for custom event from bus popup "Rate Line" button
   useEffect(() => {
-    const handleBusFeedback = (e: Event) => {
+    const handleLineFeedback = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.routeShortName) {
         setFeedbackLineId(detail.routeShortName);
@@ -71,8 +78,23 @@ function MapPageContent() {
         setShowFeedbackSheet(true);
       }
     };
-    window.addEventListener("open-line-feedback", handleBusFeedback);
-    return () => window.removeEventListener("open-line-feedback", handleBusFeedback);
+    window.addEventListener("open-line-feedback", handleLineFeedback);
+    return () => window.removeEventListener("open-line-feedback", handleLineFeedback);
+  }, []);
+
+  // Listen for custom event from bus popup "Rate Vehicle" button
+  useEffect(() => {
+    const handleVehicleFeedback = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.vehicleNumber) {
+        setFeedbackVehicleId(detail.vehicleNumber);
+        setFeedbackVehicleName(`Veículo ${detail.vehicleNumber}`);
+        setFeedbackVehicleLineContext(detail.lineContext || "");
+        setShowVehicleFeedbackSheet(true);
+      }
+    };
+    window.addEventListener("open-vehicle-feedback", handleVehicleFeedback);
+    return () => window.removeEventListener("open-vehicle-feedback", handleVehicleFeedback);
   }, []);
 
   const handleFeedbackSuccess = useCallback((_feedback: FeedbackItem) => {
@@ -497,6 +519,52 @@ function MapPageContent() {
                         <span className="text-yellow-400 text-xs">
                           {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
                         </span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          {new Date(f.createdAt).toLocaleDateString("pt-PT")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{f.comment}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </BottomSheet>
+
+        {/* Vehicle Feedback Bottom Sheet */}
+        <BottomSheet
+          isOpen={showVehicleFeedbackSheet}
+          onClose={() => setShowVehicleFeedbackSheet(false)}
+          title={translations.feedback.vehicleFeedback}
+        >
+          <FeedbackForm
+            type="VEHICLE"
+            targetId={feedbackVehicleId}
+            targetName={feedbackVehicleName}
+            existingFeedback={vehicleFeedbackList?.userFeedback}
+            metadata={feedbackVehicleLineContext ? { lineContext: feedbackVehicleLineContext } : undefined}
+            onSuccess={handleFeedbackSuccess}
+          />
+          {vehicleFeedbackList && vehicleFeedbackList.feedbacks.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                {translations.feedback.recentComments}
+              </h3>
+              <div className="space-y-3">
+                {vehicleFeedbackList.feedbacks
+                  .filter((f) => f.comment)
+                  .slice(0, 5)
+                  .map((f) => (
+                    <div key={f.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-yellow-400 text-xs">
+                          {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
+                        </span>
+                        {f.metadata?.lineContext && (
+                          <span className="text-xs text-indigo-500 dark:text-indigo-400 font-medium">
+                            Linha {f.metadata.lineContext}
+                          </span>
+                        )}
                         <span className="text-xs text-gray-400 dark:text-gray-500">
                           {new Date(f.createdAt).toLocaleDateString("pt-PT")}
                         </span>

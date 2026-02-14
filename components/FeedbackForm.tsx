@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { translations } from "@/lib/translations";
 import { getAnonymousId } from "@/lib/anonymous-id";
-import type { FeedbackType, FeedbackItem } from "@/lib/types";
+import type { FeedbackType, FeedbackItem, FeedbackMetadata } from "@/lib/types";
 
 interface FeedbackFormProps {
   type: FeedbackType;
@@ -11,6 +11,8 @@ interface FeedbackFormProps {
   targetName: string;
   /** Pre-existing feedback from the current user (for edit mode) */
   existingFeedback?: FeedbackItem | null;
+  /** Optional metadata to attach (e.g. lineContext for vehicle feedback) */
+  metadata?: FeedbackMetadata;
   onSuccess?: (feedback: FeedbackItem) => void;
 }
 
@@ -19,6 +21,7 @@ export function FeedbackForm({
   targetId,
   targetName,
   existingFeedback,
+  metadata,
   onSuccess,
 }: FeedbackFormProps) {
   const t = translations.feedback;
@@ -61,6 +64,7 @@ export function FeedbackForm({
           targetId,
           rating,
           comment: comment.trim() || undefined,
+          ...(metadata ? { metadata } : {}),
         }),
       });
 
@@ -87,8 +91,13 @@ export function FeedbackForm({
     <div className="space-y-4">
       {/* Target label */}
       <div className="text-sm text-gray-500 dark:text-gray-400">
-        {type === "LINE" ? t.rateThisLine : t.rateThisStop}:{" "}
+        {type === "LINE" ? t.rateThisLine : type === "VEHICLE" ? t.rateThisVehicle : t.rateThisStop}:{" "}
         <span className="font-semibold text-gray-900 dark:text-white">{targetName}</span>
+        {type === "VEHICLE" && metadata?.lineContext && (
+          <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+            {t.vehicleOnLine(metadata.lineContext)}
+          </div>
+        )}
       </div>
 
       {/* Star rating */}

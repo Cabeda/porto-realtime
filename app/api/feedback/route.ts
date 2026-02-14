@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const VALID_TYPES = ["LINE", "STOP"] as const;
+const VALID_TYPES = ["LINE", "STOP", "VEHICLE"] as const;
 const MAX_COMMENT_LENGTH = 500;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_MAX = 20; // max 20 submissions per hour
@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const feedbackType = type as "LINE" | "STOP";
+    // Cast validated type string to Prisma's FeedbackType enum
+    const feedbackType = type as "LINE" | "STOP" | "VEHICLE";
 
     const [feedbacks, total, userFeedback] = await Promise.all([
       prisma.feedback.findMany({
@@ -67,6 +68,7 @@ export async function GET(request: NextRequest) {
           targetId: true,
           rating: true,
           comment: true,
+          metadata: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -89,6 +91,7 @@ export async function GET(request: NextRequest) {
                 targetId: true,
                 rating: true,
                 comment: true,
+                metadata: true,
                 createdAt: true,
                 updatedAt: true,
               },
@@ -114,7 +117,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/feedback
-// Body: { type: "LINE" | "STOP", targetId: string, rating: 1-5, comment?: string }
+// Body: { type: "LINE" | "STOP" | "VEHICLE", targetId: string, rating: 1-5, comment?: string, metadata?: { lineContext?: string } }
 // Header: x-anonymous-id: <uuid>
 export async function POST(request: NextRequest) {
   const anonId = request.headers.get("x-anonymous-id");
@@ -126,14 +129,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { type?: string; targetId?: string; rating?: number; comment?: string };
+  let body: { type?: string; targetId?: string; rating?: number; comment?: string; metadata?: Record<string, unknown> };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { type, targetId, rating, comment } = body;
+  const { type, targetId, rating, comment, metadata } = body;
 
   // Validate type
   if (!type || !VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
@@ -187,7 +190,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const feedbackType = type as "LINE" | "STOP";
+    const feedbackType = type as "LINE" | "STOP" | "VEHICLE";
+
+    // Sanitize metadata: only allow known keys, string values
+    let sanitizedMetadata: Record<string, string> | null = null;
+    if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+      const lineContext = metadata.lineContext;
+      if (typeof lineContext === "string" && lineContext.length > 0 && lineContext.length <= 50) {
+        sanitizedMetadata = { lineContext: stripHtml(lineContext) };
+      }
+    }
 
     // Upsert: update if existing, create if new
     const feedback = await prisma.feedback.upsert({
@@ -201,6 +213,7 @@ export async function POST(request: NextRequest) {
       update: {
         rating,
         comment: sanitizedComment,
+        ...(sanitizedMetadata !== null ? { metadata: sanitizedMetadata } : {}),
       },
       create: {
         userId: user.id,
@@ -208,6 +221,7 @@ export async function POST(request: NextRequest) {
         targetId,
         rating,
         comment: sanitizedComment,
+        ...(sanitizedMetadata !== null ? { metadata: sanitizedMetadata } : {}),
       },
       select: {
         id: true,
@@ -215,6 +229,7 @@ export async function POST(request: NextRequest) {
         targetId: true,
         rating: true,
         comment: true,
+        metadata: true,
         createdAt: true,
         updatedAt: true,
       },

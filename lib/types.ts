@@ -89,7 +89,11 @@ export interface StationResponse {
 
 // Feedback types
 
-export type FeedbackType = "LINE" | "STOP";
+export type FeedbackType = "LINE" | "STOP" | "VEHICLE";
+
+export interface FeedbackMetadata {
+  lineContext?: string; // routeShortName the vehicle was on when rated
+}
 
 export interface FeedbackItem {
   id: string;
@@ -97,6 +101,7 @@ export interface FeedbackItem {
   targetId: string;
   rating: number;
   comment: string | null;
+  metadata: FeedbackMetadata | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -121,4 +126,5 @@ export interface FeedbackCreateRequest {
   targetId: string;
   rating: number;
   comment?: string;
+  metadata?: FeedbackMetadata;
 }

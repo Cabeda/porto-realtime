@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const VALID_TYPES = ["LINE", "STOP"] as const;
+const VALID_TYPES = ["LINE", "STOP", "VEHICLE"] as const;
 
 // GET /api/feedback/summary?type=STOP&targetIds=2:BRRS2,2:ABCDE,2:XYZQR
 // Returns { "2:BRRS2": { avg: 4.2, count: 15 }, "2:ABCDE": { avg: 3.8, count: 7 }, ... }
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const feedbackType = type as "LINE" | "STOP";
+    const feedbackType = type as "LINE" | "STOP" | "VEHICLE";
 
     // Use groupBy for efficient aggregation
     const summaries = await prisma.feedback.groupBy({

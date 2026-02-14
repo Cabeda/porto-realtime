@@ -187,20 +187,34 @@ export function LeafletMap({
       setIsMapReady(true);
       logger.log("Map initialized and ready");
 
-      // Global event delegation for bus popup rate buttons
-      map.on("popupopen", () => {
-        document.querySelectorAll("[data-rate-line]").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            const routeShortName = (e.currentTarget as HTMLElement).getAttribute("data-rate-line");
-            if (routeShortName) {
-              window.dispatchEvent(
-                new CustomEvent("open-line-feedback", {
-                  detail: { routeShortName },
-                })
-              );
-            }
-          });
-        });
+      // Event delegation on map container for bus popup rate buttons.
+      // This is more reliable than attaching listeners on popupopen because
+      // Leaflet can replace popup DOM elements when content is updated.
+      mapContainerRef.current!.addEventListener("click", (e) => {
+        const target = (e.target as HTMLElement).closest("[data-rate-line]");
+        if (target) {
+          const routeShortName = target.getAttribute("data-rate-line");
+          if (routeShortName) {
+            window.dispatchEvent(
+              new CustomEvent("open-line-feedback", {
+                detail: { routeShortName },
+              })
+            );
+          }
+          return;
+        }
+        const vehicleTarget = (e.target as HTMLElement).closest("[data-rate-vehicle]");
+        if (vehicleTarget) {
+          const vehicleNumber = vehicleTarget.getAttribute("data-rate-vehicle");
+          const lineContext = vehicleTarget.getAttribute("data-vehicle-line");
+          if (vehicleNumber) {
+            window.dispatchEvent(
+              new CustomEvent("open-vehicle-feedback", {
+                detail: { vehicleNumber, lineContext },
+              })
+            );
+          }
+        }
       });
     });
 
@@ -266,7 +280,10 @@ export function LeafletMap({
             <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : 'Parado'}</div>
             ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${escapeHtml(bus.vehicleNumber)}</div>` : ''}
             <div class="bus-popup-footer">Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}</div>
-            <button data-rate-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="margin-top:8px;width:100%;padding:6px 12px;background:#eab308;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Avaliar Linha ${escapeHtml(bus.routeShortName)}</button>
+            <div style="display:flex;gap:6px;margin-top:8px;">
+              <button data-rate-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="flex:1;padding:6px 12px;background:#eab308;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Linha ${escapeHtml(bus.routeShortName)}</button>
+              ${bus.vehicleNumber ? `<button data-rate-vehicle="${escapeHtml(bus.vehicleNumber)}" data-vehicle-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="flex:1;padding:6px 12px;background:#6366f1;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Bus ${escapeHtml(bus.vehicleNumber)}</button>` : ''}
+            </div>
           </div>`;
 
         const busIcon = L.divIcon({
