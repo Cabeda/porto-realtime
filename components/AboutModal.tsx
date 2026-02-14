@@ -30,6 +30,13 @@ export function AboutModal({ onClose, onResetOnboarding }: AboutModalProps) {
             <strong>PortoMove</strong> é uma aplicação web que fornece informações de transportes públicos em tempo real para o Porto, Portugal.
           </p>
 
+          <div className="bg-surface-overlay p-3 rounded-lg border border-border">
+            <p className="font-semibold mb-2 text-sm">🎯 Missão:</p>
+            <p className="text-sm italic">
+              O objetivo desta aplicação é fornecer informações úteis para a mobilidade sem carro no Porto. Começou por permitir obter a localização em tempo real dos autocarros, mas o foco está também em dar voz a quem usa o autocarro, metro e ciclovias para avaliar a infraestrutura. Com suficientes vozes na plataforma, poderemos tornar claro para quem decide o que precisa de ser melhorado e como. Deve ser a ferramenta para concentrar o mal-estar. Se atingirmos 1000 votos autenticados (com email), pretendo partilhar estes com a Mubi e outras associações para falar com a Câmara do Porto e partilhar o feedback.
+            </p>
+          </div>
+
           <div>
             <p className="font-semibold mb-2">Desenvolvido por:</p>
             <p>José Cabeda</p>

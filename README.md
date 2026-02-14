@@ -1,4 +1,4 @@
-# Porto Bus - Mapa em Tempo Real
+# PortoMove - Mapa em Tempo Real
 
 Real-time public transit tracker for Porto, Portugal. View live bus positions on an interactive map, check departure times, and save favorite stations.
 
