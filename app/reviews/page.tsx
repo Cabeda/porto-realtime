@@ -24,7 +24,6 @@ interface RankingItem {
 
 interface RankingsResponse {
   rankings: RankingItem[];
-  totalFeedback: number;
   totalTargets: number;
 }
 
@@ -180,7 +179,7 @@ export default function ReviewsPage() {
               <>
                 {t.totalTargets(data.totalTargets)}
                 <span className="mx-1">·</span>
-                {t.totalReviews(data.totalFeedback)}
+                {t.totalReviews(data.rankings.reduce((sum, r) => sum + r.count, 0))}
               </>
             )}
           </div>
@@ -235,9 +234,23 @@ export default function ReviewsPage() {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               {t.noReviews}
             </h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
               {t.noReviewsDesc}
             </p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                🗺️ Ver mapa
+              </Link>
+              <Link
+                href="/stations"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+              >
+                🚏 Ver paragens
+              </Link>
+            </div>
           </div>
         )}
       </main>
