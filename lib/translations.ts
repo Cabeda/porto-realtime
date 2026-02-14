@@ -86,9 +86,33 @@ export const translations = {
     showMore: "Ver mais",
     rateThisStop: "Avaliar esta paragem",
     rateThisLine: "Avaliar esta linha",
+    rateThisVehicle: "Avaliar este veículo",
     stopFeedback: "Avaliações da paragem",
     lineFeedback: "Avaliações da linha",
+    vehicleFeedback: "Avaliações do veículo",
+    vehicleOnLine: (line: string) => `A operar na linha ${line}`,
     characters: (count: number, max: number) => `${count}/${max}`,
+  },
+
+  // Reviews page
+  reviews: {
+    title: "Avaliações",
+    subtitle: "Todas as avaliações da comunidade",
+    lines: "Linhas",
+    stops: "Paragens",
+    vehicles: "Veículos",
+    sortByRating: "Melhor avaliação",
+    sortByCount: "Mais avaliações",
+    noReviews: "Ainda sem avaliações",
+    noReviewsDesc: "Seja o primeiro a avaliar no mapa ou nas estações!",
+    totalReviews: (count: number) => `${count} ${count === 1 ? "avaliação" : "avaliações"} no total`,
+    totalTargets: (count: number) => `${count} ${count === 1 ? "avaliado" : "avaliados"}`,
+    seeAll: "Ver todas",
+    backToReviews: "Voltar para avaliações",
+    lineReviews: (line: string) => `Avaliações da Linha ${line}`,
+    vehicleReviews: (vehicle: string) => `Avaliações do Veículo ${vehicle}`,
+    stopReviews: (stop: string) => `Avaliações da Paragem`,
+    onLine: (line: string) => `Na linha ${line}`,
   },
 };
 

@@ -1,0 +1,102 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+const VALID_TYPES = ["LINE", "STOP", "VEHICLE"] as const;
+
+// GET /api/feedback/rankings?type=LINE&sort=avg&order=desc&limit=50
+// Returns ranked list of targets with aggregated feedback data
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get("type");
+  const sort = searchParams.get("sort") || "count"; // "avg" | "count"
+  const order = searchParams.get("order") || "desc"; // "asc" | "desc"
+  const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
+
+  if (!type) {
+    return NextResponse.json(
+      { error: "Missing required parameter: type" },
+      { status: 400 }
+    );
+  }
+
+  if (!VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
+    return NextResponse.json(
+      { error: `Invalid type. Must be one of: ${VALID_TYPES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const feedbackType = type as "LINE" | "STOP" | "VEHICLE";
+
+    // Aggregate all feedback grouped by targetId
+    const summaries = await prisma.feedback.groupBy({
+      by: ["targetId"],
+      where: { type: feedbackType },
+      _avg: { rating: true },
+      _count: { rating: true },
+      orderBy: sort === "avg"
+        ? { _avg: { rating: order === "asc" ? "asc" : "desc" } }
+        : { _count: { rating: order === "asc" ? "asc" : "desc" } },
+      take: limit,
+    });
+
+    // Get recent comments for each target (last 3 with comments)
+    const targetIds = summaries.map((s: { targetId: string }) => s.targetId);
+    const recentComments = targetIds.length > 0
+      ? await prisma.feedback.findMany({
+          where: {
+            type: feedbackType,
+            targetId: { in: targetIds },
+            comment: { not: null },
+          },
+          orderBy: { createdAt: "desc" },
+          take: targetIds.length * 3, // up to 3 per target
+          select: {
+            targetId: true,
+            rating: true,
+            comment: true,
+            metadata: true,
+            createdAt: true,
+          },
+        })
+      : [];
+
+    // Group comments by targetId (max 3 each)
+    const commentsByTarget: Record<string, typeof recentComments> = {};
+    for (const c of recentComments) {
+      if (!commentsByTarget[c.targetId]) commentsByTarget[c.targetId] = [];
+      if (commentsByTarget[c.targetId].length < 3) {
+        commentsByTarget[c.targetId].push(c);
+      }
+    }
+
+    // Overall stats
+    const totalFeedback = await prisma.feedback.count({
+      where: { type: feedbackType },
+    });
+    const totalTargets = summaries.length;
+
+    const rankings = summaries.map((s: { targetId: string; _avg: { rating: number | null }; _count: { rating: number } }) => ({
+      targetId: s.targetId,
+      avg: Math.round((s._avg.rating ?? 0) * 10) / 10,
+      count: s._count.rating,
+      recentComments: commentsByTarget[s.targetId] || [],
+    }));
+
+    return NextResponse.json(
+      { rankings, totalFeedback, totalTargets },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Error fetching feedback rankings:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch feedback rankings" },
+      { status: 500 }
+    );
+  }
+}
