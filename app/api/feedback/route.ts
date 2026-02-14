@@ -57,7 +57,7 @@ async function checkRateLimit(userId: string): Promise<boolean> {
   const recentCount = await prisma.feedback.count({
     where: {
       userId,
-      createdAt: { gte: windowStart },
+      updatedAt: { gte: windowStart },
     },
   });
   return recentCount < RATE_LIMIT_MAX;
@@ -68,8 +68,10 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
   const targetId = searchParams.get("targetId");
-  const page = parseInt(searchParams.get("page") || "0", 10);
-  const limit = Math.min(parseInt(searchParams.get("limit") || "10", 10), 50);
+  const rawPage = parseInt(searchParams.get("page") || "0", 10);
+  const page = Number.isNaN(rawPage) || rawPage < 0 ? 0 : rawPage;
+  const rawLimit = parseInt(searchParams.get("limit") || "10", 10);
+  const limit = Math.min(Number.isNaN(rawLimit) || rawLimit <= 0 ? 10 : rawLimit, 50);
   const anonId = request.headers.get("x-anonymous-id");
   // Only use anonId if it's a valid UUID format
   const validAnonId = anonId && UUID_REGEX.test(anonId) ? anonId : null;
