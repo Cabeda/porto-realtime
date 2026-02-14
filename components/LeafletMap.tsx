@@ -601,10 +601,13 @@ export function LeafletMap({
           })
             .addTo(mapInstanceRef.current!)
             .bindPopup(`
-              <div class="route-popup text-sm" style="min-width:200px;font-family:system-ui,sans-serif;">
-                <div class="route-popup-title" style="color:${color};">Linha ${pattern.routeShortName}</div>
-                <div class="route-popup-headsign">→ ${pattern.headsign}</div>
-                <div class="route-popup-desc">${pattern.routeLongName}</div>
+              <div class="route-popup text-sm" style="min-width:220px;font-family:system-ui,sans-serif;">
+                <a href="/reviews/line?id=${encodeURIComponent(pattern.routeShortName)}" style="font-weight:700;font-size:15px;color:${color};text-decoration:none;display:block;margin-bottom:2px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Linha ${escapeHtml(pattern.routeShortName)}</a>
+                <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">→ ${escapeHtml(pattern.headsign)}</div>
+                <div style="font-size:12px;color:#9ca3af;margin-bottom:10px;">${escapeHtml(pattern.routeLongName)}</div>
+                <button data-rate-line="${escapeHtml(pattern.routeShortName)}" class="bus-popup-rate-btn" style="width:100%;padding:8px 12px;background:${color};color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+                  ★ Avaliar Linha ${escapeHtml(pattern.routeShortName)}
+                </button>
               </div>
             `);
 
@@ -640,7 +643,7 @@ export function LeafletMap({
 
         const popupHtml = `
           <div class="bike-park-popup text-sm" style="min-width:220px;font-family:system-ui,sans-serif;">
-            <div class="bike-park-popup-title" style="font-weight:600;font-size:14px;color:#059669;margin-bottom:4px;">${escapeHtml(park.name)}</div>
+            <a href="/reviews/bike-park?id=${encodeURIComponent(park.name)}" style="font-weight:700;font-size:14px;color:#059669;text-decoration:none;display:block;margin-bottom:4px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(park.name)}</a>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
               <div style="flex:1;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;">
                 <div style="width:${occupancyPercent}%;height:100%;background:${occupancyColor};transition:width 0.3s;"></div>
@@ -696,8 +699,13 @@ export function LeafletMap({
     if (!mapInstanceRef.current || !isMapReady || bikeLanes.length === 0) return;
 
     import("leaflet").then((L) => {
+      // Guard: map may have been destroyed while awaiting the dynamic import
+      if (!mapInstanceRef.current) return;
+
       // Clear existing bike lane layers
-      bikeLaneLayersRef.current.forEach((layer) => layer.remove());
+      bikeLaneLayersRef.current.forEach((layer) => {
+        try { layer.remove(); } catch { /* already removed */ }
+      });
       bikeLaneLayersRef.current = [];
 
       if (!showBikeLanes) return;
@@ -708,6 +716,7 @@ export function LeafletMap({
         : bikeLanes;
 
       lanesToShow.forEach((lane) => {
+        if (!mapInstanceRef.current) return;
         const isPlanned = lane.status === "planned";
 
         const typeColors: Record<string, string> = {
@@ -722,7 +731,7 @@ export function LeafletMap({
 
         const popupContent = `
           <div class="bike-lane-popup text-sm" style="min-width:200px;font-family:system-ui,sans-serif;">
-            <div class="bike-lane-popup-title" style="font-weight:600;font-size:14px;color:${color};margin-bottom:4px;">${escapeHtml(lane.name)}</div>
+            <a href="/reviews/bike-lane?id=${encodeURIComponent(lane.name)}" style="font-weight:700;font-size:14px;color:${color};text-decoration:none;display:block;margin-bottom:4px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(lane.name)}</a>
             ${isPlanned ? '<div style="font-size:11px;color:#f59e0b;font-weight:600;margin-bottom:4px;">⚠ Planeada (ainda não construída)</div>' : ''}
             <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">
               Tipo: ${lane.type === 'ciclovia' ? 'Ciclovia' : lane.type === 'ciclorrota' ? 'Ciclorrota' : lane.type === 'ciclovia_em_via_pedonal' ? 'Via Pedonal' : lane.type === 'ciclovia_marginal_rio' ? 'Marginal Rio' : lane.type}
@@ -737,24 +746,36 @@ export function LeafletMap({
         `;
 
         // Draw each segment as a separate polyline to avoid straight lines between disconnected parts
-        for (const segment of lane.segments) {
-          if (segment.length < 2) continue;
-          const latLngs = segment.map(
-            (coord) => [coord[1], coord[0]] as [number, number]
-          );
+        const segments = lane.segments;
+        if (!Array.isArray(segments)) return;
+        for (const segment of segments) {
+          if (!Array.isArray(segment) || segment.length < 2) continue;
+          const latLngs: [number, number][] = [];
+          for (const coord of segment) {
+            if (!Array.isArray(coord) || coord.length < 2) continue;
+            const lon = Number(coord[0]);
+            const lat = Number(coord[1]);
+            if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+            latLngs.push([lat, lon]);
+          }
+          if (latLngs.length < 2 || !mapInstanceRef.current) continue;
 
-          const polyline = L.polyline(latLngs, {
-            color,
-            weight: isPlanned ? 3 : 5,
-            opacity: isPlanned ? 0.5 : 0.8,
-            smoothFactor: 1,
-            dashArray: isPlanned ? '8, 8' : (lane.type === 'ciclorrota' ? '10, 10' : undefined),
-          })
-            .addTo(mapInstanceRef.current!)
-            .bindPopup(popupContent);
+          try {
+            const polyline = L.polyline(latLngs, {
+              color,
+              weight: isPlanned ? 3 : 5,
+              opacity: isPlanned ? 0.5 : 0.8,
+              smoothFactor: 1,
+              dashArray: isPlanned ? '8, 8' : (lane.type === 'ciclorrota' ? '10, 10' : undefined),
+            })
+              .addTo(mapInstanceRef.current)
+              .bindPopup(popupContent);
 
-          polyline.bringToBack();
-          bikeLaneLayersRef.current.push(polyline);
+            polyline.bringToBack();
+            bikeLaneLayersRef.current.push(polyline);
+          } catch (err) {
+            logger.log(`Failed to render segment for lane ${lane.name}: ${err}`);
+          }
         }
       });
 

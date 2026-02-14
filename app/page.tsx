@@ -137,7 +137,7 @@ function MapPageContent() {
     const handleBikeParkFeedback = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.parkId) {
-        setFeedbackBikeParkId(detail.parkId);
+        setFeedbackBikeParkId(detail.parkName || detail.parkId);
         setFeedbackBikeParkName(detail.parkName || `Parque ${detail.parkId}`);
         setShowBikeParkFeedbackSheet(true);
       }
@@ -151,7 +151,7 @@ function MapPageContent() {
     const handleBikeLaneFeedback = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.laneId) {
-        setFeedbackBikeLaneId(detail.laneId);
+        setFeedbackBikeLaneId(detail.laneName || detail.laneId);
         setFeedbackBikeLaneName(detail.laneName || `Ciclovia ${detail.laneId}`);
         setShowBikeLaneFeedbackSheet(true);
       }
