@@ -1,6 +1,5 @@
 import { storage } from "@/lib/storage";
 import { logger } from "@/lib/logger";
-import { translations } from "@/lib/translations";
 import type { BusesResponse, StopsResponse } from "@/lib/types";
 
 // Fetcher with localStorage fallback for buses (short cache for instant load)
@@ -42,7 +41,7 @@ export const stationsFetcher = async (url: string): Promise<StopsResponse> => {
     logger.log("Loading stations from localStorage cache");
     fetch(url)
       .then((res) => {
-        if (!res.ok) throw new Error(translations.stations.errorLoading);
+        if (!res.ok) throw new Error("Failed to fetch stations");
         return res.json();
       })
       .then((freshData) => {
@@ -58,7 +57,7 @@ export const stationsFetcher = async (url: string): Promise<StopsResponse> => {
   logger.log("Fetching stations from network (first time)");
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(translations.stations.errorLoading);
+    throw new Error("Failed to fetch stations");
   }
   const data = await response.json();
   storage.set("cachedStations", data, 7);

@@ -1,14 +1,15 @@
 // Build version - updated automatically during build
 const APP_VERSION = '2.0.0';
-const BUILD_TIMESTAMP = '1770834090073';
-const CACHE_NAME = `porto-realtime-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
-const RUNTIME_CACHE = `porto-realtime-runtime-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
+const BUILD_TIMESTAMP = '1771084442954';
+const CACHE_NAME = `portomove-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
+const RUNTIME_CACHE = `portomove-runtime-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
   '/',
   '/stations',
   '/station',
+  '/reviews',
   '/offline',
 ];
 
@@ -193,7 +194,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Porto Realtime', options)
+    self.registration.showNotification(data.title || 'PortoMove', options)
   );
 });
 

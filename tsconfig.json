@@ -26,7 +26,7 @@
         "./*"
       ]
     },
-    "target": "ES2017"
+    "target": "ES2023"
   },
   "include": [
     "next-env.d.ts",
@@ -36,6 +36,7 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "prisma.config.ts"
   ]
 }

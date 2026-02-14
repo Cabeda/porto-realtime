@@ -86,3 +86,45 @@ export interface StationResponse {
   };
   dataAvailable: boolean;
 }
+
+// Feedback types
+
+export type FeedbackType = "LINE" | "STOP" | "VEHICLE";
+
+export interface FeedbackMetadata {
+  lineContext?: string; // routeShortName the vehicle was on when rated
+}
+
+export interface FeedbackItem {
+  id: string;
+  type: FeedbackType;
+  targetId: string;
+  rating: number;
+  comment: string | null;
+  metadata: FeedbackMetadata | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeedbackSummaryData {
+  avg: number;
+  count: number;
+}
+
+export interface FeedbackSummaryResponse {
+  [key: string]: FeedbackSummaryData;
+}
+
+export interface FeedbackListResponse {
+  feedbacks: FeedbackItem[];
+  total: number;
+  userFeedback: FeedbackItem | null; // current user's feedback for this target
+}
+
+export interface FeedbackCreateRequest {
+  type: FeedbackType;
+  targetId: string;
+  rating: number;
+  comment?: string;
+  metadata?: FeedbackMetadata;
+}

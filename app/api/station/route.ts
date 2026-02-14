@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import { type NextRequest, NextResponse } from "next/server";
 
 const OTP_URL =
   "https://otp.portodigital.pt/otp/routers/default/index/graphql";
@@ -40,11 +40,8 @@ const QUERY = `
   }
 `;
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const gtfsId = (req.query.gtfsId as string) || "2:BRRS2";
+export async function GET(request: NextRequest) {
+  const gtfsId = request.nextUrl.searchParams.get("gtfsId") || "2:BRRS2";
 
   try {
     const response = await fetch(OTP_URL, {
@@ -67,15 +64,15 @@ export default async function handler(
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json(data);
+      return NextResponse.json(data, { status: response.status });
     }
 
-    res.status(200).json(data);
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching station departures:", error);
-    res.status(500).json({
-      error: "Failed to fetch station departures",
-      data: { stop: null }
-    });
+    return NextResponse.json(
+      { error: "Failed to fetch station departures", data: { stop: null } },
+      { status: 500 }
+    );
   }
 }

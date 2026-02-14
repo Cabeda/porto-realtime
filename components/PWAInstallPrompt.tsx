@@ -158,7 +158,7 @@ export function PWAInstallPrompt() {
               <div className="text-3xl">📱</div>
               <div className="flex-1">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-1">
-                  Instalar Porto Realtime
+                  Instalar PortoMove
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                   Adicione ao ecrã inicial para acesso rápido e funcionalidades offline

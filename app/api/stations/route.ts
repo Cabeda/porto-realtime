@@ -1,14 +1,11 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import { NextResponse } from "next/server";
 
 const OTP_URL =
   "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 
 const CACHE_DURATION = 30 * 24 * 60 * 60; // 30 days in seconds
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export async function GET() {
   try {
     const response = await fetch(OTP_URL, {
       method: "POST",
@@ -24,21 +21,22 @@ export default async function handler(
     const data = await response.json();
 
     if (response.ok) {
-      res.setHeader(
-        "Cache-Control",
-        `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${7 * 24 * 60 * 60}`
-      );
-      res.status(200).json(data);
+      return NextResponse.json(data, {
+        headers: {
+          "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${7 * 24 * 60 * 60}`,
+        },
+      });
     } else {
-      res.setHeader("Cache-Control", "no-cache");
-      res.status(response.status).json(data);
+      return NextResponse.json(data, {
+        status: response.status,
+        headers: { "Cache-Control": "no-cache" },
+      });
     }
   } catch (error) {
     console.error("Error fetching stations:", error);
-    res.setHeader("Cache-Control", "no-cache");
-    res.status(500).json({
-      error: "Failed to fetch stations",
-      data: { stops: [] }
-    });
+    return NextResponse.json(
+      { error: "Failed to fetch stations", data: { stops: [] } },
+      { status: 500, headers: { "Cache-Control": "no-cache" } }
+    );
   }
 }

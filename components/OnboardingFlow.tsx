@@ -74,7 +74,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
             <div className="space-y-4">
               <div className="text-7xl mb-4 animate-bounce-slow">🚌</div>
               <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-                Porto Buses
+                PortoMove
               </h1>
               <p className="text-lg text-gray-600 dark:text-gray-300 max-w-md mx-auto">
                 Acompanhe os autocarros do Porto em tempo real
