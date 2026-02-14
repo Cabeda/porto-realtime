@@ -64,6 +64,32 @@ export const translations = {
     stations: "Estações",
     map: "Mapa",
   },
+
+  // Feedback system
+  feedback: {
+    rate: "Avaliar",
+    yourRating: "A sua avaliação",
+    editRating: "Editar avaliação",
+    comment: "Comentário (opcional)",
+    commentPlaceholder: "Partilhe a sua experiência...",
+    submit: "Enviar",
+    update: "Atualizar",
+    submitting: "A enviar...",
+    success: "Obrigado pela sua avaliação!",
+    updated: "Avaliação atualizada!",
+    error: "Erro ao enviar. Tente novamente.",
+    rateLimited: "Pode avaliar novamente em alguns minutos",
+    noRatingsYet: "Seja o primeiro a avaliar!",
+    ratings: (count: number) =>
+      count === 1 ? "1 avaliação" : `${count} avaliações`,
+    recentComments: "Comentários recentes",
+    showMore: "Ver mais",
+    rateThisStop: "Avaliar esta paragem",
+    rateThisLine: "Avaliar esta linha",
+    stopFeedback: "Avaliações da paragem",
+    lineFeedback: "Avaliações da linha",
+    characters: (count: number, max: number) => `${count}/${max}`,
+  },
 };
 
 export type TranslationsType = typeof translations;
