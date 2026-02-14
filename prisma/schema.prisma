@@ -40,4 +40,6 @@ enum FeedbackType {
   LINE
   STOP
   VEHICLE // feedback on a specific physical bus (by vehicleNumber)
+  BIKE_PARK // bike parking stations
+  BIKE_LANE // bike lanes (ciclovias)
 }

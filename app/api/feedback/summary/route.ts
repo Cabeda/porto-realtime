@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const VALID_TYPES = ["LINE", "STOP", "VEHICLE"] as const;
+const VALID_TYPES = ["LINE", "STOP", "VEHICLE", "BIKE_PARK", "BIKE_LANE"] as const;
 const MAX_TARGET_ID_LENGTH = 100;
 
 // GET /api/feedback/summary?type=STOP&targetIds=2:BRRS2,2:ABCDE,2:XYZQR
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const feedbackType = type as "LINE" | "STOP" | "VEHICLE";
+    const feedbackType = type as "LINE" | "STOP" | "VEHICLE" | "BIKE_PARK" | "BIKE_LANE";
 
     // Use groupBy for efficient aggregation
     const summaries = await prisma.feedback.groupBy({
