@@ -20,9 +20,13 @@
   },
   "dependencies": {
     "@mapbox/polyline": "^1.2.1",
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-neon": "^7.4.0",
+    "@prisma/client": "^7.4.0",
     "graphql": "^16.8.1",
     "leaflet": "^1.9.4",
     "next": "16.1.6",
+    "prisma": "^7.4.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-leaflet": "^4.2.1",

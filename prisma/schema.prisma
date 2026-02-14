@@ -1,0 +1,41 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+}
+
+// User model — supports anonymous (anonId) and future email auth
+model User {
+  id        String     @id @default(cuid())
+  anonId    String?    @unique // localStorage UUID for anonymous users
+  email     String?    @unique // for future magic-link auth
+  name      String?
+  createdAt DateTime   @default(now())
+  feedbacks Feedback[]
+}
+
+// Feedback on lines and stops (extensible to ROUTE_PROPOSAL, FEATURE_REQUEST)
+model Feedback {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      FeedbackType
+  targetId  String // line shortName (e.g. "205") or stop gtfsId (e.g. "2:BRRS2")
+  rating    Int // 1-5 stars
+  comment   String? // optional, max 500 chars
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([userId, type, targetId]) // one rating per user per target (upsert)
+  @@index([type, targetId])
+  @@index([userId])
+}
+
+enum FeedbackType {
+  BUS // deprecated alias kept for compat — maps to LINE
+  LINE
+  STOP
+}
