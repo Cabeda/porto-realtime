@@ -32,7 +32,8 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-leaflet": "^4.2.1",
-    "swr": "^2.2.5"
+    "swr": "^2.2.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

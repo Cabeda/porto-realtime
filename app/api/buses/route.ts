@@ -1,5 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSimulatedBuses } from "@/lib/simulate";
+import {
+  FiwareVehiclesResponseSchema,
+  type FiwareVehicleEntity,
+  unwrap,
+  unwrapAnnotations,
+  unwrapLocation,
+} from "@/lib/schemas/fiware";
+import { OTPRoutesResponseSchema } from "@/lib/schemas/otp";
 
 interface Bus {
   id: string;
@@ -12,36 +20,6 @@ interface Bus {
   lastUpdated: string;
   vehicleNumber: string;
   tripId: string;
-}
-
-interface FiwareResponse {
-  id: string;
-  type: string;
-  location?: {
-    type: string;
-    value: {
-      type: string;
-      coordinates: [number, number];
-    };
-  };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
-}
-
-interface OTPRoute {
-  gtfsId: string;
-  shortName: string;
-  longName: string;
-  patterns: Array<{
-    headsign: string;
-    directionId: number;
-  }>;
-}
-
-interface OTPResponse {
-  data: {
-    routes: OTPRoute[];
-  };
 }
 
 interface RouteDirectionMap {
@@ -147,7 +125,15 @@ async function fetchRouteDestinations(): Promise<
       15000
     );
 
-    const data: OTPResponse = await response.json();
+    const raw = await response.json();
+    const parsed = OTPRoutesResponseSchema.safeParse(raw);
+
+    if (!parsed.success) {
+      console.warn("OTP routes response validation failed:", parsed.error.message);
+      return routeDestinationsCache || new Map();
+    }
+
+    const data = parsed.data;
     const routeMap = new Map<string, RouteDirectionMap>();
 
     data.data.routes.forEach((route) => {
@@ -215,30 +201,57 @@ export async function GET(request: NextRequest) {
       10000
     );
 
-    const data: FiwareResponse[] = await response.json();
+    const rawData = await response.json();
+    const fiwareParsed = FiwareVehiclesResponseSchema.safeParse(rawData);
+
+    let validEntities: FiwareVehicleEntity[];
+    if (fiwareParsed.success) {
+      validEntities = fiwareParsed.data;
+    } else {
+      // Graceful degradation: log warning, try to use raw data filtering invalid entities
+      console.warn(
+        `FIWARE response validation failed (${fiwareParsed.error.issues.length} issues), falling back to raw data`
+      );
+      // Filter to only entities that at least have id and location with coordinates
+      validEntities = (Array.isArray(rawData) ? rawData : []).filter(
+        (e: Record<string, unknown>) => e?.id && (e?.location as Record<string, unknown>)?.value
+      );
+    }
 
     // Parse and normalize the FIWARE entities
-    const buses: Bus[] = data
-      .filter((entity) => entity.location?.value?.coordinates)
+    const buses: Bus[] = validEntities
+      .filter((entity) => {
+        try {
+          unwrapLocation(entity.location);
+          return true;
+        } catch {
+          return false;
+        }
+      })
       .map((entity) => {
-        const coords = entity.location!.value.coordinates;
+        const coords = unwrapLocation(entity.location);
 
         let routeShortName = "Unknown";
 
-        if (entity.routeShortName?.value) {
-          routeShortName = entity.routeShortName.value;
-        } else if (entity.route?.value) {
-          routeShortName = entity.route.value;
-        } else if (entity.lineId?.value) {
-          routeShortName = entity.lineId.value;
-        } else if (entity.line?.value) {
-          routeShortName = entity.line.value;
+        const rsn = unwrap(entity.routeShortName);
+        const rte = unwrap(entity.route);
+        const lid = unwrap(entity.lineId);
+        const lin = unwrap(entity.line);
+
+        if (rsn) {
+          routeShortName = rsn;
+        } else if (rte) {
+          routeShortName = rte;
+        } else if (lid) {
+          routeShortName = lid;
+        } else if (lin) {
+          routeShortName = lin;
         } else {
           const vehicleId =
-            entity.vehiclePlateIdentifier?.value ||
-            entity.vehicleNumber?.value ||
-            entity.license_plate?.value ||
-            entity.name?.value ||
+            unwrap(entity.vehiclePlateIdentifier) ||
+            unwrap(entity.vehicleNumber) ||
+            unwrap(entity.license_plate) ||
+            unwrap(entity.name) ||
             "";
 
           if (vehicleId) {
@@ -281,11 +294,9 @@ export async function GET(request: NextRequest) {
         // Extract direction from FIWARE annotations
         let directionId: number | null = null;
         let tripId = "";
-        if (
-          entity.annotations?.value &&
-          Array.isArray(entity.annotations.value)
-        ) {
-          const sentidoAnnotation = entity.annotations.value.find(
+        const annotations = unwrapAnnotations(entity.annotations);
+        if (annotations && Array.isArray(annotations)) {
+          const sentidoAnnotation = annotations.find(
             (ann: string) =>
               typeof ann === "string" && ann.startsWith("stcp:sentido:")
           );
@@ -295,7 +306,7 @@ export async function GET(request: NextRequest) {
               directionId = parseInt(match[1], 10);
             }
           }
-          const viagemAnnotation = entity.annotations.value.find(
+          const viagemAnnotation = annotations.find(
             (ann: string) =>
               typeof ann === "string" && ann.startsWith("stcp:nr_viagem:")
           );
@@ -306,12 +317,12 @@ export async function GET(request: NextRequest) {
 
         // Get destination from cache based on route number and direction
         let routeLongName =
-          entity.routeLongName?.value ||
-          entity.destination?.value ||
-          entity.tripHeadsign?.value ||
-          entity.headsign?.value ||
-          entity.direction?.value ||
-          entity.directionId?.value ||
+          unwrap(entity.routeLongName) ||
+          unwrap(entity.destination) ||
+          unwrap(entity.tripHeadsign) ||
+          unwrap(entity.headsign) ||
+          unwrap(entity.direction) ||
+          unwrap(entity.directionId) ||
           "";
 
         if (!routeLongName && routeDestinations.has(routeShortName)) {
@@ -330,10 +341,10 @@ export async function GET(request: NextRequest) {
         }
 
         const vehicleNumber =
-          entity.vehiclePlateIdentifier?.value ||
-          entity.vehicleNumber?.value ||
-          entity.license_plate?.value ||
-          entity.name?.value ||
+          unwrap(entity.vehiclePlateIdentifier) ||
+          unwrap(entity.vehicleNumber) ||
+          unwrap(entity.license_plate) ||
+          unwrap(entity.name) ||
           entity.id.split(":").pop() ||
           "";
 
@@ -348,11 +359,11 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        const heading = entity.heading?.value || entity.bearing?.value || 0;
-        const speed = entity.speed?.value || 0;
+        const heading = unwrap(entity.heading) || unwrap(entity.bearing) || 0;
+        const speed = unwrap(entity.speed) || 0;
         const lastUpdated =
-          entity.dateModified?.value ||
-          entity.timestamp?.value ||
+          unwrap(entity.dateModified) ||
+          unwrap(entity.timestamp) ||
           new Date().toISOString();
 
         return {

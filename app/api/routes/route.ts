@@ -1,19 +1,5 @@
 import { NextResponse } from "next/server";
-
-interface OTPRoute {
-  gtfsId: string;
-  shortName: string;
-  longName: string;
-  mode: string;
-  type: number;
-}
-
-interface OTPResponse {
-  data: {
-    routes: OTPRoute[];
-  };
-}
-
+import { OTPRoutesSimpleResponseSchema } from "@/lib/schemas/otp";
 import type { RouteInfo } from "@/lib/types";
 
 // In-memory cache
@@ -56,20 +42,27 @@ export async function GET() {
       throw new Error(`OTP API returned ${response.status}`);
     }
 
-    const data: OTPResponse = await response.json();
+    const raw = await response.json();
+    const parsed = OTPRoutesSimpleResponseSchema.safeParse(raw);
 
-    if (!data.data?.routes) {
-      throw new Error("Invalid response from OTP API");
+    if (!parsed.success) {
+      console.warn("OTP routes response validation failed:", parsed.error.message);
+      // Try raw data as fallback
+      if (!raw?.data?.routes) {
+        throw new Error("Invalid response from OTP API");
+      }
     }
 
-    const routes: RouteInfo[] = data.data.routes
-      .map((r) => ({
+    const validatedRoutes = parsed.success ? parsed.data.data.routes : raw.data.routes;
+
+    const routes: RouteInfo[] = validatedRoutes
+      .map((r: { shortName: string; longName: string; mode: string; gtfsId: string }) => ({
         shortName: r.shortName,
         longName: r.longName,
         mode: r.mode as RouteInfo["mode"],
         gtfsId: r.gtfsId,
       }))
-      .sort((a, b) => {
+      .sort((a: RouteInfo, b: RouteInfo) => {
         // Sort: BUS first, then SUBWAY; within each, numeric then alpha
         if (a.mode !== b.mode) {
           if (a.mode === "BUS") return -1;
