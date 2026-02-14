@@ -2,21 +2,35 @@
 
 import { Suspense, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import useSWR from "swr";
 import Link from "next/link";
 import { translations } from "@/lib/translations";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { BottomSheet } from "@/components/BottomSheet";
 import { FeedbackForm } from "@/components/FeedbackForm";
-import { useFeedbackList, useFeedbackSummaries } from "@/lib/hooks/useFeedback";
+import { RatingDistribution } from "@/components/RatingDistribution";
+import { useFeedbackList } from "@/lib/hooks/useFeedback";
 import type { FeedbackItem } from "@/lib/types";
+
+interface TargetDetail {
+  targetId: string;
+  avg: number;
+  count: number;
+  distribution: number[];
+}
+
+const jsonFetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function VehicleReviewsContent() {
   const searchParams = useSearchParams();
   const vehicleId = searchParams?.get("id") || "";
   const t = translations.reviews;
 
-  const { data: summaries } = useFeedbackSummaries("VEHICLE", vehicleId ? [vehicleId] : []);
-  const summary = summaries?.[vehicleId];
+  const { data: detail } = useSWR<TargetDetail>(
+    vehicleId ? `/api/feedback/rankings?type=VEHICLE&targetId=${encodeURIComponent(vehicleId)}` : null,
+    jsonFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 30000 }
+  );
 
   const [page, setPage] = useState(0);
   const { data: feedbackList, mutate } = useFeedbackList("VEHICLE", vehicleId || null, page, 20);
@@ -35,7 +49,7 @@ function VehicleReviewsContent() {
     );
   }
 
-  const stars = summary ? Math.round(summary.avg) : 0;
+  const stars = detail ? Math.round(detail.avg) : 0;
   const totalPages = feedbackList ? Math.ceil(feedbackList.total / 20) : 0;
 
   return (
@@ -60,16 +74,16 @@ function VehicleReviewsContent() {
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 Veículo {vehicleId}
               </h1>
-              {summary && (
+              {detail && detail.count > 0 && (
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-yellow-400 text-sm">
                     {"★".repeat(stars)}{"☆".repeat(5 - stars)}
                   </span>
                   <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    {summary.avg.toFixed(1)}
+                    {detail.avg.toFixed(1)}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    ({translations.feedback.ratings(summary.count)})
+                    ({translations.feedback.ratings(detail.count)})
                   </span>
                 </div>
               )}
@@ -85,8 +99,13 @@ function VehicleReviewsContent() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6">
+        {/* Rating distribution from API */}
+        {detail && detail.count > 0 && (
+          <RatingDistribution distribution={detail.distribution} total={detail.count} />
+        )}
+
         {feedbackList && feedbackList.feedbacks.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-3 mt-6">
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
               {translations.feedback.recentComments} ({feedbackList.total})
             </h2>
@@ -138,7 +157,7 @@ function VehicleReviewsContent() {
             )}
           </div>
         ) : feedbackList ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center mt-6">
             <div className="text-5xl mb-4">📝</div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               {translations.reviews.noReviews}
@@ -148,7 +167,7 @@ function VehicleReviewsContent() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 mt-6">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 h-24 animate-pulse" />
             ))}

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE"] as const;
 
 // GET /api/feedback/rankings?type=LINE&sort=avg&order=desc&limit=50
+// Optional: &targetId=205 — returns single target with full distribution
 // Returns ranked list of targets with aggregated feedback data
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
   const sort = searchParams.get("sort") || "count"; // "avg" | "count"
   const order = searchParams.get("order") || "desc"; // "asc" | "desc"
   const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
+  const targetId = searchParams.get("targetId"); // optional: single target detail
 
   if (!type) {
     return NextResponse.json(
@@ -28,6 +30,44 @@ export async function GET(request: NextRequest) {
 
   try {
     const feedbackType = type as "LINE" | "STOP" | "VEHICLE";
+
+    // Single target detail mode — return full distribution
+    if (targetId) {
+      const [summaryResult, distribution] = await Promise.all([
+        prisma.feedback.groupBy({
+          by: ["targetId"],
+          where: { type: feedbackType, targetId },
+          _avg: { rating: true },
+          _count: { rating: true },
+        }),
+        prisma.feedback.groupBy({
+          by: ["rating"],
+          where: { type: feedbackType, targetId },
+          _count: { rating: true },
+          orderBy: { rating: "asc" },
+        }),
+      ]);
+
+      const summary = summaryResult[0];
+      const dist = [0, 0, 0, 0, 0]; // index 0 = 1 star, index 4 = 5 stars
+      for (const d of distribution) {
+        if (d.rating >= 1 && d.rating <= 5) dist[d.rating - 1] = d._count.rating;
+      }
+
+      return NextResponse.json(
+        {
+          targetId,
+          avg: summary ? Math.round((summary._avg.rating ?? 0) * 10) / 10 : 0,
+          count: summary?._count.rating ?? 0,
+          distribution: dist,
+        },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          },
+        }
+      );
+    }
 
     // Aggregate all feedback grouped by targetId
     const summaries = await prisma.feedback.groupBy({

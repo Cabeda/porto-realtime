@@ -2,21 +2,34 @@
 
 import { Suspense, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import useSWR from "swr";
 import Link from "next/link";
 import { translations } from "@/lib/translations";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { BottomSheet } from "@/components/BottomSheet";
 import { FeedbackForm } from "@/components/FeedbackForm";
-import { useFeedbackList, useFeedbackSummaries } from "@/lib/hooks/useFeedback";
+import { RatingDistribution } from "@/components/RatingDistribution";
+import { useFeedbackList } from "@/lib/hooks/useFeedback";
 import type { FeedbackItem } from "@/lib/types";
+
+interface TargetDetail {
+  targetId: string;
+  avg: number;
+  count: number;
+  distribution: number[]; // [1star, 2star, 3star, 4star, 5star]
+}
+
+const jsonFetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function LineReviewsContent() {
   const searchParams = useSearchParams();
   const lineId = searchParams?.get("id") || "";
-  const t = translations.reviews;
 
-  const { data: summaries } = useFeedbackSummaries("LINE", lineId ? [lineId] : []);
-  const summary = summaries?.[lineId];
+  const { data: detail } = useSWR<TargetDetail>(
+    lineId ? `/api/feedback/rankings?type=LINE&targetId=${encodeURIComponent(lineId)}` : null,
+    jsonFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 30000 }
+  );
 
   const [page, setPage] = useState(0);
   const { data: feedbackList, mutate } = useFeedbackList("LINE", lineId || null, page, 20);
@@ -35,7 +48,7 @@ function LineReviewsContent() {
     );
   }
 
-  const stars = summary ? Math.round(summary.avg) : 0;
+  const stars = detail ? Math.round(detail.avg) : 0;
   const totalPages = feedbackList ? Math.ceil(feedbackList.total / 20) : 0;
 
   return (
@@ -48,7 +61,7 @@ function LineReviewsContent() {
               className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm transition-colors"
             >
               <span className="mr-2">←</span>
-              {t.backToReviews}
+              {translations.reviews.backToReviews}
             </Link>
             <DarkModeToggle />
           </div>
@@ -60,16 +73,16 @@ function LineReviewsContent() {
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 Linha {lineId}
               </h1>
-              {summary && (
+              {detail && detail.count > 0 && (
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-yellow-400 text-sm">
                     {"★".repeat(stars)}{"☆".repeat(5 - stars)}
                   </span>
                   <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    {summary.avg.toFixed(1)}
+                    {detail.avg.toFixed(1)}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    ({translations.feedback.ratings(summary.count)})
+                    ({translations.feedback.ratings(detail.count)})
                   </span>
                 </div>
               )}
@@ -85,9 +98,9 @@ function LineReviewsContent() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6">
-        {/* Rating distribution */}
-        {summary && summary.count > 0 && feedbackList && (
-          <RatingDistribution feedbacks={feedbackList.feedbacks} total={feedbackList.total} />
+        {/* Rating distribution from API */}
+        {detail && detail.count > 0 && (
+          <RatingDistribution distribution={detail.distribution} total={detail.count} />
         )}
 
         {/* Comments */}
@@ -171,40 +184,6 @@ function LineReviewsContent() {
           onSuccess={handleFeedbackSuccess}
         />
       </BottomSheet>
-    </div>
-  );
-}
-
-function RatingDistribution({ feedbacks, total }: { feedbacks: FeedbackItem[]; total: number }) {
-  // Count ratings from the loaded feedbacks (approximation from current page)
-  const counts = [0, 0, 0, 0, 0];
-  for (const f of feedbacks) {
-    if (f.rating >= 1 && f.rating <= 5) counts[f.rating - 1]++;
-  }
-  const maxCount = Math.max(...counts, 1);
-
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-        Distribuição ({total} total)
-      </h2>
-      <div className="space-y-1.5">
-        {[5, 4, 3, 2, 1].map((star) => (
-          <div key={star} className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400 w-3 text-right">{star}</span>
-            <span className="text-yellow-400 text-xs">★</span>
-            <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-yellow-400 rounded-full transition-all"
-                style={{ width: `${(counts[star - 1] / maxCount) * 100}%` }}
-              />
-            </div>
-            <span className="text-xs text-gray-400 dark:text-gray-500 w-6 text-right">
-              {counts[star - 1]}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
