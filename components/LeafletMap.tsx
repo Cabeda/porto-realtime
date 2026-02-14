@@ -116,6 +116,9 @@ function snapToRoute(
 }
 
 const ANIM_DURATION = 1500; // ms
+const FADE_IN_DURATION = 500; // ms for new buses
+const FADE_OUT_DURATION = 500; // ms for removed buses
+const STATIONARY_SPEED_THRESHOLD = 1; // km/h - buses below this don't animate position
 
 interface LeafletMapProps {
   buses: Bus[];
@@ -215,14 +218,26 @@ export function LeafletMap({
     import("leaflet").then((L) => {
       const currentBusIds = new Set(buses.map(b => b.id));
 
-      // Remove stale markers
+      // Remove stale markers with fade-out effect
       busMarkersMapRef.current.forEach((marker, id) => {
         if (!currentBusIds.has(id)) {
           const af = animFramesRef.current.get(id);
           if (af) { cancelAnimationFrame(af); animFramesRef.current.delete(id); }
           busSegmentRef.current.delete(id);
-          marker.remove();
-          busMarkersMapRef.current.delete(id);
+          
+          // Fade out before removal
+          const elem = marker.getElement();
+          if (elem) {
+            elem.style.transition = `opacity ${FADE_OUT_DURATION}ms ease-out`;
+            elem.style.opacity = '0';
+            setTimeout(() => {
+              marker.remove();
+              busMarkersMapRef.current.delete(id);
+            }, FADE_OUT_DURATION);
+          } else {
+            marker.remove();
+            busMarkersMapRef.current.delete(id);
+          }
         }
       });
 
@@ -233,8 +248,12 @@ export function LeafletMap({
           : destinationText;
         const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
 
+        // Calculate rotation from heading (0° = North, clockwise)
+        // The heading value from API is in degrees (0-360)
+        const rotation = bus.heading;
+
         const iconHtml = `
-          <div style="display:flex;align-items:center;gap:4px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
+          <div style="display:flex;align-items:center;gap:4px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));transform:rotate(${rotation}deg);transform-origin:center;transition:transform 1.5s ease-out;">
             <div style="min-width:44px;height:32px;background:${routeColor};border:2px solid white;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;font-family:system-ui,sans-serif;cursor:pointer;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">
               ${escapeHtml(bus.routeShortName)}
             </div>
@@ -277,7 +296,11 @@ export function LeafletMap({
           const dLon = target[1] - cur.lng;
           // Skip animation for large jumps (>500m) — likely GPS error or reassignment
           const jumpM = Math.sqrt((dLat * 111_320) ** 2 + (dLon * 111_320 * Math.cos(cur.lat * Math.PI / 180)) ** 2);
-          if (jumpM > 500) {
+          
+          // Skip animation if bus is stationary (speed below threshold) or large jump
+          const isStationary = bus.speed < STATIONARY_SPEED_THRESHOLD;
+          
+          if (jumpM > 500 || isStationary) {
             existing.setLatLng(target);
           } else if (dLat * dLat + dLon * dLon > 1e-12) {
             const t0 = performance.now();
@@ -294,14 +317,25 @@ export function LeafletMap({
           existing.setIcon(busIcon);
           existing.setPopupContent(popupHtml);
         } else {
+          // New bus marker - add with fade-in effect
           const snapped = snapToRoute(bus.lat, bus.lon, bus.routeShortName, routePatternsMap, bus.id, busSegmentRef.current);
           const marker = L.marker(snapped, {
             icon: busIcon,
-            title: `Linha ${bus.routeShortName} → ${destinationText}`
+            title: `Linha ${bus.routeShortName} → ${destinationText}`,
+            opacity: 0  // Start invisible for fade-in
           })
             .addTo(mapInstanceRef.current!)
             .bindPopup(popupHtml);
           busMarkersMapRef.current.set(bus.id, marker);
+          
+          // Fade in the new marker
+          setTimeout(() => {
+            const elem = marker.getElement();
+            if (elem) {
+              elem.style.transition = `opacity ${FADE_IN_DURATION}ms ease-in`;
+              elem.style.opacity = '1';
+            }
+          }, 10); // Small delay to ensure DOM is ready
         }
       });
     });
