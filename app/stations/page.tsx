@@ -152,6 +152,20 @@ export default function StationsPage() {
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <h1 className="text-xl font-bold text-gray-900 dark:text-white flex-shrink-0">{t.stations.stopsLabel}</h1>
+          <div className="hidden sm:flex items-center gap-1">
+            <Link
+              href="/"
+              className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              🗺️ {t.nav.map}
+            </Link>
+            <Link
+              href="/reviews"
+              className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              ⭐ {t.nav.reviews}
+            </Link>
+          </div>
           <button
             onClick={() => setShowSettings(true)}
             className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"

@@ -143,6 +143,20 @@ export default function ReviewsPage() {
               <span className="mr-2">←</span>
               {t.nav.map}
             </Link>
+            <div className="hidden sm:flex items-center gap-1">
+              <Link
+                href="/"
+                className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                🗺️ {t.nav.map}
+              </Link>
+              <Link
+                href="/stations"
+                className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                🚏 {t.nav.stations}
+              </Link>
+            </div>
             <button
               onClick={() => setShowSettings(true)}
               className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"

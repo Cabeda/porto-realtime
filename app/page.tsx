@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense, useCallback } from "react";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import "leaflet/dist/leaflet.css";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { logger } from "@/lib/logger";
@@ -335,6 +336,20 @@ function MapPageContent() {
                   </>
                 ) : t.map.loading}
               </p>
+            </div>
+            <div className="hidden sm:flex items-center gap-1">
+              <Link
+                href="/stations"
+                className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                🚏 {t.nav.stations}
+              </Link>
+              <Link
+                href="/reviews"
+                className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                ⭐ {t.nav.reviews}
+              </Link>
             </div>
             <div className="hidden sm:block flex-1 max-w-xs">
               <GlobalSearch availableRoutes={availableRoutes} />
