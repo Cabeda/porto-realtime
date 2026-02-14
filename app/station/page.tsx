@@ -1,12 +1,16 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { translations } from "@/lib/translations";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
-import type { StationResponse, StoptimesWithoutPatterns } from "@/lib/types";
+import { BottomSheet } from "@/components/BottomSheet";
+import { FeedbackForm } from "@/components/FeedbackForm";
+import { FeedbackSummary } from "@/components/FeedbackSummary";
+import { useFeedbackSummaries, useFeedbackList } from "@/lib/hooks/useFeedback";
+import type { StationResponse, StoptimesWithoutPatterns, FeedbackItem } from "@/lib/types";
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -25,6 +29,40 @@ function SearchStation() {
     fetcher,
     { refreshInterval: 30000 }
   );
+
+  // Feedback state
+  const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+  const [feedbackTargetType, setFeedbackTargetType] = useState<"LINE" | "STOP">("STOP");
+  const [feedbackTargetId, setFeedbackTargetId] = useState<string>("");
+  const [feedbackTargetName, setFeedbackTargetName] = useState<string>("");
+
+  // Feedback summaries for this stop
+  const stopIds = id ? [id] : [];
+  const { data: stopSummaries, mutate: mutateStopSummaries } = useFeedbackSummaries("STOP", stopIds);
+
+  // Get unique line IDs from departures for line summaries
+  const allDepartures = station?.data?.stop?.stoptimesWithoutPatterns || [];
+  const lineIds = Array.from(new Set(allDepartures.map((d) => d.trip.route.shortName)));
+  const { data: lineSummaries, mutate: mutateLineSummaries } = useFeedbackSummaries("LINE", lineIds);
+
+  // Feedback list for the currently-open target
+  const { data: feedbackList } = useFeedbackList(
+    feedbackTargetType,
+    showFeedbackSheet ? feedbackTargetId : null
+  );
+
+  const openFeedback = useCallback((type: "LINE" | "STOP", targetId: string, targetName: string) => {
+    setFeedbackTargetType(type);
+    setFeedbackTargetId(targetId);
+    setFeedbackTargetName(targetName);
+    setShowFeedbackSheet(true);
+  }, []);
+
+  const handleFeedbackSuccess = useCallback((_feedback: FeedbackItem) => {
+    // Revalidate summaries
+    if (feedbackTargetType === "STOP") mutateStopSummaries();
+    else mutateLineSummaries();
+  }, [feedbackTargetType, mutateStopSummaries, mutateLineSummaries]);
 
   // Live countdown tick
   const [now, setNow] = useState(Date.now());
@@ -112,19 +150,35 @@ function SearchStation() {
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
                     {station.data.stop.name}
                   </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Código: {id}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Código: {id}
+                    </p>
+                    {id && (
+                      <FeedbackSummary
+                        summary={stopSummaries?.[id]}
+                        onClick={() => openFeedback("STOP", id, station.data.stop.name)}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-            <Link
-              href={`/?station=${id}`}
-              className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-sm font-medium"
-            >
-              <span>🗺️</span>
-              Ver no Mapa
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => id && openFeedback("STOP", id, station.data.stop.name)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors text-sm font-medium"
+              >
+                ★ {translations.feedback.rate}
+              </button>
+              <Link
+                href={`/?station=${id}`}
+                className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-sm font-medium"
+              >
+                <span>🗺️</span>
+                Ver no Mapa
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -170,6 +224,13 @@ function SearchStation() {
                         <span className="text-white text-xl font-bold">
                           {item.trip.route.shortName}
                         </span>
+                      </div>
+                      <div className="mt-1 flex justify-center">
+                        <FeedbackSummary
+                          summary={lineSummaries?.[item.trip.route.shortName]}
+                          onClick={() => openFeedback("LINE", item.trip.route.shortName, `Linha ${item.trip.route.shortName}`)}
+                          compact
+                        />
                       </div>
                     </div>
 
@@ -251,6 +312,48 @@ function SearchStation() {
           </div>
         )}
       </main>
+
+      {/* Feedback Bottom Sheet */}
+      <BottomSheet
+        isOpen={showFeedbackSheet}
+        onClose={() => setShowFeedbackSheet(false)}
+        title={feedbackTargetType === "LINE" ? translations.feedback.lineFeedback : translations.feedback.stopFeedback}
+      >
+        <FeedbackForm
+          type={feedbackTargetType}
+          targetId={feedbackTargetId}
+          targetName={feedbackTargetName}
+          existingFeedback={feedbackList?.userFeedback}
+          onSuccess={handleFeedbackSuccess}
+        />
+
+        {/* Recent comments */}
+        {feedbackList && feedbackList.feedbacks.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              {translations.feedback.recentComments}
+            </h3>
+            <div className="space-y-3">
+              {feedbackList.feedbacks
+                .filter((f) => f.comment)
+                .slice(0, 5)
+                .map((f) => (
+                  <div key={f.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-yellow-400 text-xs">
+                        {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
+                      </span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        {new Date(f.createdAt).toLocaleDateString("pt-PT")}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{f.comment}</p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }
