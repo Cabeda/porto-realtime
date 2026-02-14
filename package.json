@@ -13,6 +13,8 @@
     "prebuild": "node scripts/update-sw-version.js",
     "build": "prisma generate && node scripts/update-sw-version.js && next build",
     "start": "next start",
+    "deploy": "vercel build && vercel deploy --prebuilt",
+    "deploy:prod": "vercel build --prod && vercel deploy --prebuilt --prod",
     "lint": "next lint",
     "test:integration": "node --test tests/integration/otp.test.mjs",
     "test:perf": "playwright test tests/performance",
