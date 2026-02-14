@@ -708,9 +708,24 @@ export function LeafletMap({
         : bikeLanes;
 
       lanesToShow.forEach((lane) => {
-        const latLngs = lane.coordinates.map(
-          (coord) => [coord[1], coord[0]] as [number, number]
-        );
+        // Split coordinates at NaN separators into individual segments
+        const segments: [number, number][][] = [];
+        let currentSegment: [number, number][] = [];
+        for (const coord of lane.coordinates) {
+          if (isNaN(coord[0]) || isNaN(coord[1])) {
+            if (currentSegment.length > 0) {
+              segments.push(currentSegment);
+              currentSegment = [];
+            }
+          } else {
+            currentSegment.push(coord);
+          }
+        }
+        if (currentSegment.length > 0) {
+          segments.push(currentSegment);
+        }
+
+        const isPlanned = lane.status === "planned";
 
         const typeColors: Record<string, string> = {
           ciclovia: '#10b981',
@@ -719,33 +734,45 @@ export function LeafletMap({
           ciclovia_marginal_rio: '#06b6d4',
         };
 
-        const color = typeColors[lane.type] || '#10b981';
+        const baseColor = typeColors[lane.type] || '#10b981';
+        const color = isPlanned ? '#9ca3af' : baseColor;
 
-        const polyline = L.polyline(latLngs, {
-          color,
-          weight: 5,
-          opacity: 0.8,
-          smoothFactor: 1,
-          dashArray: lane.type === 'ciclorrota' ? '10, 10' : undefined,
-        })
-          .addTo(mapInstanceRef.current!)
-          .bindPopup(`
-            <div class="bike-lane-popup text-sm" style="min-width:200px;font-family:system-ui,sans-serif;">
-              <div class="bike-lane-popup-title" style="font-weight:600;font-size:14px;color:${color};margin-bottom:4px;">${escapeHtml(lane.name)}</div>
-              <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">
-                Tipo: ${lane.type === 'ciclovia' ? 'Ciclovia' : lane.type === 'ciclorrota' ? 'Ciclorrota' : lane.type === 'ciclovia_em_via_pedonal' ? 'Via Pedonal' : lane.type === 'ciclovia_marginal_rio' ? 'Marginal Rio' : lane.type}
-              </div>
-              <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">
-                Comprimento: ${(lane.length / 1000).toFixed(2)} km
-              </div>
-              <button data-rate-bike-lane="${escapeHtml(lane.id)}" data-lane-name="${escapeHtml(lane.name)}" class="bike-lane-rate-btn" style="width:100%;padding:8px 12px;background:${color};color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
-                ★ Avaliar esta ciclovia
-              </button>
+        const popupContent = `
+          <div class="bike-lane-popup text-sm" style="min-width:200px;font-family:system-ui,sans-serif;">
+            <div class="bike-lane-popup-title" style="font-weight:600;font-size:14px;color:${color};margin-bottom:4px;">${escapeHtml(lane.name)}</div>
+            ${isPlanned ? '<div style="font-size:11px;color:#f59e0b;font-weight:600;margin-bottom:4px;">⚠ Planeada (ainda não construída)</div>' : ''}
+            <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">
+              Tipo: ${lane.type === 'ciclovia' ? 'Ciclovia' : lane.type === 'ciclorrota' ? 'Ciclorrota' : lane.type === 'ciclovia_em_via_pedonal' ? 'Via Pedonal' : lane.type === 'ciclovia_marginal_rio' ? 'Marginal Rio' : lane.type}
             </div>
-          `);
+            <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">
+              Comprimento: ${(lane.length / 1000).toFixed(2)} km
+            </div>
+            <button data-rate-bike-lane="${escapeHtml(lane.id)}" data-lane-name="${escapeHtml(lane.name)}" class="bike-lane-rate-btn" style="width:100%;padding:8px 12px;background:${color};color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+              ★ Avaliar esta ciclovia
+            </button>
+          </div>
+        `;
 
-        polyline.bringToBack();
-        bikeLaneLayersRef.current.push(polyline);
+        // Draw each segment as a separate polyline to avoid straight lines between disconnected parts
+        for (const segment of segments) {
+          if (segment.length < 2) continue;
+          const latLngs = segment.map(
+            (coord) => [coord[1], coord[0]] as [number, number]
+          );
+
+          const polyline = L.polyline(latLngs, {
+            color,
+            weight: isPlanned ? 3 : 5,
+            opacity: isPlanned ? 0.5 : 0.8,
+            smoothFactor: 1,
+            dashArray: isPlanned ? '8, 8' : (lane.type === 'ciclorrota' ? '10, 10' : undefined),
+          })
+            .addTo(mapInstanceRef.current!)
+            .bindPopup(popupContent);
+
+          polyline.bringToBack();
+          bikeLaneLayersRef.current.push(polyline);
+        }
       });
 
       logger.log(`Rendered ${bikeLaneLayersRef.current.length} bike lane polylines`);

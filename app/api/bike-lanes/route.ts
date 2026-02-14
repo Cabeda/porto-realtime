@@ -12,7 +12,7 @@ interface GeoJSONFeature {
     denominacao?: string;    // bike lane name (e.g. "Ciclovia Parque Cidade - Fluvial")
     pavimento?: string;      // pavement type
     largura?: number;        // width in meters
-    estado?: string;         // status (e.g. "Executado")
+    estado?: string;         // status: "Executado" (built) or "Planeado" (planned)
     objectid?: number;
     globalid?: string;
     [key: string]: any;
@@ -26,6 +26,25 @@ interface GeoJSONFeature {
 interface GeoJSONCollection {
   type: "FeatureCollection";
   features: GeoJSONFeature[];
+}
+
+function haversineDistance(coords: [number, number][]): number {
+  let length = 0;
+  for (let i = 1; i < coords.length; i++) {
+    const [lon1, lat1] = coords[i - 1];
+    const [lon2, lat2] = coords[i];
+    const R = 6371e3;
+    const p1 = lat1 * Math.PI / 180;
+    const p2 = lat2 * Math.PI / 180;
+    const dp = (lat2 - lat1) * Math.PI / 180;
+    const dl = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dp/2) * Math.sin(dp/2) +
+              Math.cos(p1) * Math.cos(p2) *
+              Math.sin(dl/2) * Math.sin(dl/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    length += R * c;
+  }
+  return length;
 }
 
 export async function GET() {
@@ -43,45 +62,41 @@ export async function GET() {
 
     const geojson: GeoJSONCollection = await response.json();
     
-    // Group segments by denominacao to merge them into logical lanes
-    const laneGroups = new Map<string, GeoJSONFeature[]>();
+    // Group segments by denominacao + estado to keep executed and planned separate
+    const laneGroups = new Map<string, { features: GeoJSONFeature[]; estado: string }>();
     
     for (const feature of geojson.features) {
       if (feature.geometry?.type !== "LineString") continue;
       const name = feature.properties.denominacao || feature.properties.toponimo || `Segmento ${feature.properties.objectid || 'desconhecido'}`;
-      const existing = laneGroups.get(name);
+      const estado = feature.properties.estado || "Planeado";
+      const key = `${name}::${estado}`;
+      const existing = laneGroups.get(key);
       if (existing) {
-        existing.push(feature);
+        existing.features.push(feature);
       } else {
-        laneGroups.set(name, [feature]);
+        laneGroups.set(key, { features: [feature], estado });
       }
     }
 
     // Transform grouped features into BikeLane format
-    const lanes = Array.from(laneGroups.entries()).map(([name, features], index) => {
-      // Collect all coordinates from all segments of this lane
+    // Each segment keeps its own coordinate array to avoid straight lines between disconnected segments
+    const lanes = Array.from(laneGroups.entries()).map(([key, group], index) => {
+      const name = key.split("::")[0];
+      const status = group.estado === "Executado" ? "executed" : "planned";
+
+      // Sort segments by proximity to form a connected path
+      // Each segment's coordinates are kept separate with a [NaN, NaN] separator
       const allCoords: [number, number][] = [];
       let totalLength = 0;
 
-      for (const feature of features) {
+      for (const feature of group.features) {
         const coords = feature.geometry.coordinates;
-        allCoords.push(...coords);
-        
-        // Calculate segment length
-        for (let i = 1; i < coords.length; i++) {
-          const [lon1, lat1] = coords[i - 1];
-          const [lon2, lat2] = coords[i];
-          const R = 6371e3;
-          const p1 = lat1 * Math.PI / 180;
-          const p2 = lat2 * Math.PI / 180;
-          const dp = (lat2 - lat1) * Math.PI / 180;
-          const dl = (lon2 - lon1) * Math.PI / 180;
-          const a = Math.sin(dp/2) * Math.sin(dp/2) +
-                    Math.cos(p1) * Math.cos(p2) *
-                    Math.sin(dl/2) * Math.sin(dl/2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-          totalLength += R * c;
+        // Add separator between segments (will be filtered on the client)
+        if (allCoords.length > 0) {
+          allCoords.push([NaN, NaN]);
         }
+        allCoords.push(...coords);
+        totalLength += haversineDistance(coords);
       }
 
       // Determine type from the name
@@ -95,6 +110,7 @@ export async function GET() {
         id: `lane-${index}`,
         name,
         type,
+        status,
         coordinates: allCoords,
         length: Math.round(totalLength),
       };
