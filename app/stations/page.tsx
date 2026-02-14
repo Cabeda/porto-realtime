@@ -111,17 +111,7 @@ export default function StationsPage() {
 
   const isFavorite = (gtfsId: string) => favoriteStationIds.includes(gtfsId);
 
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-      <div className="text-center">
-        <span className="text-4xl">⚠️</span>
-        <p className="mt-2 text-red-600 dark:text-red-400">{translations.stations.errorLoading}</p>
-      </div>
-    </div>
-  );
-  if (!stations) return <StationsSkeleton />;
-
-  const stops = stations.data.stops;
+  const stops = stations?.data?.stops ?? [];
   const closestStations: StopWithDistance[] = location
     ? stops.map((s) => ({ ...s, distance: haversine(location.latitude, location.longitude, s.lat, s.lon) }))
         .sort((a, b) => a.distance - b.distance).slice(0, 5)
@@ -141,6 +131,16 @@ export default function StationsPage() {
   }, [closestStations, favoriteStations, filteredStations]);
 
   const { data: stopSummaries } = useFeedbackSummaries("STOP", visibleStationIds);
+
+  if (error) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="text-center">
+        <span className="text-4xl">⚠️</span>
+        <p className="mt-2 text-red-600 dark:text-red-400">{translations.stations.errorLoading}</p>
+      </div>
+    </div>
+  );
+  if (!stations) return <StationsSkeleton />;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
