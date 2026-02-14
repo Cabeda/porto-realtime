@@ -150,6 +150,9 @@ export default function StationsPage() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Paragens</h1>
           <div className="flex items-center gap-2">
             <DarkModeToggle />
+            <Link href="/reviews" className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors text-sm font-medium">
+              ★ Avaliações
+            </Link>
             <Link href="/" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
               🗺️ Mapa
             </Link>

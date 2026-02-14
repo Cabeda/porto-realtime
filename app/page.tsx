@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense, useCallback } from "react";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import "leaflet/dist/leaflet.css";
 import { translations } from "@/lib/translations";
 import { logger } from "@/lib/logger";
@@ -336,6 +337,14 @@ function MapPageContent() {
               </p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
+              <Link
+                href="/reviews"
+                className="text-gray-600 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 text-lg sm:text-base transition-colors"
+                title="Avaliações"
+              >
+                <span className="sm:hidden">★</span>
+                <span className="hidden sm:inline">★ Avaliações</span>
+              </Link>
               <button
                 onClick={() => setShowAboutModal(true)}
                 className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-lg sm:text-base transition-colors"
