@@ -1,5 +1,5 @@
 import { PrismaNeon } from "@prisma/adapter-neon";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/prisma/generated/prisma/client";
 
 // Singleton pattern: reuse the PrismaClient across hot reloads in development
 const globalForPrisma = globalThis as unknown as {
