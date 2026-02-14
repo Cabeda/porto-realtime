@@ -91,7 +91,7 @@ export function FeedbackForm({
     <div className="space-y-4">
       {/* Target label */}
       <div className="text-sm text-content-muted">
-        {type === "LINE" ? t.rateThisLine : type === "VEHICLE" ? t.rateThisVehicle : t.rateThisStop}:{" "}
+        {type === "LINE" ? t.rateThisLine : type === "VEHICLE" ? t.rateThisVehicle : type === "BIKE_PARK" ? "Avaliar este parque" : type === "BIKE_LANE" ? "Avaliar esta ciclovia" : t.rateThisStop}:{" "}
         <span className="font-semibold text-content">{targetName}</span>
         {type === "VEHICLE" && metadata?.lineContext && (
           <div className="text-xs text-content-muted mt-0.5">

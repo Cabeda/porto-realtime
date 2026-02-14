@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
 import { useTranslations } from "@/lib/hooks/useTranslations";
@@ -46,14 +47,24 @@ function RankingCard({ item, type, rank }: { item: RankingItem; type: FeedbackTy
       ? `/reviews/line?id=${encodeURIComponent(item.targetId)}`
       : type === "VEHICLE"
         ? `/reviews/vehicle?id=${encodeURIComponent(item.targetId)}`
-        : `/reviews/stop?id=${encodeURIComponent(item.targetId)}`;
+        : type === "STOP"
+          ? `/reviews/stop?id=${encodeURIComponent(item.targetId)}`
+          : type === "BIKE_LANE"
+            ? `/reviews/bike-lane?id=${encodeURIComponent(item.targetId)}`
+            : type === "BIKE_PARK"
+              ? `/reviews/bike-park?id=${encodeURIComponent(item.targetId)}`
+              : null;
 
   const label =
     type === "LINE"
       ? `${t.reviews.line} ${item.targetId}`
       : type === "VEHICLE"
         ? `${t.reviews.vehicle} ${item.targetId}`
-        : item.targetId;
+        : type === "BIKE_PARK"
+          ? `🚲 ${item.targetId}`
+          : type === "BIKE_LANE"
+            ? `🛤️ ${item.targetId}`
+            : item.targetId;
 
   const bgColor =
     rank === 1
@@ -64,64 +75,79 @@ function RankingCard({ item, type, rank }: { item: RankingItem; type: FeedbackTy
           ? "border-l-amber-600"
           : "border-l-gray-200 dark:border-l-gray-700";
 
-  return (
-    <Link href={detailHref}>
-      <div
-        className={`bg-surface-raised rounded-lg shadow-md hover:shadow-lg transition-all p-4 border-l-4 ${bgColor}`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-sunken flex items-center justify-center text-sm font-bold text-content-secondary">
-            {rank}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-content truncate">
-                {label}
-              </h3>
-              <span className="flex-shrink-0 text-sm font-bold text-content-secondary">
-                {item.avg.toFixed(1)}
-              </span>
-              <StarRating rating={item.avg} />
-            </div>
-            <p className="text-xs text-content-muted mt-0.5">
-              {t.feedback.ratings(item.count)}
-            </p>
-          </div>
-          <span className="text-content-muted text-sm">→</span>
+  const content = (
+    <div
+      className={`bg-surface-raised rounded-lg shadow-md hover:shadow-lg transition-all p-4 border-l-4 ${bgColor}`}
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-sunken flex items-center justify-center text-sm font-bold text-content-secondary">
+          {rank}
         </div>
-
-        {item.recentComments.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-border-strong space-y-2">
-            {item.recentComments.slice(0, 2).map((c, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <span className="text-yellow-400 text-xs mt-0.5 flex-shrink-0">
-                  {"★".repeat(c.rating)}
-                </span>
-                <p className="text-xs text-content-secondary line-clamp-2">
-                  {c.comment}
-                </p>
-              </div>
-            ))}
-            {item.recentComments.length > 2 && (
-              <p className="text-xs text-blue-500 dark:text-blue-400">{t.reviews.seeAll}</p>
-            )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-content truncate">
+              {label}
+            </h3>
+            <span className="flex-shrink-0 text-sm font-bold text-content-secondary">
+              {item.avg.toFixed(1)}
+            </span>
+            <StarRating rating={item.avg} />
           </div>
-        )}
+          <p className="text-xs text-content-muted mt-0.5">
+            {t.feedback.ratings(item.count)}
+          </p>
+        </div>
+        {detailHref && <span className="text-content-muted text-sm">→</span>}
       </div>
-    </Link>
+
+      {item.recentComments.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-border-strong space-y-2">
+          {item.recentComments.slice(0, 2).map((c, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <span className="text-yellow-400 text-xs mt-0.5 flex-shrink-0">
+                {"★".repeat(c.rating)}
+              </span>
+              <p className="text-xs text-content-secondary line-clamp-2">
+                {c.comment}
+              </p>
+            </div>
+          ))}
+          {item.recentComments.length > 2 && (
+            <p className="text-xs text-blue-500 dark:text-blue-400">{t.reviews.seeAll}</p>
+          )}
+        </div>
+      )}
+    </div>
   );
+
+  return detailHref ? <Link href={detailHref}>{content}</Link> : content;
 }
 
-export default function ReviewsPage() {
+const VALID_TABS: FeedbackType[] = ["LINE", "STOP", "VEHICLE", "BIKE_PARK", "BIKE_LANE"];
+
+function ReviewsContent() {
   const t = useTranslations();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState<FeedbackType>("LINE");
+
+  const tabParam = searchParams?.get("tab")?.toUpperCase() || "";
+  const activeTab: FeedbackType = VALID_TABS.includes(tabParam as FeedbackType)
+    ? (tabParam as FeedbackType)
+    : "LINE";
+
+  const setActiveTab = (tab: FeedbackType) => {
+    router.replace(`/reviews?tab=${tab}`, { scroll: false });
+  };
+
   const [sort, setSort] = useState<"count" | "avg">("count");
 
   const tabs: { key: FeedbackType; label: string; icon: string }[] = [
     { key: "LINE", label: t.reviews.lines, icon: "🚌" },
     { key: "STOP", label: t.reviews.stops, icon: "🚏" },
     { key: "VEHICLE", label: t.reviews.vehicles, icon: "🚍" },
+    { key: "BIKE_PARK", label: t.reviews.bikeParks, icon: "🚲" },
+    { key: "BIKE_LANE", label: t.reviews.bikeLanes, icon: "🛤️" },
   ];
 
   const { data, isLoading } = useSWR<RankingsResponse>(
@@ -282,5 +308,19 @@ export default function ReviewsPage() {
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
+  );
+}
+
+export default function ReviewsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-surface-sunken flex items-center justify-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+        </div>
+      }
+    >
+      <ReviewsContent />
+    </Suspense>
   );
 }

@@ -17,7 +17,7 @@ import { FeedbackForm } from "@/components/FeedbackForm";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { busesFetcher, stationsFetcher, fetcher } from "@/lib/fetchers";
 import { useFeedbackList } from "@/lib/hooks/useFeedback";
-import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem } from "@/lib/types";
+import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem, BikeParksResponse, BikeLanesResponse } from "@/lib/types";
 
 function MapPageContent() {
   const t = useTranslations();
@@ -49,6 +49,27 @@ function MapPageContent() {
     }
     return false;
   });
+  const [showBikeParks, setShowBikeParks] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("showBikeParks");
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
+  const [showBikeLanes, setShowBikeLanes] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("showBikeLanes");
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
+  const [selectedBikeLanes, setSelectedBikeLanes] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("selectedBikeLanes");
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const [lastDataTime, setLastDataTime] = useState<number | null>(null);
   const [timeSinceUpdate, setTimeSinceUpdate] = useState("");
@@ -69,6 +90,18 @@ function MapPageContent() {
   const [feedbackVehicleName, setFeedbackVehicleName] = useState("");
   const [feedbackVehicleLineContext, setFeedbackVehicleLineContext] = useState("");
   const { data: vehicleFeedbackList } = useFeedbackList("VEHICLE", showVehicleFeedbackSheet ? feedbackVehicleId : null);
+
+  // Bike park feedback state
+  const [showBikeParkFeedbackSheet, setShowBikeParkFeedbackSheet] = useState(false);
+  const [feedbackBikeParkId, setFeedbackBikeParkId] = useState("");
+  const [feedbackBikeParkName, setFeedbackBikeParkName] = useState("");
+  const { data: bikeParkFeedbackList } = useFeedbackList("BIKE_PARK", showBikeParkFeedbackSheet ? feedbackBikeParkId : null);
+
+  // Bike lane feedback state
+  const [showBikeLaneFeedbackSheet, setShowBikeLaneFeedbackSheet] = useState(false);
+  const [feedbackBikeLaneId, setFeedbackBikeLaneId] = useState("");
+  const [feedbackBikeLaneName, setFeedbackBikeLaneName] = useState("");
+  const { data: bikeLaneFeedbackList } = useFeedbackList("BIKE_LANE", showBikeLaneFeedbackSheet ? feedbackBikeLaneId : null);
 
   // Listen for custom event from bus popup "Rate Line" button
   useEffect(() => {
@@ -98,6 +131,34 @@ function MapPageContent() {
     window.addEventListener("open-vehicle-feedback", handleVehicleFeedback);
     return () => window.removeEventListener("open-vehicle-feedback", handleVehicleFeedback);
   }, [t]);
+
+  // Listen for custom event from bike park popup
+  useEffect(() => {
+    const handleBikeParkFeedback = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.parkId) {
+        setFeedbackBikeParkId(detail.parkName || detail.parkId);
+        setFeedbackBikeParkName(detail.parkName || `Parque ${detail.parkId}`);
+        setShowBikeParkFeedbackSheet(true);
+      }
+    };
+    window.addEventListener("open-bike-park-feedback", handleBikeParkFeedback);
+    return () => window.removeEventListener("open-bike-park-feedback", handleBikeParkFeedback);
+  }, []);
+
+  // Listen for custom event from bike lane popup
+  useEffect(() => {
+    const handleBikeLaneFeedback = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.laneId) {
+        setFeedbackBikeLaneId(detail.laneName || detail.laneId);
+        setFeedbackBikeLaneName(detail.laneName || `Ciclovia ${detail.laneId}`);
+        setShowBikeLaneFeedbackSheet(true);
+      }
+    };
+    window.addEventListener("open-bike-lane-feedback", handleBikeLaneFeedback);
+    return () => window.removeEventListener("open-bike-lane-feedback", handleBikeLaneFeedback);
+  }, []);
 
   const handleFeedbackSuccess = useCallback((_feedback: FeedbackItem) => {
     // Feedback saved — BottomSheet stays open so user sees success message
@@ -159,6 +220,28 @@ function MapPageContent() {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       dedupingInterval: 24 * 60 * 60 * 1000,
+      revalidateIfStale: false,
+    }
+  );
+
+  // Fetch bike parks
+  const { data: bikeParksData } = useSWR<BikeParksResponse>(
+    "/api/bike-parks",
+    fetcher,
+    {
+      refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
+      revalidateOnFocus: false,
+    }
+  );
+
+  // Fetch bike lanes
+  const { data: bikeLanesData } = useSWR<BikeLanesResponse>(
+    "/api/bike-lanes",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 7 * 24 * 60 * 60 * 1000, // cache for 7 days
       revalidateIfStale: false,
     }
   );
@@ -259,6 +342,9 @@ function MapPageContent() {
   useEffect(() => { localStorage.setItem("showStops", JSON.stringify(showStops)); }, [showStops]);
   useEffect(() => { localStorage.setItem("showRoutes", JSON.stringify(showRoutes)); }, [showRoutes]);
   useEffect(() => { localStorage.setItem("showRouteFilter", JSON.stringify(showRouteFilter)); }, [showRouteFilter]);
+  useEffect(() => { localStorage.setItem("showBikeParks", JSON.stringify(showBikeParks)); }, [showBikeParks]);
+  useEffect(() => { localStorage.setItem("showBikeLanes", JSON.stringify(showBikeLanes)); }, [showBikeLanes]);
+  useEffect(() => { localStorage.setItem("selectedBikeLanes", JSON.stringify(selectedBikeLanes)); }, [selectedBikeLanes]);
 
   const handleRateLine = useCallback((route: string) => {
     setFeedbackLineId(route);
@@ -289,6 +375,16 @@ function MapPageContent() {
     setFavoriteRoutes(prev =>
       prev.includes(route) ? prev.filter(r => r !== route) : [...prev, route]
     );
+  };
+
+  const toggleBikeLane = (laneId: string) => {
+    setSelectedBikeLanes(prev =>
+      prev.includes(laneId) ? prev.filter(id => id !== laneId) : [...prev, laneId]
+    );
+  };
+
+  const clearBikeLaneFilters = () => {
+    setSelectedBikeLanes([]);
   };
 
   const handleOnboardingComplete = (routes: string[], locationGranted: boolean) => {
@@ -441,6 +537,34 @@ function MapPageContent() {
               🛣️ {t.map.paths}
             </button>
           </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowBikeParks(!showBikeParks)}
+              disabled={!bikeParksData?.parks || bikeParksData.parks.length === 0}
+              className={`flex-1 font-semibold py-2 px-3 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
+                showBikeParks
+                  ? "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600 dark:border-emerald-500"
+                  : "bg-surface-raised hover:bg-surface-sunken text-content-secondary border-border"
+              }`}
+              title={showBikeParks ? "Esconder parques de bicicletas" : "Mostrar parques de bicicletas"}
+            >
+              🚲 Parques
+            </button>
+
+            <button
+              onClick={() => setShowBikeLanes(!showBikeLanes)}
+              disabled={!bikeLanesData?.lanes || bikeLanesData.lanes.length === 0}
+              className={`flex-1 font-semibold py-2 px-3 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
+                showBikeLanes
+                  ? "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600 dark:border-emerald-500"
+                  : "bg-surface-raised hover:bg-surface-sunken text-content-secondary border-border"
+              }`}
+              title={showBikeLanes ? "Esconder ciclovias" : "Mostrar ciclovias"}
+            >
+              🛤️ Ciclovias
+            </button>
+          </div>
         </div>
 
         {/* Notification banners */}
@@ -503,6 +627,11 @@ function MapPageContent() {
             selectedRoutes={selectedRoutes}
             showRoutes={showRoutes}
             onSelectRoute={(route) => setSelectedRoutes(prev => prev.includes(route) ? prev : [...prev, route])}
+            bikeParks={bikeParksData?.parks || []}
+            bikeLanes={bikeLanesData?.lanes || []}
+            showBikeParks={showBikeParks}
+            showBikeLanes={showBikeLanes}
+            selectedBikeLanes={selectedBikeLanes}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
@@ -592,6 +721,86 @@ function MapPageContent() {
                             Linha {f.metadata.lineContext}
                           </span>
                         )}
+                        <span className="text-xs text-content-muted">
+                          {new Date(f.createdAt).toLocaleDateString("pt-PT")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-content-secondary">{f.comment}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </BottomSheet>
+
+        {/* Bike Park Feedback Bottom Sheet */}
+        <BottomSheet
+          isOpen={showBikeParkFeedbackSheet}
+          onClose={() => setShowBikeParkFeedbackSheet(false)}
+          title="Avaliar Parque de Bicicletas"
+        >
+          <FeedbackForm
+            type="BIKE_PARK"
+            targetId={feedbackBikeParkId}
+            targetName={feedbackBikeParkName}
+            existingFeedback={bikeParkFeedbackList?.userFeedback}
+            onSuccess={handleFeedbackSuccess}
+          />
+          {bikeParkFeedbackList && bikeParkFeedbackList.feedbacks.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-content-secondary mb-3">
+                {t.feedback.recentComments}
+              </h3>
+              <div className="space-y-3">
+                {bikeParkFeedbackList.feedbacks
+                  .filter((f) => f.comment)
+                  .slice(0, 5)
+                  .map((f) => (
+                    <div key={f.id} className="bg-surface-sunken rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-yellow-400 text-xs">
+                          {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
+                        </span>
+                        <span className="text-xs text-content-muted">
+                          {new Date(f.createdAt).toLocaleDateString("pt-PT")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-content-secondary">{f.comment}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </BottomSheet>
+
+        {/* Bike Lane Feedback Bottom Sheet */}
+        <BottomSheet
+          isOpen={showBikeLaneFeedbackSheet}
+          onClose={() => setShowBikeLaneFeedbackSheet(false)}
+          title="Avaliar Ciclovia"
+        >
+          <FeedbackForm
+            type="BIKE_LANE"
+            targetId={feedbackBikeLaneId}
+            targetName={feedbackBikeLaneName}
+            existingFeedback={bikeLaneFeedbackList?.userFeedback}
+            onSuccess={handleFeedbackSuccess}
+          />
+          {bikeLaneFeedbackList && bikeLaneFeedbackList.feedbacks.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-content-secondary mb-3">
+                {t.feedback.recentComments}
+              </h3>
+              <div className="space-y-3">
+                {bikeLaneFeedbackList.feedbacks
+                  .filter((f) => f.comment)
+                  .slice(0, 5)
+                  .map((f) => (
+                    <div key={f.id} className="bg-surface-sunken rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-yellow-400 text-xs">
+                          {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
+                        </span>
                         <span className="text-xs text-content-muted">
                           {new Date(f.createdAt).toLocaleDateString("pt-PT")}
                         </span>

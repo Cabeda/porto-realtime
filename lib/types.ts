@@ -99,9 +99,39 @@ export interface StationResponse {
   dataAvailable: boolean;
 }
 
+// Bike infrastructure types
+
+export interface BikePark {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  capacity: number;
+  occupied: number;
+  available: number;
+  lastUpdated: string;
+}
+
+export interface BikeLane {
+  id: string;
+  name: string;
+  type: string;
+  status: "executed" | "planned";
+  segments: [number, number][][]; // array of segments, each segment is an array of [lon, lat] coords
+  length: number;
+}
+
+export interface BikeLanesResponse {
+  lanes: BikeLane[];
+}
+
+export interface BikeParksResponse {
+  parks: BikePark[];
+}
+
 // Feedback types
 
-export type FeedbackType = "LINE" | "STOP" | "VEHICLE";
+export type FeedbackType = "LINE" | "STOP" | "VEHICLE" | "BIKE_PARK" | "BIKE_LANE";
 
 export interface FeedbackMetadata {
   lineContext?: string; // routeShortName the vehicle was on when rated

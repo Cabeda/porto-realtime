@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkComment } from "@/lib/content-filter";
 
-const VALID_TYPES = ["LINE", "STOP", "VEHICLE"] as const;
+const VALID_TYPES = ["LINE", "STOP", "VEHICLE", "BIKE_PARK", "BIKE_LANE"] as const;
 const MAX_COMMENT_LENGTH = 500;
 const MAX_TARGET_ID_LENGTH = 100;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Cast validated type string to Prisma's FeedbackType enum
-    const feedbackType = type as "LINE" | "STOP" | "VEHICLE";
+    const feedbackType = type as "LINE" | "STOP" | "VEHICLE" | "BIKE_PARK" | "BIKE_LANE";
 
     const [feedbacks, total, userFeedback] = await Promise.all([
       prisma.feedback.findMany({
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const feedbackType = type as "LINE" | "STOP" | "VEHICLE";
+    const feedbackType = type as "LINE" | "STOP" | "VEHICLE" | "BIKE_PARK" | "BIKE_LANE";
 
     // Sanitize metadata: only allow known keys, string values
     let sanitizedMetadata: Record<string, string> | null = null;
