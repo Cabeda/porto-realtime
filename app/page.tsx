@@ -17,7 +17,7 @@ import { FeedbackForm } from "@/components/FeedbackForm";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { busesFetcher, stationsFetcher, fetcher } from "@/lib/fetchers";
 import { useFeedbackList, useFeedbackSummaries } from "@/lib/hooks/useFeedback";
-import type { BusesResponse, StopsResponse, RoutePatternsResponse, FeedbackItem } from "@/lib/types";
+import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem } from "@/lib/types";
 
 function MapPageContent() {
   const t = useTranslations();
@@ -151,6 +151,29 @@ function MapPageContent() {
     }
   );
 
+  // Fetch all transit routes from OTP (source of truth)
+  const { data: otpRoutesData } = useSWR<RoutesResponse>(
+    "/api/routes",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 24 * 60 * 60 * 1000,
+      revalidateIfStale: false,
+    }
+  );
+
+  // All routes from OTP (source of truth for the full list)
+  const allRoutes: RouteInfo[] = otpRoutesData?.routes ?? [];
+
+  // Compute which routes have live FIWARE vehicles right now
+  const liveRoutes: Set<string> = new Set(
+    data?.buses?.map((bus) => bus.routeShortName) ?? []
+  );
+
+  // Flat list of route shortNames for backward-compatible usage (search, favorites, feedback)
+  const availableRouteNames: string[] = allRoutes.map((r) => r.shortName);
+
   // Track when bus data was last received
   useEffect(() => {
     if (data?.buses && data.buses.length > 0) {
@@ -237,19 +260,8 @@ function MapPageContent() {
   useEffect(() => { localStorage.setItem("showRoutes", JSON.stringify(showRoutes)); }, [showRoutes]);
   useEffect(() => { localStorage.setItem("showRouteFilter", JSON.stringify(showRouteFilter)); }, [showRouteFilter]);
 
-  // Get unique routes from bus data
-  const availableRoutes = data?.buses
-    ? Array.from(new Set(data.buses.map(bus => bus.routeShortName)))
-        .sort((a, b) => {
-          const aNum = parseInt(a);
-          const bNum = parseInt(b);
-          if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-          return a.localeCompare(b);
-        })
-    : [];
-
   // Batch fetch line feedback summaries for all available routes
-  const { data: lineFeedbackSummaries } = useFeedbackSummaries("LINE", availableRoutes);
+  const { data: lineFeedbackSummaries } = useFeedbackSummaries("LINE", availableRouteNames);
 
   const handleRateLine = useCallback((route: string) => {
     setFeedbackLineId(route);
@@ -259,12 +271,12 @@ function MapPageContent() {
 
   // Auto-filter to favorite routes on first data load
   useEffect(() => {
-    if (!favoritesAppliedOnLoad && favoriteRoutes.length > 0 && availableRoutes.length > 0 && selectedRoutes.length === 0) {
-      const validFavorites = favoriteRoutes.filter(r => availableRoutes.includes(r));
+    if (!favoritesAppliedOnLoad && favoriteRoutes.length > 0 && availableRouteNames.length > 0 && selectedRoutes.length === 0) {
+      const validFavorites = favoriteRoutes.filter(r => availableRouteNames.includes(r));
       if (validFavorites.length > 0) setSelectedRoutes(validFavorites);
       setFavoritesAppliedOnLoad(true);
     }
-  }, [favoriteRoutes, availableRoutes, favoritesAppliedOnLoad, selectedRoutes.length]);
+  }, [favoriteRoutes, availableRouteNames, favoritesAppliedOnLoad, selectedRoutes.length]);
 
   const filteredBuses = data?.buses && selectedRoutes.length > 0
     ? data.buses.filter(bus => selectedRoutes.includes(bus.routeShortName))
@@ -307,8 +319,8 @@ function MapPageContent() {
 
   if (!isMounted) return <MapSkeleton />;
 
-  if (showOnboarding && availableRoutes.length > 0) {
-    return <OnboardingFlow availableRoutes={availableRoutes} onComplete={handleOnboardingComplete} onSkip={handleOnboardingSkip} />;
+  if (showOnboarding && allRoutes.length > 0) {
+    return <OnboardingFlow availableRoutes={allRoutes} onComplete={handleOnboardingComplete} onSkip={handleOnboardingSkip} />;
   }
 
   return (
@@ -352,7 +364,7 @@ function MapPageContent() {
               </Link>
             </div>
             <div className="hidden sm:block flex-1 max-w-xs">
-              <GlobalSearch availableRoutes={availableRoutes} />
+              <GlobalSearch availableRoutes={allRoutes} />
             </div>
             <button
               onClick={() => setShowSettings(true)}
@@ -394,7 +406,8 @@ function MapPageContent() {
         {/* Top-right controls */}
         <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 max-w-[calc(100vw-2rem)]">
           <RouteFilterPanel
-            availableRoutes={availableRoutes}
+            allRoutes={allRoutes}
+            liveRoutes={liveRoutes}
             selectedRoutes={selectedRoutes}
             favoriteRoutes={favoriteRoutes}
             showRouteFilter={showRouteFilter}

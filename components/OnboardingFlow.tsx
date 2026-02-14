@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import type { RouteInfo } from "@/lib/types";
 
 interface OnboardingFlowProps {
-  availableRoutes: string[];
+  availableRoutes: RouteInfo[];
   onComplete: (selectedRoutes: string[], locationGranted: boolean) => void;
   onSkip: () => void;
 }
@@ -20,6 +21,9 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
         : [...prev, route]
     );
   };
+
+  const busRoutes = availableRoutes.filter((r) => r.mode === "BUS");
+  const metroRoutes = availableRoutes.filter((r) => r.mode === "SUBWAY");
 
   const handleLocationRequest = () => {
     setIsRequestingLocation(true);
@@ -140,21 +144,52 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
               
               {/* Scrollable route grid */}
               <div className="px-6 pb-4 max-h-[50vh] overflow-y-auto">
-                <div className="grid grid-cols-3 gap-3">
-                  {availableRoutes.map(route => (
-                    <button
-                      key={route}
-                      onClick={() => toggleRoute(route)}
-                      className={`py-3 px-4 rounded-xl font-semibold text-sm transition-all transform ${
-                        selectedRoutes.includes(route)
-                          ? "bg-blue-600 text-white shadow-md scale-105"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                      }`}
-                    >
-                      {route}
-                    </button>
-                  ))}
-                </div>
+                {busRoutes.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                      🚌 Autocarros ({busRoutes.length})
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {busRoutes.map(route => (
+                        <button
+                          key={route.gtfsId}
+                          onClick={() => toggleRoute(route.shortName)}
+                          className={`py-3 px-4 rounded-xl font-semibold text-sm transition-all transform ${
+                            selectedRoutes.includes(route.shortName)
+                              ? "bg-blue-600 text-white shadow-md scale-105"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          }`}
+                          title={route.longName}
+                        >
+                          {route.shortName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {metroRoutes.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                      🚇 Metro ({metroRoutes.length})
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {metroRoutes.map(route => (
+                        <button
+                          key={route.gtfsId}
+                          onClick={() => toggleRoute(route.shortName)}
+                          className={`py-3 px-4 rounded-xl font-semibold text-sm transition-all transform ${
+                            selectedRoutes.includes(route.shortName)
+                              ? "bg-blue-600 text-white shadow-md scale-105"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          }`}
+                          title={route.longName}
+                        >
+                          {route.shortName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Selection counter - sticky at bottom */}
