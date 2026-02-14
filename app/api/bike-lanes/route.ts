@@ -63,12 +63,15 @@ export async function GET() {
     const geojson: GeoJSONCollection = await response.json();
     
     // Group segments by denominacao + estado to keep executed and planned separate
+    // Only include features with estado "Executado" — planned lanes have no names/metadata
     const laneGroups = new Map<string, { features: GeoJSONFeature[]; estado: string }>();
     
     for (const feature of geojson.features) {
       if (feature.geometry?.type !== "LineString") continue;
-      const name = feature.properties.denominacao || feature.properties.toponimo || `Segmento ${feature.properties.objectid || 'desconhecido'}`;
       const estado = feature.properties.estado || "Planeado";
+      // Skip planned lanes — they have no denominacao/toponimo and are unnamed segments
+      if (estado !== "Executado") continue;
+      const name = feature.properties.denominacao || feature.properties.toponimo || `Segmento ${feature.properties.objectid || 'desconhecido'}`;
       const key = `${name}::${estado}`;
       const existing = laneGroups.get(key);
       if (existing) {
