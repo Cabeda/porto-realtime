@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { OTPStationDeparturesResponseSchema } from "@/lib/schemas/otp";
 
 const OTP_URL =
   "https://otp.portodigital.pt/otp/routers/default/index/graphql";
@@ -61,13 +62,20 @@ export async function GET(request: NextRequest) {
       }),
     });
 
-    const data = await response.json();
+    const raw = await response.json();
 
     if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+      return NextResponse.json(raw, { status: response.status });
     }
 
-    return NextResponse.json(data);
+    const parsed = OTPStationDeparturesResponseSchema.safeParse(raw);
+    if (!parsed.success) {
+      console.warn("OTP station departures validation failed:", parsed.error.message);
+      // Return raw data as fallback
+      return NextResponse.json(raw);
+    }
+
+    return NextResponse.json(parsed.data);
   } catch (error) {
     console.error("Error fetching station departures:", error);
     return NextResponse.json(

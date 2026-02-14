@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 // @ts-ignore - No types available for @mapbox/polyline
 import polyline from "@mapbox/polyline";
+import { OTPRouteShapesResponseSchema } from "@/lib/schemas/otp";
 
 interface PatternGeometry {
   patternId: string;
@@ -11,31 +12,6 @@ interface PatternGeometry {
   geometry: {
     type: string;
     coordinates: [number, number][];
-  };
-}
-
-interface OTPPatternGeometry {
-  length: number;
-  points: string;
-}
-
-interface OTPPattern {
-  id: string;
-  headsign: string;
-  directionId: number;
-  patternGeometry: OTPPatternGeometry;
-}
-
-interface OTPRoute {
-  gtfsId: string;
-  shortName: string;
-  longName: string;
-  patterns: OTPPattern[];
-}
-
-interface OTPResponse {
-  data: {
-    routes: OTPRoute[];
   };
 }
 
@@ -102,18 +78,24 @@ export async function GET() {
       throw new Error(`OTP API returned ${response.status}`);
     }
 
-    const data: OTPResponse = await response.json();
+    const raw = await response.json();
+    const parsed = OTPRouteShapesResponseSchema.safeParse(raw);
 
-    if (!data.data || !data.data.routes) {
-      console.error("Invalid response structure:", data);
-      throw new Error("Invalid response from OTP API");
+    if (!parsed.success) {
+      console.warn("OTP route shapes validation failed:", parsed.error.message);
+      // Try to use raw data if structure is roughly correct
+      if (!raw?.data?.routes) {
+        console.error("Invalid response structure:", raw);
+        throw new Error("Invalid response from OTP API");
+      }
     }
 
-    console.log(`Received ${data.data.routes.length} routes from OTP`);
+    const routes = parsed.success ? parsed.data.data.routes : raw.data.routes;
+    console.log(`Received ${routes.length} routes from OTP`);
 
     const allPatterns: PatternGeometry[] = [];
 
-    data.data.routes.forEach((route) => {
+    routes.forEach((route: { shortName: string; longName: string; patterns?: Array<{ id: string; headsign?: string | null; directionId: number; patternGeometry?: { points: string } | null }> }) => {
       route.patterns?.forEach((pattern) => {
         if (pattern.patternGeometry?.points) {
           try {
@@ -129,7 +111,7 @@ export async function GET() {
               patternId: pattern.id,
               routeShortName: route.shortName,
               routeLongName: route.longName,
-              headsign: pattern.headsign,
+              headsign: pattern.headsign || "",
               directionId: pattern.directionId,
               geometry: {
                 type: "LineString",

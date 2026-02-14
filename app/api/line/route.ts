@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 // @ts-ignore - No types available for @mapbox/polyline
 import polyline from "@mapbox/polyline";
+import { OTPLineResponseSchema } from "@/lib/schemas/otp";
 
 const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 
@@ -60,8 +61,14 @@ export async function GET(request: NextRequest) {
       throw new Error(`OTP API returned ${response.status}`);
     }
 
-    const data = await response.json();
-    const routes = data?.data?.routes;
+    const raw = await response.json();
+    const parsed = OTPLineResponseSchema.safeParse(raw);
+
+    if (!parsed.success) {
+      console.warn("OTP line response validation failed:", parsed.error.message);
+    }
+
+    const routes = parsed.success ? parsed.data.data.routes : raw?.data?.routes;
 
     if (!routes || routes.length === 0) {
       return NextResponse.json(
