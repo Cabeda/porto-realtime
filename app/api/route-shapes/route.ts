@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import { NextResponse } from "next/server";
 // @ts-ignore - No types available for @mapbox/polyline
 import polyline from "@mapbox/polyline";
 
@@ -16,7 +16,7 @@ interface PatternGeometry {
 
 interface OTPPatternGeometry {
   length: number;
-  points: string; // Encoded polyline
+  points: string;
 }
 
 interface OTPPattern {
@@ -44,27 +44,29 @@ let routeShapesCache: PatternGeometry[] | null = null;
 let cacheTimestamp = 0;
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export async function GET() {
   const startTime = Date.now();
-  
+
   try {
     const now = Date.now();
-    
+
     // Return cached data if still valid
-    if (routeShapesCache && (now - cacheTimestamp) < CACHE_DURATION) {
+    if (routeShapesCache && now - cacheTimestamp < CACHE_DURATION) {
       const responseTime = Date.now() - startTime;
-      res.setHeader("Cache-Control", "public, s-maxage=86400"); // Cache for 24 hours
-      res.setHeader("X-Response-Time", `${responseTime}ms`);
-      res.setHeader("X-Cache-Status", "HIT");
-      return res.status(200).json({ patterns: routeShapesCache });
+      return NextResponse.json(
+        { patterns: routeShapesCache },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=86400",
+            "X-Response-Time": `${responseTime}ms`,
+            "X-Cache-Status": "HIT",
+          },
+        }
+      );
     }
 
-    // Fetch fresh data from OTP
     console.log("Fetching route shapes from OTP...");
-    
+
     const response = await fetch(
       "https://otp.portodigital.pt/otp/routers/default/index/graphql",
       {
@@ -101,28 +103,26 @@ export default async function handler(
     }
 
     const data: OTPResponse = await response.json();
-    
+
     if (!data.data || !data.data.routes) {
       console.error("Invalid response structure:", data);
       throw new Error("Invalid response from OTP API");
     }
-    
+
     console.log(`Received ${data.data.routes.length} routes from OTP`);
-    
-    // Transform data into flat structure for easier frontend consumption
+
     const allPatterns: PatternGeometry[] = [];
-    
+
     data.data.routes.forEach((route) => {
       route.patterns?.forEach((pattern) => {
-        // Only include patterns that have valid geometry
         if (pattern.patternGeometry?.points) {
           try {
-            // Decode the polyline to get coordinates
-            const decodedCoords: [number, number][] = polyline.decode(pattern.patternGeometry.points);
-            
-            // Convert from [lat, lon] to [lon, lat] for GeoJSON standard
+            const decodedCoords: [number, number][] = polyline.decode(
+              pattern.patternGeometry.points
+            );
             const coordinates = decodedCoords.map(
-              (coord: [number, number]) => [coord[1], coord[0]] as [number, number]
+              (coord: [number, number]) =>
+                [coord[1], coord[0]] as [number, number]
             );
 
             allPatterns.push({
@@ -133,11 +133,14 @@ export default async function handler(
               directionId: pattern.directionId,
               geometry: {
                 type: "LineString",
-                coordinates: coordinates,
+                coordinates,
               },
             });
           } catch (error) {
-            console.error(`Failed to decode polyline for pattern ${pattern.id}:`, error);
+            console.error(
+              `Failed to decode polyline for pattern ${pattern.id}:`,
+              error
+            );
           }
         }
       });
@@ -145,28 +148,34 @@ export default async function handler(
 
     console.log(`Fetched ${allPatterns.length} route patterns with geometry`);
 
-    // Update cache
     routeShapesCache = allPatterns;
     cacheTimestamp = now;
 
     const responseTime = Date.now() - startTime;
-    res.setHeader("Cache-Control", "public, s-maxage=86400"); // Cache for 24 hours
-    res.setHeader("X-Response-Time", `${responseTime}ms`);
-    res.setHeader("X-Cache-Status", "MISS");
-    res.status(200).json({ patterns: allPatterns });
+    return NextResponse.json(
+      { patterns: allPatterns },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=86400",
+          "X-Response-Time": `${responseTime}ms`,
+          "X-Cache-Status": "MISS",
+        },
+      }
+    );
   } catch (error) {
     console.error("Error fetching route shapes:", error);
-    
-    // Return cached data if available
+
     if (routeShapesCache) {
       console.log("Returning stale route shapes from cache");
-      res.setHeader("X-Cache-Status", "STALE");
-      return res.status(200).json({ patterns: routeShapesCache });
+      return NextResponse.json(
+        { patterns: routeShapesCache },
+        { headers: { "X-Cache-Status": "STALE" } }
+      );
     }
-    
-    res.status(500).json({ 
-      error: "Failed to fetch route shapes",
-      patterns: []
-    });
+
+    return NextResponse.json(
+      { error: "Failed to fetch route shapes", patterns: [] },
+      { status: 500 }
+    );
   }
 }
