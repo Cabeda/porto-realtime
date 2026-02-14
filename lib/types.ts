@@ -50,6 +50,18 @@ export interface RoutePatternsResponse {
   patterns: PatternGeometry[];
 }
 
+// Route info from OTP (source of truth for all transit lines)
+export interface RouteInfo {
+  shortName: string;
+  longName: string;
+  mode: "BUS" | "SUBWAY" | "TRAM" | "RAIL" | "FERRY";
+  gtfsId: string;
+}
+
+export interface RoutesResponse {
+  routes: RouteInfo[];
+}
+
 // Station departures types
 export interface StoptimesWithoutPatterns {
   realtimeState: string;

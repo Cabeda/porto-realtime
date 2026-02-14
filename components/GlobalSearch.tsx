@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { stationsFetcher } from "@/lib/fetchers";
 import { useTranslations } from "@/lib/hooks/useTranslations";
-import type { StopsResponse } from "@/lib/types";
+import type { StopsResponse, RouteInfo } from "@/lib/types";
 
 interface SearchResult {
   type: "line" | "stop";
@@ -33,7 +33,7 @@ function saveRecentSearch(result: SearchResult) {
   localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
 }
 
-export function GlobalSearch({ availableRoutes }: { availableRoutes?: string[] }) {
+export function GlobalSearch({ availableRoutes }: { availableRoutes?: RouteInfo[] | string[] }) {
   const t = useTranslations();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -51,7 +51,10 @@ export function GlobalSearch({ availableRoutes }: { availableRoutes?: string[] }
   });
 
   const stops = stopsData?.data?.stops ?? [];
-  const routes = availableRoutes ?? [];
+  // Normalize routes: accept both RouteInfo[] and string[]
+  const routes: RouteInfo[] = (availableRoutes ?? []).map((r) =>
+    typeof r === "string" ? { shortName: r, longName: "", mode: "BUS" as const, gtfsId: "" } : r
+  );
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());
@@ -82,14 +85,17 @@ export function GlobalSearch({ availableRoutes }: { availableRoutes?: string[] }
     const q = query.toLowerCase();
     const items: SearchResult[] = [];
 
-    // Search lines
-    const matchingRoutes = routes.filter((r) => r.toLowerCase().includes(q));
+    // Search lines (match shortName or longName)
+    const matchingRoutes = routes.filter(
+      (r) => r.shortName.toLowerCase().includes(q) || r.longName.toLowerCase().includes(q)
+    );
     for (const r of matchingRoutes.slice(0, 5)) {
       items.push({
         type: "line",
-        id: `line-${r}`,
-        label: `${t.reviews.line} ${r}`,
-        href: `/reviews/line?id=${encodeURIComponent(r)}`,
+        id: `line-${r.shortName}`,
+        label: `${t.reviews.line} ${r.shortName}`,
+        sublabel: r.longName || undefined,
+        href: `/reviews/line?id=${encodeURIComponent(r.shortName)}`,
       });
     }
 
