@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useLocale } from "@/lib/i18n";
 
@@ -116,39 +115,6 @@ export function SettingsModal({ onClose, onResetOnboarding }: SettingsModalProps
               >
                 🌙 {t.settings.darkMode}
               </button>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <div>
-            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-              {t.settings.navigation}
-            </h3>
-            <div className="space-y-1">
-              <Link
-                href="/"
-                onClick={onClose}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <span className="text-lg">🗺️</span>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t.settings.viewMap}</span>
-              </Link>
-              <Link
-                href="/stations"
-                onClick={onClose}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <span className="text-lg">🚏</span>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t.settings.viewStations}</span>
-              </Link>
-              <Link
-                href="/reviews"
-                onClick={onClose}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <span className="text-lg">⭐</span>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t.settings.viewReviews}</span>
-              </Link>
             </div>
           </div>
 

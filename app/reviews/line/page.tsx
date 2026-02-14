@@ -270,7 +270,7 @@ function LineReviewsContent() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 pb-20 sm:pb-6 space-y-6">
         {/* Route map */}
         {lineInfo && lineInfo.patterns.length > 0 && (
           <RouteMap patterns={lineInfo.patterns} stops={lineInfo.stops} lineId={lineId} />

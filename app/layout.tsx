@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { Providers } from "@/components/Providers";
+import { BottomNav } from "@/components/BottomNav";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -52,6 +53,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           {children}
+          <BottomNav />
           <PWAInstallPrompt />
         </Providers>
       </body>

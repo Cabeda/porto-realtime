@@ -182,7 +182,7 @@ export default function ReviewsPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 pb-20 sm:pb-6">
         {/* Sort + stats bar */}
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -266,23 +266,6 @@ export default function ReviewsPage() {
         )}
       </main>
 
-      {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-20 sm:hidden">
-        <div className="flex justify-around py-2">
-          <Link href="/" className="flex flex-col items-center gap-0.5 px-3 py-1 text-gray-500 dark:text-gray-400">
-            <span className="text-lg">🗺️</span>
-            <span className="text-[10px]">{t.nav.map}</span>
-          </Link>
-          <Link href="/stations" className="flex flex-col items-center gap-0.5 px-3 py-1 text-gray-500 dark:text-gray-400">
-            <span className="text-lg">🚏</span>
-            <span className="text-[10px]">{t.nav.stations}</span>
-          </Link>
-          <Link href="/reviews" className="flex flex-col items-center gap-0.5 px-3 py-1 text-blue-600 dark:text-blue-400">
-            <span className="text-lg">⭐</span>
-            <span className="text-[10px] font-medium">{t.reviews.title}</span>
-          </Link>
-        </div>
-      </nav>
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );

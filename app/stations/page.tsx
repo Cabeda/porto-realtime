@@ -166,7 +166,7 @@ export default function StationsPage() {
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-8">
+      <div className="max-w-2xl mx-auto px-4 py-6 pb-20 sm:pb-6 space-y-8">
         {/* Global Search */}
         <GlobalSearch />
 

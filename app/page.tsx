@@ -359,7 +359,7 @@ function MapPageContent() {
         <button
           onClick={handleLocateMe}
           disabled={isLocating}
-          className={`absolute bottom-20 right-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:cursor-not-allowed sm:bottom-6 ${
+          className={`absolute bottom-24 right-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:cursor-not-allowed sm:bottom-6 ${
             isLocating
               ? "bg-blue-500 border-blue-600 animate-pulse"
               : userLocation
@@ -402,7 +402,7 @@ function MapPageContent() {
               }`}
               title={!stopsData?.data?.stops ? t.map.stopsUnavailable : showStops ? t.map.hideStops : t.map.showStops}
             >
-              🚏 {showStops ? t.map.hide : t.map.stops}
+              🚏 {t.map.stops}
             </button>
 
             <button
@@ -415,7 +415,7 @@ function MapPageContent() {
               }`}
               title={selectedRoutes.length === 0 ? t.map.selectLinesToSeePaths : showRoutes ? t.map.hidePaths : t.map.showPaths}
             >
-              🛣️ {showRoutes ? t.map.hide : t.map.paths}
+              🛣️ {t.map.paths}
             </button>
           </div>
         </div>

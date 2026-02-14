@@ -196,7 +196,7 @@ function SearchStation() {
       </header>
 
       {/* Departures */}
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 pb-20 sm:pb-6">
         {/* Info banner */}
         <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-start gap-3">
           <span className="text-2xl">ℹ️</span>

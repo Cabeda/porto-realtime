@@ -131,7 +131,7 @@ function StopReviewsContent() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 pb-20 sm:pb-6">
         {/* Rating distribution from API */}
         {detail && detail.count > 0 && (
           <RatingDistribution distribution={detail.distribution} total={detail.count} />
