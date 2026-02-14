@@ -87,19 +87,15 @@ export async function GET() {
       const name = key.split("::")[0];
       const status = group.estado === "Executado" ? "executed" : "planned";
 
-      // Sort segments by proximity to form a connected path
-      // Each segment's coordinates are kept separate with a [NaN, NaN] separator
-      const allCoords: [number, number][] = [];
+      const segments: [number, number][][] = [];
       let totalLength = 0;
 
       for (const feature of group.features) {
-        const coords = feature.geometry.coordinates;
-        // Add separator between segments (will be filtered on the client)
-        if (allCoords.length > 0) {
-          allCoords.push([NaN, NaN]);
+        const coords = feature.geometry.coordinates as [number, number][];
+        if (coords.length >= 2) {
+          segments.push(coords);
+          totalLength += haversineDistance(coords);
         }
-        allCoords.push(...coords);
-        totalLength += haversineDistance(coords);
       }
 
       // Determine type from the name
@@ -114,7 +110,7 @@ export async function GET() {
         name,
         type,
         status,
-        coordinates: allCoords,
+        segments,
         length: Math.round(totalLength),
       };
     });

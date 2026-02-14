@@ -117,7 +117,7 @@ export interface BikeLane {
   name: string;
   type: string;
   status: "executed" | "planned";
-  coordinates: [number, number][];
+  segments: [number, number][][]; // array of segments, each segment is an array of [lon, lat] coords
   length: number;
 }
 

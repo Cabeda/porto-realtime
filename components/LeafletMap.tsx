@@ -708,23 +708,6 @@ export function LeafletMap({
         : bikeLanes;
 
       lanesToShow.forEach((lane) => {
-        // Split coordinates at NaN separators into individual segments
-        const segments: [number, number][][] = [];
-        let currentSegment: [number, number][] = [];
-        for (const coord of lane.coordinates) {
-          if (isNaN(coord[0]) || isNaN(coord[1])) {
-            if (currentSegment.length > 0) {
-              segments.push(currentSegment);
-              currentSegment = [];
-            }
-          } else {
-            currentSegment.push(coord);
-          }
-        }
-        if (currentSegment.length > 0) {
-          segments.push(currentSegment);
-        }
-
         const isPlanned = lane.status === "planned";
 
         const typeColors: Record<string, string> = {
@@ -754,7 +737,7 @@ export function LeafletMap({
         `;
 
         // Draw each segment as a separate polyline to avoid straight lines between disconnected parts
-        for (const segment of segments) {
+        for (const segment of lane.segments) {
           if (segment.length < 2) continue;
           const latLngs = segment.map(
             (coord) => [coord[1], coord[0]] as [number, number]
