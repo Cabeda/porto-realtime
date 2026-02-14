@@ -143,9 +143,9 @@ function RouteMap({ patterns, stops, lineId }: { patterns: LinePattern[]; stops:
   }, [activePattern, activeStops]);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+    <div className="bg-surface-raised rounded-lg shadow-md overflow-hidden">
       {directions.length > 1 && (
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <div className="flex border-b border-border">
           {directions.map((d, i) => (
             <button
               key={d.id}
@@ -153,7 +153,7 @@ function RouteMap({ patterns, stops, lineId }: { patterns: LinePattern[]; stops:
               className={`flex-1 px-3 py-2 text-xs font-medium transition-colors truncate ${
                 i === selectedDirection
                   ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-b-2 border-blue-500"
-                  : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  : "text-content-muted hover:bg-surface-sunken"
               }`}
             >
               → {d.headsign}
@@ -201,8 +201,8 @@ function LineReviewsContent() {
 
   if (!lineId) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <p className="text-gray-500 dark:text-gray-400">{t.reviews.line}</p>
+      <div className="min-h-screen bg-surface-sunken flex items-center justify-center p-4">
+        <p className="text-content-muted">{t.reviews.line}</p>
       </div>
     );
   }
@@ -212,20 +212,20 @@ function LineReviewsContent() {
   const longName = lineInfo?.longName || "";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+    <div className="min-h-screen bg-surface-sunken transition-colors">
+      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <Link
               href="/reviews"
-              className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm transition-colors"
+              className="inline-flex items-center text-accent hover:text-accent-hover font-medium text-sm transition-colors"
             >
               <span className="mr-2">←</span>
               {t.reviews.backToReviews}
             </Link>
             <button
               onClick={() => setShowSettings(true)}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
               title={t.nav.settings}
               aria-label={t.nav.settings}
             >
@@ -240,11 +240,11 @@ function LineReviewsContent() {
               <span className="text-white text-xl font-bold">{lineId}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-2xl font-bold text-content">
                 {t.reviews.line} {lineId}
               </h1>
               {longName && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{longName}</p>
+                <p className="text-xs text-content-muted truncate">{longName}</p>
               )}
               {detail && detail.count > 0 && (
                 <div className="flex items-center gap-2 mt-0.5">
@@ -254,7 +254,7 @@ function LineReviewsContent() {
                   <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                     {detail.avg.toFixed(1)}
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <span className="text-xs text-content-muted">
                     ({t.feedback.ratings(detail.count)})
                   </span>
                 </div>
@@ -278,13 +278,13 @@ function LineReviewsContent() {
 
         {/* Loading skeleton for map */}
         {!lineInfo && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md h-[280px] animate-pulse" />
+          <div className="bg-surface-raised rounded-lg shadow-md h-[280px] animate-pulse" />
         )}
 
         {/* Stops list */}
         {lineInfo && lineInfo.stops.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          <div className="bg-surface-raised rounded-lg shadow-md p-4">
+            <h2 className="text-sm font-semibold text-content-secondary mb-3">
               {t.reviews.stopsCount(lineInfo.stops.length)}
             </h2>
             <div className="space-y-0">
@@ -314,7 +314,7 @@ function LineReviewsContent() {
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/station?gtfsId=${encodeURIComponent(stop.gtfsId)}`}
-                          className="text-sm font-medium text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate"
+                          className="text-sm font-medium text-content-secondary hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate"
                         >
                           {stop.name}
                         </Link>
@@ -327,7 +327,7 @@ function LineReviewsContent() {
                       </div>
                       <Link
                         href={`/reviews/stop?id=${encodeURIComponent(stop.gtfsId)}`}
-                        className="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                        className="text-xs text-content-muted hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
                       >
                         {stop.code}
                       </Link>
@@ -347,16 +347,16 @@ function LineReviewsContent() {
         {/* Comments */}
         {feedbackList && feedbackList.feedbacks.length > 0 ? (
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            <h2 className="text-sm font-semibold text-content-secondary">
               {t.feedback.recentComments} ({feedbackList.total})
             </h2>
             {feedbackList.feedbacks.map((f) => (
-              <div key={f.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+              <div key={f.id} className="bg-surface-raised rounded-lg shadow-md p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-yellow-400 text-sm">
                     {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
                   </span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                  <span className="text-xs text-content-muted">
                     {new Date(f.createdAt).toLocaleDateString("pt-PT", {
                       day: "numeric",
                       month: "short",
@@ -365,7 +365,7 @@ function LineReviewsContent() {
                   </span>
                 </div>
                 {f.comment && (
-                  <p className="text-sm text-gray-700 dark:text-gray-300">{f.comment}</p>
+                  <p className="text-sm text-content-secondary">{f.comment}</p>
                 )}
               </div>
             ))}
@@ -375,17 +375,17 @@ function LineReviewsContent() {
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="px-3 py-1.5 text-sm rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="px-3 py-1.5 text-sm rounded-lg bg-surface-raised border border-border disabled:opacity-40 hover:bg-surface-sunken transition-colors"
                 >
                   ← {t.reviews.previous}
                 </button>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-xs text-content-muted">
                   {page + 1} / {totalPages}
                 </span>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
-                  className="px-3 py-1.5 text-sm rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="px-3 py-1.5 text-sm rounded-lg bg-surface-raised border border-border disabled:opacity-40 hover:bg-surface-sunken transition-colors"
                 >
                   {t.reviews.next} →
                 </button>
@@ -393,19 +393,19 @@ function LineReviewsContent() {
             )}
           </div>
         ) : feedbackList ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+          <div className="bg-surface-raised rounded-lg shadow-md p-8 text-center">
             <div className="text-5xl mb-4">📝</div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-lg font-semibold text-content mb-2">
               {t.reviews.noReviews}
             </h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
+            <p className="text-content-muted text-sm">
               {t.reviews.noReviewsDesc}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 h-24 animate-pulse" />
+              <div key={i} className="bg-surface-raised rounded-lg shadow p-4 h-24 animate-pulse" />
             ))}
           </div>
         )}
@@ -434,7 +434,7 @@ export default function LineReviewsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="min-h-screen bg-surface-sunken flex items-center justify-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
         </div>
       }

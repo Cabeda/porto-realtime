@@ -67,37 +67,37 @@ function RankingCard({ item, type, rank }: { item: RankingItem; type: FeedbackTy
   return (
     <Link href={detailHref}>
       <div
-        className={`bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all p-4 border-l-4 ${bgColor}`}
+        className={`bg-surface-raised rounded-lg shadow-md hover:shadow-lg transition-all p-4 border-l-4 ${bgColor}`}
       >
         <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-sunken flex items-center justify-center text-sm font-bold text-content-secondary">
             {rank}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+              <h3 className="font-semibold text-content truncate">
                 {label}
               </h3>
-              <span className="flex-shrink-0 text-sm font-bold text-gray-700 dark:text-gray-200">
+              <span className="flex-shrink-0 text-sm font-bold text-content-secondary">
                 {item.avg.toFixed(1)}
               </span>
               <StarRating rating={item.avg} />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-xs text-content-muted mt-0.5">
               {t.feedback.ratings(item.count)}
             </p>
           </div>
-          <span className="text-gray-400 dark:text-gray-500 text-sm">→</span>
+          <span className="text-content-muted text-sm">→</span>
         </div>
 
         {item.recentComments.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+          <div className="mt-3 pt-3 border-t border-border-strong space-y-2">
             {item.recentComments.slice(0, 2).map((c, i) => (
               <div key={i} className="flex items-start gap-2">
                 <span className="text-yellow-400 text-xs mt-0.5 flex-shrink-0">
                   {"★".repeat(c.rating)}
                 </span>
-                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                <p className="text-xs text-content-secondary line-clamp-2">
                   {c.comment}
                 </p>
               </div>
@@ -131,14 +131,14 @@ export default function ReviewsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-surface-sunken transition-colors">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <Link
               href="/"
-              className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm transition-colors"
+              className="inline-flex items-center text-accent hover:text-accent-hover font-medium text-sm transition-colors"
             >
               <span className="mr-2">←</span>
               {t.nav.map}
@@ -146,20 +146,20 @@ export default function ReviewsPage() {
             <div className="hidden sm:flex items-center gap-1">
               <Link
                 href="/"
-                className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
               >
                 🗺️ {t.nav.map}
               </Link>
               <Link
                 href="/stations"
-                className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
               >
                 🚏 {t.nav.stations}
               </Link>
             </div>
             <button
               onClick={() => setShowSettings(true)}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
               title={t.nav.settings}
               aria-label={t.nav.settings}
             >
@@ -169,23 +169,23 @@ export default function ReviewsPage() {
               </svg>
             </button>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-content">
             {t.reviews.title}
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-content-muted mt-1">
             {t.reviews.subtitle}
           </p>
 
           {/* Tabs */}
-          <div className="flex gap-1 mt-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+          <div className="flex gap-1 mt-4 bg-surface-sunken rounded-lg p-1">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                   activeTab === tab.key
-                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                    ? "bg-white dark:bg-gray-600 text-content shadow-sm"
+                    : "text-content-secondary hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
                 <span>{tab.icon}</span>
@@ -199,7 +199,7 @@ export default function ReviewsPage() {
       <main className="max-w-4xl mx-auto px-4 py-6 pb-20 sm:pb-6">
         {/* Sort + stats bar */}
         <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="text-sm text-content-muted">
             {data && (
               <>
                 {t.reviews.totalTargets(data.totalTargets)}
@@ -208,13 +208,13 @@ export default function ReviewsPage() {
               </>
             )}
           </div>
-          <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+          <div className="flex gap-1 bg-surface-sunken rounded-lg p-0.5">
             <button
               onClick={() => setSort("count")}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 sort === "count"
-                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                  : "text-gray-500 dark:text-gray-400"
+                  ? "bg-white dark:bg-gray-600 text-content shadow-sm"
+                  : "text-content-muted"
               }`}
             >
               {t.reviews.sortByCount}
@@ -223,8 +223,8 @@ export default function ReviewsPage() {
               onClick={() => setSort("avg")}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 sort === "avg"
-                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                  : "text-gray-500 dark:text-gray-400"
+                  ? "bg-white dark:bg-gray-600 text-content shadow-sm"
+                  : "text-content-muted"
               }`}
             >
               {t.reviews.sortByRating}
@@ -238,7 +238,7 @@ export default function ReviewsPage() {
             {[1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 h-20 animate-pulse"
+                className="bg-surface-raised rounded-lg shadow p-4 h-20 animate-pulse"
               />
             ))}
           </div>
@@ -254,24 +254,24 @@ export default function ReviewsPage() {
             ))}
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+          <div className="bg-surface-raised rounded-lg shadow-md p-8 text-center">
             <div className="text-5xl mb-4">📝</div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-lg font-semibold text-content mb-2">
               {t.reviews.noReviews}
             </h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+            <p className="text-content-muted text-sm mb-4">
               {t.reviews.noReviewsDesc}
             </p>
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               <Link
                 href="/"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-accent text-content-inverse rounded-lg hover:bg-accent-hover transition-colors text-sm font-medium"
               >
                 🗺️ {t.reviews.viewMap}
               </Link>
               <Link
                 href="/stations"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-surface-sunken text-content-secondary rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
               >
                 🚏 {t.reviews.viewStops}
               </Link>

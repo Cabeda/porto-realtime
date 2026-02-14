@@ -85,17 +85,17 @@ function SearchStation() {
   };
 
   const getDepartureDisplay = (minutes: number) => {
-    if (minutes <= 0) return { text: t.station.alreadyLeft, color: "text-gray-400 dark:text-gray-500" };
+    if (minutes <= 0) return { text: t.station.alreadyLeft, color: "text-content-muted" };
     if (minutes <= 2) return { text: `${minutes} min`, color: "text-red-600 dark:text-red-400 font-bold" };
     if (minutes <= 5) return { text: `${minutes} min`, color: "text-orange-600 dark:text-orange-400 font-semibold" };
     if (minutes <= 10) return { text: `${minutes} min`, color: "text-blue-600 dark:text-blue-400 font-semibold" };
-    return { text: "", color: "text-gray-700 dark:text-gray-300" };
+    return { text: "", color: "text-content-secondary" };
   };
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md w-full">
+      <div className="min-h-screen bg-surface-sunken flex items-center justify-center p-4">
+        <div className="bg-surface-raised rounded-lg shadow-lg p-6 max-w-md w-full">
           <div className="text-red-600 dark:text-red-400 text-center">
             <span className="text-4xl">⚠️</span>
             <p className="mt-2 text-lg font-semibold">{t.station.noData}</p>
@@ -107,9 +107,9 @@ function SearchStation() {
 
   if (!station) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen bg-surface-sunken">
         <div className="animate-pulse">
-          <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+          <div className="bg-surface-raised shadow-sm border-b border-border">
             <div className="max-w-4xl mx-auto px-4 py-4">
               <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
               <div className="h-10 w-64 bg-gray-300 dark:bg-gray-600 rounded"></div>
@@ -117,7 +117,7 @@ function SearchStation() {
           </div>
           <div className="max-w-4xl mx-auto px-4 py-6 space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 h-24"></div>
+              <div key={i} className="bg-surface-raised rounded-lg shadow p-4 h-24"></div>
             ))}
           </div>
         </div>
@@ -128,21 +128,21 @@ function SearchStation() {
   const departures = station.data.stop.stoptimesWithoutPatterns || [];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-surface-sunken transition-colors">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 transition-colors">
+      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10 transition-colors">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <Link 
               href="/stations" 
-              className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm transition-colors"
+              className="inline-flex items-center text-accent hover:text-accent-hover font-medium text-sm transition-colors"
             >
               <span className="mr-2">←</span>
               {t.station.backToStations}
             </Link>
             <button
               onClick={() => setShowSettings(true)}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
               title={t.nav.settings}
               aria-label={t.nav.settings}
             >
@@ -159,11 +159,11 @@ function SearchStation() {
                   🚏
                 </div>
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+                  <h1 className="text-2xl md:text-3xl font-bold text-content">
                     {station.data.stop.name}
                   </h1>
                   <div className="flex items-center gap-2 mt-1">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-sm text-content-muted">
                       {t.station.code}: {id}
                     </p>
                     {id && (
@@ -222,7 +222,7 @@ function SearchStation() {
               return (
                 <div
                   key={index}
-                  className={`bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all p-4 border-l-4 ${
+                  className={`bg-surface-raised rounded-lg shadow-md hover:shadow-lg transition-all p-4 border-l-4 ${
                     isLeaving 
                       ? "border-red-500 dark:border-red-400 animate-pulse" 
                       : isRealtime 
@@ -248,7 +248,7 @@ function SearchStation() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+                        <h3 className="text-lg font-semibold text-content truncate">
                           {item.headsign || item.trip.route.longName}
                         </h3>
                         {isRealtime && (
@@ -258,7 +258,7 @@ function SearchStation() {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-content-secondary">
                         <span>→</span>
                         <span className="truncate">{item.trip.route.longName}</span>
                       </div>
@@ -273,12 +273,12 @@ function SearchStation() {
                             : `${diff}`}
                       </div>
                       {diff <= 10 && diff > 0 && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <div className="text-xs text-content-muted mt-1">
                           {diff === 1 ? t.station.minute : t.station.minutePlural}
                         </div>
                       )}
                       {diff <= 0 && (
-                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        <div className="text-xs text-content-muted mt-1">
                           {t.station.departed}
                         </div>
                       )}
@@ -286,7 +286,7 @@ function SearchStation() {
                   </div>
 
                   {diff > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <div className="mt-3 pt-3 border-t border-border-strong flex items-center justify-between text-xs text-content-muted">
                       <span>{t.station.scheduledTime}: {convertToTime(item.serviceDay, item.scheduledDeparture)}</span>
                       {item.departureDelay !== 0 && (
                         <span className={item.departureDelay > 0 ? "text-orange-600 dark:text-orange-400" : "text-green-600 dark:text-green-400"}>
@@ -300,17 +300,17 @@ function SearchStation() {
             })}
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+          <div className="bg-surface-raised rounded-lg shadow-md p-8 text-center">
             <div className="text-6xl mb-4">⚠️</div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-xl font-semibold text-content mb-2">
               {t.station.unavailableTitle}
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-content-secondary">
               {t.station.unavailableDesc}
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">
+            <p className="text-sm text-content-muted mt-4">
               {t.station.unavailableHint}{" "}
-              <Link href="/" className="text-blue-600 dark:text-blue-400 hover:underline">
+              <Link href="/" className="text-accent hover:underline">
                 {t.station.realtimeMap}
               </Link>{" "}
               {t.station.toSeePositions}
@@ -319,7 +319,7 @@ function SearchStation() {
         )}
 
         {departures.length > 0 && (
-          <div className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
+          <div className="mt-6 text-center text-xs text-content-muted">
             {t.station.showing} {departures.length} {departures.length === 1 ? t.station.departure : t.station.departures}
           </div>
         )}
@@ -341,8 +341,8 @@ function SearchStation() {
 
         {/* Recent comments */}
         {feedbackList && feedbackList.feedbacks.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          <div className="mt-6 pt-4 border-t border-border">
+            <h3 className="text-sm font-semibold text-content-secondary mb-3">
               {t.feedback.recentComments}
             </h3>
             <div className="space-y-3">
@@ -355,11 +355,11 @@ function SearchStation() {
                       <span className="text-yellow-400 text-xs">
                         {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
                       </span>
-                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                      <span className="text-xs text-content-muted">
                         {new Date(f.createdAt).toLocaleDateString("pt-PT")}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">{f.comment}</p>
+                    <p className="text-sm text-content-secondary">{f.comment}</p>
                   </div>
                 ))}
             </div>
@@ -375,10 +375,10 @@ function SearchStation() {
 function StationFallback() {
   const t = useTranslations();
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="min-h-screen bg-surface-sunken flex items-center justify-center">
       <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-        <p className="text-gray-600">{t.station.loading}</p>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-accent mb-4"></div>
+        <p className="text-content-secondary">{t.station.loading}</p>
       </div>
     </div>
   );

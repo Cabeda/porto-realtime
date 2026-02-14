@@ -141,14 +141,14 @@ export function GlobalSearch({ availableRoutes }: { availableRoutes?: RouteInfo[
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsOpen(true)}
           placeholder={t.search.placeholder}
-          className="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+          className="w-full pl-9 pr-4 py-2 bg-surface border border-border rounded-lg text-sm text-content placeholder-content-muted focus:outline-none focus:ring-2 focus:ring-accent shadow-sm"
         />
       </div>
 
       {showDropdown && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
           {query.length < 1 && recentSearches.length > 0 && (
-            <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500 font-medium">
+            <div className="px-3 py-2 text-xs text-content-muted font-medium">
               {t.search.recentSearches}
             </div>
           )}
@@ -158,26 +158,26 @@ export function GlobalSearch({ availableRoutes }: { availableRoutes?: RouteInfo[
               <button
                 key={item.id}
                 onClick={() => navigate(item)}
-                className="w-full px-3 py-2.5 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+                className="w-full px-3 py-2.5 flex items-center gap-3 hover:bg-surface-sunken transition-colors text-left"
               >
                 <span className="text-base flex-shrink-0">
                   {item.type === "line" ? "🚌" : "🚏"}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  <div className="text-sm font-medium text-content truncate">
                     {item.label}
                   </div>
                   {item.sublabel && (
-                    <div className="text-xs text-gray-400 dark:text-gray-500">{item.sublabel}</div>
+                    <div className="text-xs text-content-muted">{item.sublabel}</div>
                   )}
                 </div>
-                <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                <span className="text-xs text-content-muted flex-shrink-0">
                   {item.type === "line" ? t.search.lines : t.search.stops}
                 </span>
               </button>
             ))
           ) : query.length >= 1 ? (
-            <div className="px-3 py-4 text-center text-sm text-gray-400 dark:text-gray-500">
+            <div className="px-3 py-4 text-center text-sm text-content-muted">
               {t.search.noResults}
             </div>
           ) : null}

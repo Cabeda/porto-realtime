@@ -52,8 +52,8 @@ function StopReviewsContent() {
 
   if (!stopId) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <p className="text-gray-500 dark:text-gray-400">{t.reviews.stops}</p>
+      <div className="min-h-screen bg-surface-sunken flex items-center justify-center p-4">
+        <p className="text-content-muted">{t.reviews.stops}</p>
       </div>
     );
   }
@@ -63,20 +63,20 @@ function StopReviewsContent() {
   const displayName = stopName || stopId;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+    <div className="min-h-screen bg-surface-sunken transition-colors">
+      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <Link
               href="/reviews"
-              className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm transition-colors"
+              className="inline-flex items-center text-accent hover:text-accent-hover font-medium text-sm transition-colors"
             >
               <span className="mr-2">←</span>
               {t.reviews.backToReviews}
             </Link>
             <button
               onClick={() => setShowSettings(true)}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
               title={t.nav.settings}
               aria-label={t.nav.settings}
             >
@@ -87,26 +87,26 @@ function StopReviewsContent() {
             </button>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-              <div className="w-4 h-4 bg-red-500 dark:bg-red-400 rounded-full border-2 border-white dark:border-gray-600" />
+            <div className="w-10 h-10 bg-surface-sunken rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-4 h-4 bg-red-500 dark:bg-red-400 rounded-full border-2 border-surface-raised" />
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">
+              <h1 className="text-xl font-bold text-content truncate">
                 {displayName}
               </h1>
               <div className="flex items-center gap-2 mt-0.5">
                 {stopName && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500">{stopId}</p>
+                  <p className="text-xs text-content-muted">{stopId}</p>
                 )}
                 {detail && detail.count > 0 && (
                   <>
                     <span className="text-yellow-400 text-sm">
                       {"★".repeat(stars)}{"☆".repeat(5 - stars)}
                     </span>
-                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <span className="text-sm font-semibold text-content-secondary">
                       {detail.avg.toFixed(1)}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-content-muted">
                       ({t.feedback.ratings(detail.count)})
                     </span>
                   </>
@@ -139,16 +139,16 @@ function StopReviewsContent() {
 
         {feedbackList && feedbackList.feedbacks.length > 0 ? (
           <div className="space-y-3 mt-6">
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            <h2 className="text-sm font-semibold text-content-secondary">
               {t.feedback.recentComments} ({feedbackList.total})
             </h2>
             {feedbackList.feedbacks.map((f) => (
-              <div key={f.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+              <div key={f.id} className="bg-surface-raised rounded-lg shadow-md p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-yellow-400 text-sm">
                     {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
                   </span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                   <span className="text-xs text-content-muted">
                     {new Date(f.createdAt).toLocaleDateString("pt-PT", {
                       day: "numeric",
                       month: "short",
@@ -157,7 +157,7 @@ function StopReviewsContent() {
                   </span>
                 </div>
                 {f.comment && (
-                  <p className="text-sm text-gray-700 dark:text-gray-300">{f.comment}</p>
+                  <p className="text-sm text-content-secondary">{f.comment}</p>
                 )}
               </div>
             ))}
@@ -167,17 +167,17 @@ function StopReviewsContent() {
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="px-3 py-1.5 text-sm rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="px-3 py-1.5 text-sm rounded-lg bg-surface-raised border border-border disabled:opacity-40 hover:bg-surface-sunken transition-colors"
                 >
                   ← {t.reviews.previous}
                 </button>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-xs text-content-muted">
                   {page + 1} / {totalPages}
                 </span>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
-                  className="px-3 py-1.5 text-sm rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="px-3 py-1.5 text-sm rounded-lg bg-surface-raised border border-border disabled:opacity-40 hover:bg-surface-sunken transition-colors"
                 >
                   {t.reviews.next} →
                 </button>
@@ -185,19 +185,19 @@ function StopReviewsContent() {
             )}
           </div>
         ) : feedbackList ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center mt-6">
+          <div className="bg-surface-raised rounded-lg shadow-md p-8 text-center mt-6">
             <div className="text-5xl mb-4">📝</div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-lg font-semibold text-content mb-2">
               {t.reviews.noReviews}
             </h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
+            <p className="text-content-muted text-sm">
               {t.reviews.noReviewsDesc}
             </p>
           </div>
         ) : (
           <div className="space-y-3 mt-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 h-24 animate-pulse" />
+              <div key={i} className="bg-surface-raised rounded-lg shadow p-4 h-24 animate-pulse" />
             ))}
           </div>
         )}
@@ -226,8 +226,8 @@ export default function StopReviewsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-400" />
+        <div className="min-h-screen bg-surface-sunken flex items-center justify-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-accent" />
         </div>
       }
     >

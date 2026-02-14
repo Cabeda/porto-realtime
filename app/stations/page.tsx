@@ -34,19 +34,19 @@ function StationCard({ station, isFavorite, onToggleFavorite, distance, feedback
 }) {
   const t = useTranslations();
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-all p-4 flex items-center gap-4">
+    <div className="bg-surface-raised rounded-xl shadow-md hover:shadow-lg transition-all p-4 flex items-center gap-4">
       <Link href={`/station?gtfsId=${station.gtfsId}`} className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-gray-900 dark:text-white truncate">{station.name}</h3>
+          <h3 className="font-semibold text-content truncate">{station.name}</h3>
           {feedbackSummary && feedbackSummary.count > 0 && (
             <FeedbackSummary summary={feedbackSummary} compact />
           )}
         </div>
         {station.code && (
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{station.code}</p>
+          <p className="text-xs text-content-muted mt-0.5">{station.code}</p>
         )}
         {distance !== undefined && (
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">📍 {formatDistance(distance)}</p>
+          <p className="text-sm text-content-muted mt-0.5">📍 {formatDistance(distance)}</p>
         )}
       </Link>
       <div className="flex items-center gap-2 flex-shrink-0">
@@ -63,7 +63,7 @@ function StationCard({ station, isFavorite, onToggleFavorite, distance, feedback
           className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors text-lg ${
             isFavorite
               ? "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-500"
-              : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-yellow-500"
+              : "bg-surface-sunken text-content-muted hover:text-yellow-500"
           }`}
           aria-label={isFavorite ? t.stations.removeFromFavorites : t.stations.addToFavorites}
         >
@@ -137,7 +137,7 @@ export default function StationsPage() {
   const { data: stopSummaries } = useFeedbackSummaries("STOP", visibleStationIds);
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-surface-sunken">
       <div className="text-center">
         <span className="text-4xl">⚠️</span>
         <p className="mt-2 text-red-600 dark:text-red-400">{t.stations.errorLoading}</p>
@@ -147,28 +147,28 @@ export default function StationsPage() {
   if (!stations) return <StationsSkeleton />;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-surface-sunken transition-colors">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white flex-shrink-0">{t.stations.stopsLabel}</h1>
+          <h1 className="text-xl font-bold text-content flex-shrink-0">{t.stations.stopsLabel}</h1>
           <div className="hidden sm:flex items-center gap-1">
             <Link
               href="/"
-              className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
             >
               🗺️ {t.nav.map}
             </Link>
             <Link
               href="/reviews"
-              className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
             >
               ⭐ {t.nav.reviews}
             </Link>
           </div>
           <button
             onClick={() => setShowSettings(true)}
-            className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+            className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
             title={t.nav.settings}
             aria-label={t.nav.settings}
           >
@@ -192,14 +192,14 @@ export default function StationsPage() {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder={t.stations.filterPlaceholder}
-            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+            className="w-full pl-10 pr-4 py-3 bg-surface-raised border border-border rounded-xl text-content placeholder-content-muted focus:outline-none focus:ring-2 focus:ring-accent shadow-sm"
           />
         </div>
 
         {/* Search results */}
         {filter.length >= 2 && (
           <section>
-            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+            <h2 className="text-sm font-semibold text-content-muted uppercase tracking-wide mb-3">
               {t.stations.results} ({filteredStations.length}{filteredStations.length === 30 ? "+" : ""})
             </h2>
             {filteredStations.length > 0 ? (
@@ -209,7 +209,7 @@ export default function StationsPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-sm italic">{t.stations.noStopsFound}</p>
+              <p className="text-content-muted text-sm italic">{t.stations.noStopsFound}</p>
             )}
           </section>
         )}
@@ -217,7 +217,7 @@ export default function StationsPage() {
         {/* Nearby */}
         {filter.length < 2 && closestStations.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+            <h2 className="text-sm font-semibold text-content-muted uppercase tracking-wide mb-3">
               📍 {t.stations.nearest}
             </h2>
             <div className="space-y-2">
@@ -231,7 +231,7 @@ export default function StationsPage() {
         {/* Favorites */}
         {filter.length < 2 && (
           <section>
-            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+            <h2 className="text-sm font-semibold text-content-muted uppercase tracking-wide mb-3">
               ⭐ {t.stations.favorites}
             </h2>
             {favoriteStations.length > 0 ? (
@@ -241,7 +241,7 @@ export default function StationsPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-sm italic">
+              <p className="text-content-muted text-sm italic">
                 {t.stations.tapToFavorite}
               </p>
             )}

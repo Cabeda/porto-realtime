@@ -15,7 +15,7 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[1000] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 sm:hidden safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-[1000] bg-surface dark:bg-surface-raised border-t border-border sm:hidden safe-area-bottom">
       <div className="flex items-stretch">
         {links.map((link) => {
           const active = link.match(pathname || "");
@@ -25,8 +25,8 @@ export function BottomNav() {
               href={link.href}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium transition-colors ${
                 active
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  ? "text-accent"
+                  : "text-content-muted hover:text-content-secondary"
               }`}
             >
               <span className="text-lg leading-none">{link.icon}</span>
