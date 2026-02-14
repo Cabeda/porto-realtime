@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import "leaflet/dist/leaflet.css";
@@ -12,8 +12,11 @@ import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { LeafletMap } from "@/components/LeafletMap";
 import { RouteFilterPanel } from "@/components/RouteFilterPanel";
 import { AboutModal } from "@/components/AboutModal";
+import { BottomSheet } from "@/components/BottomSheet";
+import { FeedbackForm } from "@/components/FeedbackForm";
 import { busesFetcher, stationsFetcher, fetcher } from "@/lib/fetchers";
-import type { BusesResponse, StopsResponse, RoutePatternsResponse } from "@/lib/types";
+import { useFeedbackList, useFeedbackSummaries } from "@/lib/hooks/useFeedback";
+import type { BusesResponse, StopsResponse, RoutePatternsResponse, FeedbackItem } from "@/lib/types";
 
 function MapPageContent() {
   const searchParams = useSearchParams();
@@ -51,6 +54,30 @@ function MapPageContent() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [showLocationSuccess, setShowLocationSuccess] = useState(false);
+
+  // Feedback state for bottom sheet (triggered by bus popup custom event)
+  const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+  const [feedbackLineId, setFeedbackLineId] = useState("");
+  const [feedbackLineName, setFeedbackLineName] = useState("");
+  const { data: feedbackList } = useFeedbackList("LINE", showFeedbackSheet ? feedbackLineId : null);
+
+  // Listen for custom event from bus popup "Rate" button
+  useEffect(() => {
+    const handleBusFeedback = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.routeShortName) {
+        setFeedbackLineId(detail.routeShortName);
+        setFeedbackLineName(`Linha ${detail.routeShortName}`);
+        setShowFeedbackSheet(true);
+      }
+    };
+    window.addEventListener("open-line-feedback", handleBusFeedback);
+    return () => window.removeEventListener("open-line-feedback", handleBusFeedback);
+  }, []);
+
+  const handleFeedbackSuccess = useCallback((_feedback: FeedbackItem) => {
+    // Feedback saved — BottomSheet stays open so user sees success message
+  }, []);
 
   const highlightedStationId = searchParams?.get("station");
 
@@ -197,6 +224,15 @@ function MapPageContent() {
         })
     : [];
 
+  // Batch fetch line feedback summaries for all available routes
+  const { data: lineFeedbackSummaries } = useFeedbackSummaries("LINE", availableRoutes);
+
+  const handleRateLine = useCallback((route: string) => {
+    setFeedbackLineId(route);
+    setFeedbackLineName(`Linha ${route}`);
+    setShowFeedbackSheet(true);
+  }, []);
+
   // Auto-filter to favorite routes on first data load
   useEffect(() => {
     if (!favoritesAppliedOnLoad && favoriteRoutes.length > 0 && availableRoutes.length > 0 && selectedRoutes.length === 0) {
@@ -325,6 +361,8 @@ function MapPageContent() {
             onToggleRoute={toggleRoute}
             onClearFilters={() => setSelectedRoutes([])}
             onToggleFavorite={toggleFavorite}
+            feedbackSummaries={lineFeedbackSummaries}
+            onRateLine={handleRateLine}
           />
 
           <div className="flex gap-2">
@@ -430,6 +468,46 @@ function MapPageContent() {
         )}
 
         {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowAboutModal(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} />}
+
+        {/* Line Feedback Bottom Sheet */}
+        <BottomSheet
+          isOpen={showFeedbackSheet}
+          onClose={() => setShowFeedbackSheet(false)}
+          title={translations.feedback.lineFeedback}
+        >
+          <FeedbackForm
+            type="LINE"
+            targetId={feedbackLineId}
+            targetName={feedbackLineName}
+            existingFeedback={feedbackList?.userFeedback}
+            onSuccess={handleFeedbackSuccess}
+          />
+          {feedbackList && feedbackList.feedbacks.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                {translations.feedback.recentComments}
+              </h3>
+              <div className="space-y-3">
+                {feedbackList.feedbacks
+                  .filter((f) => f.comment)
+                  .slice(0, 5)
+                  .map((f) => (
+                    <div key={f.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-yellow-400 text-xs">
+                          {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
+                        </span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          {new Date(f.createdAt).toLocaleDateString("pt-PT")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{f.comment}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </BottomSheet>
       </main>
     </div>
   );

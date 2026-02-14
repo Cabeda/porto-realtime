@@ -186,6 +186,22 @@ export function LeafletMap({
 
       setIsMapReady(true);
       logger.log("Map initialized and ready");
+
+      // Global event delegation for bus popup rate buttons
+      map.on("popupopen", () => {
+        document.querySelectorAll("[data-rate-line]").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            const routeShortName = (e.currentTarget as HTMLElement).getAttribute("data-rate-line");
+            if (routeShortName) {
+              window.dispatchEvent(
+                new CustomEvent("open-line-feedback", {
+                  detail: { routeShortName },
+                })
+              );
+            }
+          });
+        });
+      });
     });
 
     return () => {
@@ -250,6 +266,7 @@ export function LeafletMap({
             <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : 'Parado'}</div>
             ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${escapeHtml(bus.vehicleNumber)}</div>` : ''}
             <div class="bus-popup-footer">Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}</div>
+            <button data-rate-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="margin-top:8px;width:100%;padding:6px 12px;background:#eab308;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Avaliar Linha ${escapeHtml(bus.routeShortName)}</button>
           </div>`;
 
         const busIcon = L.divIcon({

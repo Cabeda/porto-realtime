@@ -1,5 +1,8 @@
 "use client";
 
+import { FeedbackSummary } from "@/components/FeedbackSummary";
+import type { FeedbackSummaryData } from "@/lib/types";
+
 interface RouteFilterPanelProps {
   availableRoutes: string[];
   selectedRoutes: string[];
@@ -9,6 +12,8 @@ interface RouteFilterPanelProps {
   onToggleRoute: (route: string) => void;
   onClearFilters: () => void;
   onToggleFavorite: (route: string) => void;
+  feedbackSummaries?: Record<string, FeedbackSummaryData>;
+  onRateLine?: (route: string) => void;
 }
 
 export function RouteFilterPanel({
@@ -20,6 +25,8 @@ export function RouteFilterPanel({
   onToggleRoute,
   onClearFilters,
   onToggleFavorite,
+  feedbackSummaries,
+  onRateLine,
 }: RouteFilterPanelProps) {
   if (availableRoutes.length === 0) return null;
 
@@ -61,7 +68,7 @@ export function RouteFilterPanel({
           </div>
           <div className="grid grid-cols-3 gap-2">
             {availableRoutes.map(route => (
-              <div key={route} className="relative">
+              <div key={route} className="relative flex flex-col items-center">
                 <button
                   onClick={() => onToggleRoute(route)}
                   className={`w-full py-2 px-3 rounded-md text-sm font-semibold transition-all ${
@@ -86,6 +93,15 @@ export function RouteFilterPanel({
                     <span className="text-gray-400 dark:text-gray-500 hover:text-yellow-500">&#9734;</span>
                   )}
                 </button>
+                {feedbackSummaries && (
+                  <div className="mt-1">
+                    <FeedbackSummary
+                      summary={feedbackSummaries[route]}
+                      compact
+                      onClick={onRateLine ? () => onRateLine(route) : undefined}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
