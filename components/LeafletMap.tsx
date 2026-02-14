@@ -321,21 +321,23 @@ export function LeafletMap({
           const snapped = snapToRoute(bus.lat, bus.lon, bus.routeShortName, routePatternsMap, bus.id, busSegmentRef.current);
           const marker = L.marker(snapped, {
             icon: busIcon,
-            title: `Linha ${bus.routeShortName} → ${destinationText}`,
-            opacity: 0  // Start invisible for fade-in
+            title: `Linha ${bus.routeShortName} → ${destinationText}`
           })
             .addTo(mapInstanceRef.current!)
             .bindPopup(popupHtml);
           busMarkersMapRef.current.set(bus.id, marker);
           
-          // Fade in the new marker
-          setTimeout(() => {
-            const elem = marker.getElement();
-            if (elem) {
-              elem.style.transition = `opacity ${FADE_IN_DURATION}ms ease-in`;
-              elem.style.opacity = '1';
-            }
-          }, 10); // Small delay to ensure DOM is ready
+          // Fade in the new marker using requestAnimationFrame for reliable DOM timing
+          const elem = marker.getElement();
+          if (elem) {
+            elem.style.opacity = '0';
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                elem.style.transition = `opacity ${FADE_IN_DURATION}ms ease-in`;
+                elem.style.opacity = '1';
+              });
+            });
+          }
         }
       });
     });
