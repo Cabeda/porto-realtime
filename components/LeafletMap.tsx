@@ -275,7 +275,7 @@ export function LeafletMap({
 
         const popupHtml = `
           <div class="bus-popup text-sm" style="min-width:240px;font-family:system-ui,sans-serif;">
-            <div class="bus-popup-title">Linha ${escapeHtml(bus.routeShortName)}</div>
+            <a href="/reviews/line?id=${encodeURIComponent(bus.routeShortName)}" class="bus-popup-title" style="color:inherit;text-decoration:none;display:block;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Linha ${escapeHtml(bus.routeShortName)} →</a>
             <div class="bus-popup-destination">→ ${escapeHtml(destinationText)}</div>
             <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : 'Parado'}</div>
             ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> ${escapeHtml(bus.vehicleNumber)}</div>` : ''}
