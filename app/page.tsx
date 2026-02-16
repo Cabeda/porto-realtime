@@ -77,6 +77,12 @@ function MapPageContent() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [showLocationSuccess, setShowLocationSuccess] = useState(false);
+  const [mapStyle, setMapStyle] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("mapStyle") || "standard";
+    }
+    return "standard";
+  });
 
   // Feedback state for bottom sheet (triggered by bus popup custom event)
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
@@ -341,6 +347,7 @@ function MapPageContent() {
   useEffect(() => { localStorage.setItem("favoriteRoutes", JSON.stringify(favoriteRoutes)); }, [favoriteRoutes]);
   useEffect(() => { localStorage.setItem("showStops", JSON.stringify(showStops)); }, [showStops]);
   useEffect(() => { localStorage.setItem("showRoutes", JSON.stringify(showRoutes)); }, [showRoutes]);
+  useEffect(() => { localStorage.setItem("mapStyle", mapStyle); }, [mapStyle]);
   useEffect(() => { localStorage.setItem("showRouteFilter", JSON.stringify(showRouteFilter)); }, [showRouteFilter]);
   useEffect(() => { localStorage.setItem("showBikeParks", JSON.stringify(showBikeParks)); }, [showBikeParks]);
   useEffect(() => { localStorage.setItem("showBikeLanes", JSON.stringify(showBikeLanes)); }, [showBikeLanes]);
@@ -632,6 +639,7 @@ function MapPageContent() {
             showBikeParks={showBikeParks}
             showBikeLanes={showBikeLanes}
             selectedBikeLanes={selectedBikeLanes}
+            mapStyle={mapStyle}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
@@ -645,7 +653,7 @@ function MapPageContent() {
           </div>
         )}
 
-        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowSettings(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} />}
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowSettings(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} mapStyle={mapStyle} onMapStyleChange={setMapStyle} />}
 
         {/* Line Feedback Bottom Sheet */}
         <BottomSheet

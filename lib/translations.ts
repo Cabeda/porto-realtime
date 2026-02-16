@@ -191,6 +191,10 @@ const pt = {
     dataProvider: "Dados fornecidos pela API OpenTripPlanner do Porto",
     resetOnboarding: "Repetir introdução",
     version: "Versão",
+    mapStyle: "Estilo do mapa",
+    mapStandard: "Padrão",
+    mapSatellite: "Satélite",
+    mapTerrain: "Terreno",
   },
   auth: {
     loginTitle: "Iniciar sessão",
@@ -436,6 +440,10 @@ const en: typeof pt = {
     dataProvider: "Data provided by Porto's OpenTripPlanner API",
     resetOnboarding: "Restart onboarding",
     version: "Version",
+    mapStyle: "Map style",
+    mapStandard: "Standard",
+    mapSatellite: "Satellite",
+    mapTerrain: "Terrain",
   },
   auth: {
     loginTitle: "Sign in",

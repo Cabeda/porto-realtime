@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
-import type { Map as LMap, Marker, LatLngBounds, Polyline } from "leaflet";
+import type { Map as LMap, Marker, LatLngBounds, Polyline, TileLayer as LTileLayer } from "leaflet";
 import { logger } from "@/lib/logger";
 import { escapeHtml } from "@/lib/sanitize";
 import type { Bus, Stop, PatternGeometry, BikePark, BikeLane } from "@/lib/types";
@@ -133,6 +133,7 @@ interface LeafletMapProps {
   showBikeParks?: boolean;
   showBikeLanes?: boolean;
   selectedBikeLanes?: string[];
+  mapStyle?: string;
 }
 
 export function LeafletMap({
@@ -151,9 +152,11 @@ export function LeafletMap({
   showBikeParks = false,
   showBikeLanes = false,
   selectedBikeLanes = [],
+  mapStyle = "standard",
 }: LeafletMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<LMap | null>(null);
+  const tileLayerRef = useRef<LTileLayer | null>(null);
   const busMarkersMapRef = useRef<Map<string, Marker>>(new Map());
   const stopMarkersRef = useRef<Marker[]>([]);
   const bikeParkMarkersRef = useRef<Marker[]>([]);
@@ -189,11 +192,33 @@ export function LeafletMap({
       const center = userLocation || [41.1579, -8.6291];
       const zoom = userLocation ? 15 : 13;
 
-      const map = L.map(mapContainerRef.current).setView(center as [number, number], zoom);
+      const map = L.map(mapContainerRef.current, { maxZoom: 19 }).setView(center as [number, number], zoom);
       mapInstanceRef.current = map;
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      const tileConfigs: Record<string, { url: string; attribution: string; maxZoom: number }> = {
+        standard: {
+          url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+        },
+        satellite: {
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          attribution: '&copy; <a href="https://www.esri.com/">Esri</a> &mdash; Sources: Esri, Maxar, Earthstar Geographics',
+          maxZoom: 19,
+        },
+        terrain: {
+          url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+          attribution: '&copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+          maxZoom: 17,
+        },
+      };
+      const tile = tileConfigs[mapStyle] || tileConfigs.standard;
+      tileLayerRef.current = L.tileLayer(tile.url, {
+        attribution: tile.attribution,
+        maxZoom: tile.maxZoom,
+        keepBuffer: 6,
+        updateWhenIdle: false,
+        updateWhenZooming: false,
       }).addTo(map);
 
       setIsMapReady(true);
@@ -263,6 +288,45 @@ export function LeafletMap({
       }
     };
   }, []);
+
+  // Swap tile layer when mapStyle changes
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isMapReady) return;
+
+    import("leaflet").then((L) => {
+      if (tileLayerRef.current) {
+        tileLayerRef.current.remove();
+      }
+
+      const tileConfigs: Record<string, { url: string; attribution: string; maxZoom: number }> = {
+        standard: {
+          url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+        },
+        satellite: {
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          attribution: '&copy; <a href="https://www.esri.com/">Esri</a> &mdash; Sources: Esri, Maxar, Earthstar Geographics',
+          maxZoom: 19,
+        },
+        terrain: {
+          url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+          attribution: '&copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+          maxZoom: 17,
+        },
+      };
+      const tile = tileConfigs[mapStyle] || tileConfigs.standard;
+      tileLayerRef.current = L.tileLayer(tile.url, {
+        attribution: tile.attribution,
+        maxZoom: tile.maxZoom,
+        keepBuffer: 6,
+        updateWhenIdle: false,
+        updateWhenZooming: false,
+      }).addTo(mapInstanceRef.current!);
+
+      mapInstanceRef.current!.setMaxZoom(tile.maxZoom);
+    });
+  }, [mapStyle, isMapReady]);
 
   // Update bus markers
   useEffect(() => {
@@ -390,20 +454,39 @@ export function LeafletMap({
         stopMarkersRef.current.forEach((marker) => marker.remove());
         stopMarkersRef.current = [];
 
-        if (!showStops || stops.length === 0 || map.getZoom() < 15) return;
+        if (!showStops || stops.length === 0) return;
 
+        const zoom = map.getZoom();
         const bounds = map.getBounds();
         mapBoundsRef.current = bounds;
 
         stops
-          .filter((stop) => bounds.contains([stop.lat, stop.lon]))
+          .filter((stop) => {
+            if (!bounds.contains([stop.lat, stop.lon])) return false;
+            // Metro stops visible from zoom 12+, bus stops from zoom 15+
+            const isMetro = stop.vehicleMode === "SUBWAY";
+            return isMetro ? zoom >= 12 : zoom >= 15;
+          })
           .forEach((stop) => {
+            const isMetro = stop.vehicleMode === "SUBWAY";
+            const stopIconHtml = isMetro
+              ? `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 22 22" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3));cursor:pointer;">
+                  <circle cx="11" cy="11" r="10" fill="#2563eb" stroke="white" stroke-width="1.5"/>
+                  <text x="11" y="15.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="white">M</text>
+                </svg>`
+              : `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="34" viewBox="0 0 20 24" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3));cursor:pointer;">
+                  <rect x="9" y="8" width="2" height="16" rx="1" fill="#5f6368"/>
+                  <rect x="2" y="0" width="16" height="12" rx="2.5" fill="#0d9488" stroke="white" stroke-width="1"/>
+                  <path d="M6.5 3.5h7a1 1 0 011 1v2.5a1 1 0 01-1 1h-7a1 1 0 01-1-1V4.5a1 1 0 011-1z" fill="white" opacity="0.9"/>
+                  <rect x="6" y="8.5" width="3" height="1.5" rx="0.5" fill="white" opacity="0.7"/>
+                  <rect x="11" y="8.5" width="3" height="1.5" rx="0.5" fill="white" opacity="0.7"/>
+                </svg>`;
             const stopIcon = L.divIcon({
-              html: `<div style="width:10px;height:10px;background:#ef4444;border:2px solid white;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.4);cursor:pointer;"></div>`,
+              html: stopIconHtml,
               className: "custom-stop-marker",
-              iconSize: [10, 10],
-              iconAnchor: [5, 5],
-              popupAnchor: [0, -5],
+              iconSize: isMetro ? [30, 30] : [28, 34],
+              iconAnchor: isMetro ? [15, 15] : [14, 34],
+              popupAnchor: isMetro ? [0, -15] : [0, -28],
             });
 
             const popupContent = `
@@ -541,18 +624,32 @@ export function LeafletMap({
     import("leaflet").then((L) => {
       if (highlightedMarkerRef.current) highlightedMarkerRef.current.remove();
 
+      const isMetro = highlightedStop.vehicleMode === "SUBWAY";
       const highlightedIcon = L.divIcon({
-        html: `
-          <div style="position:relative;">
-            <div style="position:absolute;width:40px;height:40px;background:rgba(239,68,68,0.3);border-radius:50%;animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
-            <div style="position:absolute;width:20px;height:20px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.4);top:50%;left:50%;transform:translate(-50%,-50%);"></div>
-          </div>
-          <style>@keyframes pulse{0%,100%{opacity:1;transform:translate(-50%,-50%) scale(1);}50%{opacity:0;transform:translate(-50%,-50%) scale(1.5);}}</style>
-        `,
+        html: isMetro
+          ? `<div style="position:relative;width:34px;height:34px;">
+              <div style="position:absolute;width:50px;height:50px;background:rgba(37,99,235,0.25);border-radius:50%;animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 22 22" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));position:relative;z-index:1;">
+                <circle cx="11" cy="11" r="10" fill="#2563eb" stroke="white" stroke-width="1.5"/>
+                <text x="11" y="15.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="white">M</text>
+              </svg>
+            </div>
+            <style>@keyframes pulse{0%,100%{opacity:1;transform:translate(-50%,-50%) scale(1);}50%{opacity:0;transform:translate(-50%,-50%) scale(1.5);}}</style>`
+          : `<div style="position:relative;width:30px;height:36px;">
+              <div style="position:absolute;width:46px;height:46px;background:rgba(13,148,136,0.25);border-radius:50%;animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="30" height="36" viewBox="0 0 20 24" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));position:relative;z-index:1;">
+                <rect x="9" y="8" width="2" height="16" rx="1" fill="#5f6368"/>
+                <rect x="2" y="0" width="16" height="12" rx="2.5" fill="#0d9488" stroke="white" stroke-width="1.5"/>
+                <path d="M6.5 3.5h7a1 1 0 011 1v2.5a1 1 0 01-1 1h-7a1 1 0 01-1-1V4.5a1 1 0 011-1z" fill="white" opacity="0.9"/>
+                <rect x="6" y="8.5" width="3" height="1.5" rx="0.5" fill="white" opacity="0.7"/>
+                <rect x="11" y="8.5" width="3" height="1.5" rx="0.5" fill="white" opacity="0.7"/>
+              </svg>
+            </div>
+            <style>@keyframes pulse{0%,100%{opacity:1;transform:translate(-50%,-50%) scale(1);}50%{opacity:0;transform:translate(-50%,-50%) scale(1.5);}}</style>`,
         className: "custom-highlighted-stop-marker",
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
-        popupAnchor: [0, -20],
+        iconSize: isMetro ? [50, 50] : [46, 46],
+        iconAnchor: isMetro ? [25, 25] : [23, 28],
+        popupAnchor: isMetro ? [0, -20] : [0, -24],
       });
 
       highlightedMarkerRef.current = L.marker([highlightedStop.lat, highlightedStop.lon], {

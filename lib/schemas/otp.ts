@@ -17,6 +17,7 @@ export const OTPStopSchema = z.object({
   lon: z.number(),
   name: z.string(),
   gtfsId: z.string(),
+  vehicleMode: z.string().nullable().optional(),
 });
 
 export const OTPStopsResponseSchema = z.object({

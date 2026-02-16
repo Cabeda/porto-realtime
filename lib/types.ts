@@ -26,6 +26,7 @@ export interface Stop {
   lon: number;
   name: string;
   gtfsId: string;
+  vehicleMode?: string | null;
 }
 
 export interface StopsResponse {

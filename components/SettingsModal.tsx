@@ -9,9 +9,11 @@ import { AuthModal } from "@/components/AuthModal";
 interface SettingsModalProps {
   onClose: () => void;
   onResetOnboarding?: () => void;
+  mapStyle?: string;
+  onMapStyleChange?: (style: string) => void;
 }
 
-export function SettingsModal({ onClose, onResetOnboarding }: SettingsModalProps) {
+export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyleChange }: SettingsModalProps) {
   const t = useTranslations();
   const { locale, setLocale } = useLocale();
   const { user, isAuthenticated, logout } = useAuth();
@@ -127,6 +129,35 @@ export function SettingsModal({ onClose, onResetOnboarding }: SettingsModalProps
 
           {/* Account */}
           <div>
+
+          {/* Map Style */}
+          {mapStyle && onMapStyleChange && (
+            <div>
+              <h3 className="text-xs font-semibold text-content-muted uppercase tracking-wide mb-2">
+                {t.settings.mapStyle}
+              </h3>
+              <div className="flex gap-2">
+                {([
+                  { key: "standard", label: t.settings.mapStandard, icon: "🗺️" },
+                  { key: "satellite", label: t.settings.mapSatellite, icon: "🛰️" },
+                  { key: "terrain", label: t.settings.mapTerrain, icon: "⛰️" },
+                ] as const).map(({ key, label, icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => onMapStyleChange(key)}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      mapStyle === key
+                        ? "bg-accent text-white"
+                        : "bg-surface-sunken text-content-secondary hover:bg-border"
+                    }`}
+                  >
+                    {icon} {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
             <h3 className="text-xs font-semibold text-content-muted uppercase tracking-wide mb-2">
               {t.auth.account}
             </h3>

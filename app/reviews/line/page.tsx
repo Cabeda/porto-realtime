@@ -77,7 +77,7 @@ function RouteMap({ patterns, stops, lineId }: { patterns: LinePattern[]; stops:
         document.head.appendChild(css);
       }
 
-      const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false }).setView([41.1579, -8.6291], 13);
+      const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false, maxZoom: 19 }).setView([41.1579, -8.6291], 13);
       mapInstanceRef.current = map;
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -124,11 +124,19 @@ function RouteMap({ patterns, stops, lineId }: { patterns: LinePattern[]; stops:
       // Draw stop markers
       activeStops.forEach((stop, i) => {
         const isTerminal = i === 0 || i === activeStops.length - 1;
+        const size = isTerminal ? 32 : 24;
+        const vb = "0 0 20 24";
         const icon = L.divIcon({
-          html: `<div style="width:${isTerminal ? 14 : 8}px;height:${isTerminal ? 14 : 8}px;background:${isTerminal ? "#3b82f6" : "#ef4444"};border:2px solid white;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.4);"></div>`,
+          html: `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size * 1.2}" viewBox="${vb}" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3));">
+            <rect x="9" y="8" width="2" height="16" rx="1" fill="#5f6368"/>
+            <rect x="2" y="0" width="16" height="12" rx="2.5" fill="${isTerminal ? "#0d9488" : "#6b7280"}" stroke="white" stroke-width="1"/>
+            <path d="M6.5 3.5h7a1 1 0 011 1v2.5a1 1 0 01-1 1h-7a1 1 0 01-1-1V4.5a1 1 0 011-1z" fill="white" opacity="0.9"/>
+            <rect x="6" y="8.5" width="3" height="1.5" rx="0.5" fill="white" opacity="0.7"/>
+            <rect x="11" y="8.5" width="3" height="1.5" rx="0.5" fill="white" opacity="0.7"/>
+          </svg>`,
           className: "line-stop-marker",
-          iconSize: [isTerminal ? 14 : 8, isTerminal ? 14 : 8],
-          iconAnchor: [isTerminal ? 7 : 4, isTerminal ? 7 : 4],
+          iconSize: [size, size * 1.2],
+          iconAnchor: [size / 2, size * 1.2],
         });
 
         L.marker([stop.lat, stop.lon], { icon })
