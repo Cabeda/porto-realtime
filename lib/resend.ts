@@ -1,6 +1,17 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+
+function getResend(): Resend {
+  if (!_resend) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error("RESEND_API_KEY environment variable is not set");
+    }
+    _resend = new Resend(apiKey);
+  }
+  return _resend;
+}
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 
@@ -9,6 +20,7 @@ const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
  */
 export async function sendMagicLinkEmail(email: string, code: string) {
   const appName = "PortoMove";
+  const resend = getResend();
 
   const { error } = await resend.emails.send({
     from: `${appName} <${FROM_EMAIL}>`,
