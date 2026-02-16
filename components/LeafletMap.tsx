@@ -192,7 +192,8 @@ export function LeafletMap({
       const center = userLocation || [41.1579, -8.6291];
       const zoom = userLocation ? 15 : 13;
 
-      const map = L.map(mapContainerRef.current, { maxZoom: 19 }).setView(center as [number, number], zoom);
+      const map = L.map(mapContainerRef.current, { maxZoom: 19, zoomControl: false }).setView(center as [number, number], zoom);
+      L.control.zoom({ position: "bottomleft" }).addTo(map);
       mapInstanceRef.current = map;
 
       const tileConfigs: Record<string, { url: string; attribution: string; maxZoom: number }> = {

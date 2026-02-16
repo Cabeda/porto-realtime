@@ -192,6 +192,17 @@ body {
   opacity: 0.8;
 }
 
+/* Ensure zoom controls sit above mobile bottom nav */
+.leaflet-bottom.leaflet-left {
+  bottom: 4rem;
+}
+
+@media (min-width: 640px) {
+  .leaflet-bottom.leaflet-left {
+    bottom: 0;
+  }
+}
+
 /* Dark mode for Leaflet controls */
 .dark .leaflet-control-zoom a {
   background-color: #1f2937 !important; /* gray-800 */
@@ -210,6 +221,13 @@ body {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
 
