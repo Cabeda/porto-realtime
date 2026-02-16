@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { getAnonymousId } from "@/lib/anonymous-id";
+import { getAnonymousId, clearAnonymousId } from "@/lib/anonymous-id";
 import { AuthModal } from "@/components/AuthModal";
 import type { FeedbackType, FeedbackItem, FeedbackMetadata } from "@/lib/types";
 
@@ -56,19 +56,20 @@ export function FeedbackForm({
 
     try {
       // Build headers: authenticated users rely on the session cookie,
-      // anonymous users send the x-anonymous-id header
+      // but we always send x-anonymous-id so the server can link
+      // anonymous reviews to the authenticated account.
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
 
-      if (!isAuthenticated) {
-        const anonId = getAnonymousId();
-        if (!anonId) {
-          setMessage({ text: tf.error, type: "error" });
-          setIsSubmitting(false);
-          return;
-        }
+      const anonId = getAnonymousId();
+      if (anonId) {
         headers["x-anonymous-id"] = anonId;
+      } else if (!isAuthenticated) {
+        // No anonId and not authenticated — can't submit
+        setMessage({ text: tf.error, type: "error" });
+        setIsSubmitting(false);
+        return;
       }
 
       const res = await fetch("/api/feedback", {
@@ -93,6 +94,13 @@ export function FeedbackForm({
       }
 
       const data = await res.json();
+
+      // After a successful authenticated submission, the server has linked
+      // any anonymous reviews — clear the local anonymous ID
+      if (isAuthenticated && anonId) {
+        clearAnonymousId();
+      }
+
       setMessage({ text: isEditing ? tf.updated : tf.success, type: "success" });
       onSuccess?.(data.feedback);
     } catch {

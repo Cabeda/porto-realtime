@@ -214,6 +214,53 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
     userId = user.id;
+
+    // Anonymous-to-authenticated linking: if the client also sent an anonId,
+    // migrate any feedback from the anonymous user to this authenticated user.
+    // This is a one-time merge that happens transparently.
+    if (validAnonId) {
+      try {
+        const anonUser = await prisma.user.findUnique({
+          where: { anonId: validAnonId },
+          select: { id: true },
+        });
+
+        if (anonUser && anonUser.id !== userId) {
+          // Move all feedback from anonymous user to authenticated user.
+          // For duplicates (same type+targetId), keep the authenticated user's
+          // version and delete the anonymous one — the authenticated submission
+          // that's about to happen will be the most recent intent.
+          const anonFeedbacks = await prisma.feedback.findMany({
+            where: { userId: anonUser.id },
+            select: { id: true, type: true, targetId: true },
+          });
+
+          for (const fb of anonFeedbacks) {
+            const existsOnAuth = await prisma.feedback.findFirst({
+              where: { userId, type: fb.type, targetId: fb.targetId },
+              select: { id: true },
+            });
+
+            if (existsOnAuth) {
+              // Authenticated user already has feedback for this target — drop the anon one
+              await prisma.feedback.delete({ where: { id: fb.id } });
+            } else {
+              // Transfer ownership to authenticated user
+              await prisma.feedback.update({
+                where: { id: fb.id },
+                data: { userId },
+              });
+            }
+          }
+
+          // Delete the now-empty anonymous user record
+          await prisma.user.delete({ where: { id: anonUser.id } });
+        }
+      } catch (linkError) {
+        // Linking is best-effort — don't fail the feedback submission
+        console.error("Error linking anonymous reviews:", linkError);
+      }
+    }
   } else if (validAnonId) {
     // Anonymous user — find or create by anonId
     const user = await prisma.user.upsert({

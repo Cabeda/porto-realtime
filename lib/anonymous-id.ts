@@ -36,3 +36,16 @@ export function getAnonymousId(): string | null {
     return null;
   }
 }
+
+/**
+ * Remove the anonymous ID from localStorage.
+ * Called after anonymous reviews have been linked to an authenticated account.
+ */
+export function clearAnonymousId(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(ANON_ID_KEY);
+  } catch {
+    // ignore
+  }
+}

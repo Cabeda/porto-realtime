@@ -204,6 +204,8 @@ describe("Feedback route with Neon Auth session", () => {
 
     const mockUser = { id: "app-user-1", email: "test@example.com" };
     mockPrisma.user.upsert.mockResolvedValue(mockUser);
+    // Linking: no anonymous user found for this anonId
+    mockPrisma.user.findUnique.mockResolvedValue(null);
     mockPrisma.feedback.count.mockResolvedValue(0);
     mockPrisma.feedback.upsert.mockResolvedValue({
       id: "fb1",
@@ -229,5 +231,196 @@ describe("Feedback route with Neon Auth session", () => {
         where: { email: "test@example.com" },
       })
     );
+  });
+});
+
+describe("Anonymous-to-authenticated review linking", () => {
+  beforeEach(() => resetMocks());
+
+  it("transfers anonymous feedback to authenticated user on first auth submission", async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        user: { id: "neon-user-1", email: "test@example.com", name: "Test" },
+        session: { id: "sess-1" },
+      },
+    });
+
+    const authUser = { id: "auth-user-1" };
+    const anonUser = { id: "anon-user-1" };
+    mockPrisma.user.upsert.mockResolvedValue(authUser);
+    mockPrisma.user.findUnique.mockResolvedValue(anonUser);
+
+    // Anonymous user has one feedback that doesn't conflict
+    mockPrisma.feedback.findMany.mockResolvedValue([
+      { id: "anon-fb-1", type: "LINE", targetId: "205" },
+    ]);
+    // No conflict — auth user doesn't have feedback for LINE/205
+    mockPrisma.feedback.findFirst.mockResolvedValue(null);
+    mockPrisma.feedback.update.mockResolvedValue({});
+    mockPrisma.user.delete.mockResolvedValue({});
+
+    mockPrisma.feedback.count.mockResolvedValue(0);
+    mockPrisma.feedback.upsert.mockResolvedValue({
+      id: "fb-new",
+      type: "STOP",
+      targetId: "2:BRRS2",
+      rating: 5,
+      comment: null,
+      metadata: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const req = makePostRequest(
+      { type: "STOP", targetId: "2:BRRS2", rating: 5 },
+      { "x-anonymous-id": VALID_UUID }
+    );
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    // Should look up anonymous user
+    expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { anonId: VALID_UUID },
+      })
+    );
+
+    // Should transfer the anonymous feedback to the auth user
+    expect(mockPrisma.feedback.update).toHaveBeenCalledWith({
+      where: { id: "anon-fb-1" },
+      data: { userId: "auth-user-1" },
+    });
+
+    // Should delete the anonymous user
+    expect(mockPrisma.user.delete).toHaveBeenCalledWith({
+      where: { id: "anon-user-1" },
+    });
+  });
+
+  it("deletes conflicting anonymous feedback instead of transferring", async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        user: { id: "neon-user-1", email: "test@example.com", name: "Test" },
+        session: { id: "sess-1" },
+      },
+    });
+
+    const authUser = { id: "auth-user-1" };
+    const anonUser = { id: "anon-user-1" };
+    mockPrisma.user.upsert.mockResolvedValue(authUser);
+    mockPrisma.user.findUnique.mockResolvedValue(anonUser);
+
+    // Anonymous user has feedback that conflicts with auth user's existing feedback
+    mockPrisma.feedback.findMany.mockResolvedValue([
+      { id: "anon-fb-1", type: "STOP", targetId: "2:BRRS2" },
+    ]);
+    // Conflict — auth user already has feedback for STOP/2:BRRS2
+    mockPrisma.feedback.findFirst.mockResolvedValue({ id: "auth-fb-1" });
+    mockPrisma.feedback.delete.mockResolvedValue({});
+    mockPrisma.user.delete.mockResolvedValue({});
+
+    mockPrisma.feedback.count.mockResolvedValue(0);
+    mockPrisma.feedback.upsert.mockResolvedValue({
+      id: "auth-fb-1",
+      type: "STOP",
+      targetId: "2:BRRS2",
+      rating: 3,
+      comment: null,
+      metadata: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const req = makePostRequest(
+      { type: "STOP", targetId: "2:BRRS2", rating: 3 },
+      { "x-anonymous-id": VALID_UUID }
+    );
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    // Should delete the conflicting anonymous feedback
+    expect(mockPrisma.feedback.delete).toHaveBeenCalledWith({
+      where: { id: "anon-fb-1" },
+    });
+
+    // Should NOT transfer (update) the anonymous feedback
+    expect(mockPrisma.feedback.update).not.toHaveBeenCalled();
+
+    // Should delete the anonymous user
+    expect(mockPrisma.user.delete).toHaveBeenCalledWith({
+      where: { id: "anon-user-1" },
+    });
+  });
+
+  it("skips linking when no anonymous user exists for the anonId", async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        user: { id: "neon-user-1", email: "test@example.com", name: "Test" },
+        session: { id: "sess-1" },
+      },
+    });
+
+    const authUser = { id: "auth-user-1" };
+    mockPrisma.user.upsert.mockResolvedValue(authUser);
+    // No anonymous user found
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+
+    mockPrisma.feedback.count.mockResolvedValue(0);
+    mockPrisma.feedback.upsert.mockResolvedValue({
+      id: "fb1",
+      type: "STOP",
+      targetId: "2:BRRS2",
+      rating: 4,
+      comment: null,
+      metadata: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const req = makePostRequest(
+      { type: "STOP", targetId: "2:BRRS2", rating: 4 },
+      { "x-anonymous-id": VALID_UUID }
+    );
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    // Should not attempt any feedback transfer or user deletion
+    expect(mockPrisma.feedback.findMany).not.toHaveBeenCalled();
+    expect(mockPrisma.feedback.update).not.toHaveBeenCalled();
+    expect(mockPrisma.user.delete).not.toHaveBeenCalled();
+  });
+
+  it("still succeeds if linking fails (best-effort)", async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        user: { id: "neon-user-1", email: "test@example.com", name: "Test" },
+        session: { id: "sess-1" },
+      },
+    });
+
+    const authUser = { id: "auth-user-1" };
+    mockPrisma.user.upsert.mockResolvedValue(authUser);
+    // Linking throws an error
+    mockPrisma.user.findUnique.mockRejectedValue(new Error("DB connection lost"));
+
+    mockPrisma.feedback.count.mockResolvedValue(0);
+    mockPrisma.feedback.upsert.mockResolvedValue({
+      id: "fb1",
+      type: "STOP",
+      targetId: "2:BRRS2",
+      rating: 4,
+      comment: null,
+      metadata: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const req = makePostRequest(
+      { type: "STOP", targetId: "2:BRRS2", rating: 4 },
+      { "x-anonymous-id": VALID_UUID }
+    );
+    const res = await POST(req);
+    // Should still succeed — linking is best-effort
+    expect(res.status).toBe(200);
   });
 });
