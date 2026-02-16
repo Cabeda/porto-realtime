@@ -7,13 +7,14 @@ import { AuthModal } from "@/components/AuthModal";
 
 /**
  * Compact user menu: shows login button when unauthenticated,
- * or user avatar + email when authenticated.
+ * or user avatar + name when authenticated.
  */
 export function UserMenu() {
   const { user, isAuthenticated, logout } = useAuth();
   const t = useTranslations().auth;
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   if (!isAuthenticated || !user) {
     return (
@@ -34,15 +35,17 @@ export function UserMenu() {
     );
   }
 
+  const initial = (user.name?.[0] || user.email[0]).toUpperCase();
+
   return (
     <div className="relative">
       <button
         onClick={() => setShowDropdown(!showDropdown)}
         className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-content-inverse text-sm font-bold hover:opacity-90 transition-opacity"
-        title={user.email}
-        aria-label={`${t.account}: ${user.email}`}
+        title={user.name || user.email}
+        aria-label={`${t.account}: ${user.name || user.email}`}
       >
-        {user.email[0].toUpperCase()}
+        {initial}
       </button>
 
       {showDropdown && (
@@ -54,17 +57,22 @@ export function UserMenu() {
           />
           <div className="absolute right-0 top-10 z-30 bg-surface-raised rounded-lg shadow-xl border border-border py-2 min-w-[200px]">
             <div className="px-3 py-2 border-b border-border">
-              <p className="text-sm font-medium text-content truncate">{user.email}</p>
-              <p className="text-xs text-content-muted">{t.loggedInAs}</p>
+              {user.name && (
+                <p className="text-sm font-medium text-content truncate">{user.name}</p>
+              )}
+              <p className="text-xs text-content-muted truncate">{user.email}</p>
             </div>
             <button
               onClick={async () => {
+                setIsLoggingOut(true);
                 await logout();
                 setShowDropdown(false);
+                setIsLoggingOut(false);
               }}
-              className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-surface-sunken transition-colors"
+              disabled={isLoggingOut}
+              className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-surface-sunken transition-colors disabled:opacity-50"
             >
-              {t.logout}
+              {isLoggingOut ? t.loggingOut : t.logout}
             </button>
           </div>
         </>

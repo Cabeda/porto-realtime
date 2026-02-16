@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getAnonymousId } from "@/lib/anonymous-id";
@@ -37,6 +37,9 @@ export function FeedbackForm({
   const [showAuthModal, setShowAuthModal] = useState(false);
   const isEditing = !!existingFeedback;
   const maxComment = 500;
+  // Track pending submit after auth — avoids race condition where
+  // isAuthenticated hasn't updated yet when handleAuthSuccess fires
+  const pendingSubmitRef = useRef(false);
 
   // Reset form when target changes
   useEffect(() => {
@@ -111,17 +114,25 @@ export function FeedbackForm({
     await doSubmit();
   };
 
-  // After successful auth, auto-submit the pending review
+  // After successful auth, mark pending submit — the effect below will fire it
   const handleAuthSuccess = () => {
     setShowAuthModal(false);
-    doSubmit();
+    pendingSubmitRef.current = true;
   };
+
+  // When auth state changes to authenticated and we have a pending submit, fire it
+  useEffect(() => {
+    if (isAuthenticated && pendingSubmitRef.current) {
+      pendingSubmitRef.current = false;
+      doSubmit();
+    }
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4">
       {/* Target label */}
       <div className="text-sm text-content-muted">
-        {type === "LINE" ? tf.rateThisLine : type === "VEHICLE" ? tf.rateThisVehicle : type === "BIKE_PARK" ? "Avaliar este parque" : type === "BIKE_LANE" ? "Avaliar esta ciclovia" : tf.rateThisStop}:{" "}
+        {type === "LINE" ? tf.rateThisLine : type === "VEHICLE" ? tf.rateThisVehicle : type === "BIKE_PARK" ? tf.rateThisBikePark : type === "BIKE_LANE" ? tf.rateThisBikeLane : tf.rateThisStop}:{" "}
         <span className="font-semibold text-content">{targetName}</span>
         {type === "VEHICLE" && metadata?.lineContext && (
           <div className="text-xs text-content-muted mt-0.5">

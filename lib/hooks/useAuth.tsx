@@ -12,7 +12,7 @@ import { authClient } from "@/lib/auth-client";
 interface AuthUser {
   id: string;
   email: string;
-  name: string;
+  name?: string;
 }
 
 interface AuthContextValue {

@@ -17,6 +17,7 @@ export function SettingsModal({ onClose, onResetOnboarding }: SettingsModalProps
   const { user, isAuthenticated, logout } = useAuth();
   const [isDark, setIsDark] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains("dark"));
@@ -42,6 +43,8 @@ export function SettingsModal({ onClose, onResetOnboarding }: SettingsModalProps
       localStorage.setItem("darkMode", "false");
     }
   };
+
+  const initial = user ? (user.name?.[0] || user.email[0]).toUpperCase() : "";
 
   return (
     <div
@@ -131,20 +134,25 @@ export function SettingsModal({ onClose, onResetOnboarding }: SettingsModalProps
               <div className="flex items-center justify-between bg-surface-sunken rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-content-inverse text-sm font-bold flex-shrink-0">
-                    {user.email[0].toUpperCase()}
+                    {initial}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-content truncate">{user.email}</p>
-                    <p className="text-xs text-content-muted">{t.auth.loggedInAs}</p>
+                    {user.name && (
+                      <p className="text-sm font-medium text-content truncate">{user.name}</p>
+                    )}
+                    <p className="text-xs text-content-muted truncate">{user.email}</p>
                   </div>
                 </div>
                 <button
                   onClick={async () => {
+                    setIsLoggingOut(true);
                     await logout();
+                    setIsLoggingOut(false);
                   }}
-                  className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium flex-shrink-0 ml-2"
+                  disabled={isLoggingOut}
+                  className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium flex-shrink-0 ml-2 disabled:opacity-50"
                 >
-                  {t.auth.logout}
+                  {isLoggingOut ? t.auth.loggingOut : t.auth.logout}
                 </button>
               </div>
             ) : (
