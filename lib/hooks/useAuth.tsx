@@ -7,118 +7,77 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import useSWR from "swr";
-import { getAnonymousId } from "@/lib/anonymous-id";
+import { authClient } from "@/lib/auth-client";
 
 interface AuthUser {
   id: string;
   email: string;
-  role: string;
+  name: string;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  /** Request a magic link OTP for the given email */
-  login: (email: string) => Promise<void>;
-  /** Verify the OTP code and create a session */
-  verify: (email: string, code: string) => Promise<AuthUser>;
+  /** Sign up with email + password */
+  signUp: (email: string, password: string, name: string) => Promise<void>;
+  /** Sign in with email + password */
+  signIn: (email: string, password: string) => Promise<void>;
   /** Clear the session */
   logout: () => Promise<void>;
-  /** Refresh the auth state */
-  refresh: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   isLoading: true,
   isAuthenticated: false,
-  login: async () => {},
-  verify: async () => {
-    throw new Error("Not initialized");
-  },
+  signUp: async () => {},
+  signIn: async () => {},
   logout: async () => {},
-  refresh: () => {},
 });
 
-const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) return { user: null };
-  return res.json();
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { data, isLoading, mutate } = useSWR<{ user: AuthUser | null }>(
-    "/api/auth/me",
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 60000,
-      errorRetryCount: 1,
-    }
-  );
+  const session = authClient.useSession();
 
-  const user = data?.user ?? null;
+  const user: AuthUser | null = session.data?.user
+    ? {
+        id: session.data.user.id,
+        email: session.data.user.email,
+        name: session.data.user.name,
+      }
+    : null;
 
-  const login = useCallback(async (email: string) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+  const signUp = useCallback(async (email: string, password: string, name: string) => {
+    const { error } = await authClient.signUp.email({
+      email,
+      password,
+      name,
     });
-
-    if (res.status === 429) throw new Error("RATE_LIMITED");
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "LOGIN_FAILED");
-    }
+    if (error) throw new Error(error.message ?? "Sign up failed");
   }, []);
 
-  const verify = useCallback(
-    async (email: string, code: string): Promise<AuthUser> => {
-      const anonId = getAnonymousId();
-
-      const res = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, anonId }),
-      });
-
-      if (res.status === 401) throw new Error("INVALID_CODE");
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "VERIFY_FAILED");
-      }
-
-      const data = await res.json();
-      // Refresh the auth state
-      await mutate({ user: data.user }, false);
-      return data.user;
-    },
-    [mutate]
-  );
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await authClient.signIn.email({
+      email,
+      password,
+    });
+    if (error) throw new Error(error.message ?? "Sign in failed");
+  }, []);
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    await mutate({ user: null }, false);
-  }, [mutate]);
-
-  const refresh = useCallback(() => {
-    mutate();
-  }, [mutate]);
+    await authClient.signOut();
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      isLoading,
+      isLoading: session.isPending,
       isAuthenticated: !!user,
-      login,
-      verify,
+      signUp,
+      signIn,
       logout,
-      refresh,
     }),
-    [user, isLoading, login, verify, logout, refresh]
+    [user, session.isPending, signUp, signIn, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

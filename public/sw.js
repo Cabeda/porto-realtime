@@ -1,6 +1,6 @@
 // Build version - updated automatically during build
 const APP_VERSION = '2.0.0';
-const BUILD_TIMESTAMP = '1771088729418';
+const BUILD_TIMESTAMP = '1771252318820';
 const CACHE_NAME = `portomove-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
 const RUNTIME_CACHE = `portomove-runtime-v${APP_VERSION}-${BUILD_TIMESTAMP}`;
 

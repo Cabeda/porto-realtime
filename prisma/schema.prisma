@@ -11,36 +11,12 @@ generator client {
 model User {
   id            String     @id @default(cuid())
   anonId        String?    @unique // localStorage UUID for anonymous users
-  email         String?    @unique // for magic-link auth
+  email         String?    @unique // for email+password auth via Neon Auth
   emailVerified DateTime?  // null = not verified, timestamp = when verified
   name          String?
   role          UserRole   @default(USER)
   createdAt     DateTime   @default(now())
   feedbacks     Feedback[]
-  sessions      Session[]
-}
-
-// Server-side sessions for authenticated users
-model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-}
-
-// Magic link tokens for passwordless email auth
-model MagicLink {
-  id        String    @id @default(cuid())
-  email     String
-  code      String // 6-digit OTP code
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  @@index([email, code])
 }
 
 // Feedback on lines, stops, and vehicles (extensible to ROUTE_PROPOSAL, FEATURE_REQUEST)

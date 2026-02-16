@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mockPrisma, resetMocks } from "../../helpers/mock-prisma";
+import { mockPrisma, mockGetSession, resetMocks } from "../../helpers/mock-prisma";
 
 // Must import after mock setup
 import { GET, POST } from "@/app/api/feedback/route";
@@ -161,24 +161,29 @@ describe("POST /api/feedback", () => {
   });
 
   it("returns 400 when type is missing", async () => {
+    mockPrisma.user.upsert.mockResolvedValue({ id: "user1", anonId: VALID_UUID });
     const req = makePostRequest({ targetId: "2:BRRS2", rating: 4 });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
   it("returns 400 when targetId is missing", async () => {
+    mockPrisma.user.upsert.mockResolvedValue({ id: "user1", anonId: VALID_UUID });
     const req = makePostRequest({ type: "STOP", rating: 4 });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
   it("returns 400 when rating is missing", async () => {
+    mockPrisma.user.upsert.mockResolvedValue({ id: "user1", anonId: VALID_UUID });
     const req = makePostRequest({ type: "STOP", targetId: "2:BRRS2" });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
   it("returns 400 when rating is outside 1-5", async () => {
+    mockPrisma.user.upsert.mockResolvedValue({ id: "user1", anonId: VALID_UUID });
+
     const req0 = makePostRequest({ type: "STOP", targetId: "2:BRRS2", rating: 0 });
     expect((await POST(req0)).status).toBe(400);
 
@@ -222,6 +227,7 @@ describe("POST /api/feedback", () => {
   });
 
   it("returns 400 when targetId exceeds 100 chars", async () => {
+    mockPrisma.user.upsert.mockResolvedValue({ id: "user1", anonId: VALID_UUID });
     const req = makePostRequest({
       type: "STOP",
       targetId: "x".repeat(101),
@@ -260,6 +266,7 @@ describe("POST /api/feedback", () => {
   });
 
   it("blocks profanity via content filter", async () => {
+    mockPrisma.user.upsert.mockResolvedValue({ id: "user1", anonId: VALID_UUID });
     const req = makePostRequest({
       type: "STOP",
       targetId: "2:BRRS2",

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkComment } from "@/lib/content-filter";
-import { resolveUserId, getSessionUser } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE", "BIKE_PARK", "BIKE_LANE"] as const;
 const MAX_COMMENT_LENGTH = 500;
@@ -67,7 +67,8 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(Number.isNaN(rawLimit) || rawLimit <= 0 ? 10 : rawLimit, 50);
 
   // Resolve user identity: prefer session cookie, fall back to anonymous ID
-  const sessionUser = await getSessionUser(request);
+  const { data: session } = await auth.getSession();
+  const sessionUser = session?.user ?? null;
   const anonId = request.headers.get("x-anonymous-id");
   const validAnonId = anonId && UUID_REGEX.test(anonId) ? anonId : null;
   const hasUserIdentity = !!sessionUser || !!validAnonId;
@@ -197,16 +198,39 @@ export async function POST(request: NextRequest) {
   }
 
   // Resolve user identity: prefer session cookie, fall back to anonymous ID
-  const resolved = await resolveUserId(request);
+  const { data: session } = await auth.getSession();
+  const sessionUser = session?.user ?? null;
+  const anonId = request.headers.get("x-anonymous-id");
+  const validAnonId = anonId && UUID_REGEX.test(anonId) ? anonId : null;
 
-  if (!resolved) {
+  let userId: string | null = null;
+
+  if (sessionUser) {
+    // Authenticated user — find or create our app User linked to Neon Auth user
+    const user = await prisma.user.upsert({
+      where: { email: sessionUser.email },
+      update: {},
+      create: { email: sessionUser.email, emailVerified: new Date() },
+      select: { id: true },
+    });
+    userId = user.id;
+  } else if (validAnonId) {
+    // Anonymous user — find or create by anonId
+    const user = await prisma.user.upsert({
+      where: { anonId: validAnonId },
+      update: {},
+      create: { anonId: validAnonId },
+      select: { id: true },
+    });
+    userId = user.id;
+  }
+
+  if (!userId) {
     return NextResponse.json(
       { error: "Authentication required. Sign in or provide x-anonymous-id header." },
       { status: 401 }
     );
   }
-
-  const { userId } = resolved;
 
   let body: { type?: string; targetId?: string; rating?: number; comment?: string; metadata?: Record<string, unknown> };
   try {
