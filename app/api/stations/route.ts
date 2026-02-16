@@ -15,7 +15,7 @@ export async function GET() {
         Origin: "https://explore.porto.pt",
       },
       body: JSON.stringify({
-        query: `query { stops { id code desc lat lon name gtfsId } }`,
+        query: `query { stops { id code desc lat lon name gtfsId vehicleMode } }`,
       }),
     });
 
