@@ -11,6 +11,7 @@ import { BottomSheet } from "@/components/BottomSheet";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { RatingDistribution } from "@/components/RatingDistribution";
 import { FeedbackSummary } from "@/components/FeedbackSummary";
+import { ReviewCard } from "@/components/ReviewCard";
 import { useFeedbackList, useFeedbackSummaries } from "@/lib/hooks/useFeedback";
 import type { FeedbackItem } from "@/lib/types";
 
@@ -196,7 +197,8 @@ function LineReviewsContent() {
   );
 
   const [page, setPage] = useState(0);
-  const { data: feedbackList, mutate } = useFeedbackList("LINE", lineId || null, page, 20);
+  const [sort, setSort] = useState<"recent" | "helpful">("recent");
+  const { data: feedbackList, mutate } = useFeedbackList("LINE", lineId || null, page, 20, sort);
 
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
 
@@ -359,27 +361,27 @@ function LineReviewsContent() {
         {/* Comments */}
         {feedbackList && feedbackList.feedbacks.length > 0 ? (
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-content-secondary">
-              {t.feedback.recentComments} ({feedbackList.total})
-            </h2>
-            {feedbackList.feedbacks.map((f) => (
-              <div key={f.id} className="bg-surface-raised rounded-lg shadow-md p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-yellow-400 text-sm">
-                    {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
-                  </span>
-                  <span className="text-xs text-content-muted">
-                    {new Date(f.createdAt).toLocaleDateString("pt-PT", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-                </div>
-                {f.comment && (
-                  <p className="text-sm text-content-secondary">{f.comment}</p>
-                )}
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-content-secondary">
+                {t.feedback.recentComments} ({feedbackList.total})
+              </h2>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => { setSort("recent"); setPage(0); }}
+                  className={`px-2 py-1 text-xs rounded-md transition-colors ${sort === "recent" ? "bg-accent text-white" : "bg-surface-sunken text-content-muted hover:text-content-secondary"}`}
+                >
+                  {t.feedback.sortByRecent}
+                </button>
+                <button
+                  onClick={() => { setSort("helpful"); setPage(0); }}
+                  className={`px-2 py-1 text-xs rounded-md transition-colors ${sort === "helpful" ? "bg-accent text-white" : "bg-surface-sunken text-content-muted hover:text-content-secondary"}`}
+                >
+                  {t.feedback.sortByHelpful}
+                </button>
               </div>
+            </div>
+            {feedbackList.feedbacks.map((f) => (
+              <ReviewCard key={f.id} feedback={f} />
             ))}
 
             {totalPages > 1 && (

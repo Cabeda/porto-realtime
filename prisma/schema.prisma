@@ -16,6 +16,7 @@ model User {
   role          UserRole   @default(USER)
   createdAt     DateTime   @default(now())
   feedbacks     Feedback[]
+  feedbackVotes FeedbackVote[]
 }
 
 // Feedback on lines, stops, and vehicles (extensible to ROUTE_PROPOSAL, FEATURE_REQUEST)
@@ -30,10 +31,24 @@ model Feedback {
   metadata  Json? // optional context: e.g. { "lineContext": "205" } for vehicle feedback
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
+  votes     FeedbackVote[]
 
   @@unique([userId, type, targetId]) // one rating per user per target (upsert)
   @@index([type, targetId])
   @@index([userId])
+}
+
+// Upvote on a feedback review — one per user per review
+model FeedbackVote {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedbackId String
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, feedbackId])
+  @@index([feedbackId])
 }
 
 enum UserRole {
