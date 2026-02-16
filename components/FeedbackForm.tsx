@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "@/lib/hooks/useTranslations";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { getAnonymousId } from "@/lib/anonymous-id";
+import { AuthModal } from "@/components/AuthModal";
 import type { FeedbackType, FeedbackItem, FeedbackMetadata } from "@/lib/types";
 
 interface FeedbackFormProps {
@@ -24,12 +26,15 @@ export function FeedbackForm({
   metadata,
   onSuccess,
 }: FeedbackFormProps) {
-  const t = useTranslations().feedback;
+  const t = useTranslations();
+  const tf = t.feedback;
+  const { isAuthenticated } = useAuth();
   const [rating, setRating] = useState(existingFeedback?.rating ?? 0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState(existingFeedback?.comment ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const isEditing = !!existingFeedback;
   const maxComment = 500;
 
@@ -40,25 +45,32 @@ export function FeedbackForm({
     setMessage(null);
   }, [targetId, existingFeedback]);
 
-  const handleSubmit = async () => {
+  const doSubmit = async () => {
     if (rating === 0) return;
-
-    const anonId = getAnonymousId();
-    if (!anonId) {
-      setMessage({ text: t.error, type: "error" });
-      return;
-    }
 
     setIsSubmitting(true);
     setMessage(null);
 
     try {
+      // Build headers: authenticated users rely on the session cookie,
+      // anonymous users send the x-anonymous-id header
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (!isAuthenticated) {
+        const anonId = getAnonymousId();
+        if (!anonId) {
+          setMessage({ text: tf.error, type: "error" });
+          setIsSubmitting(false);
+          return;
+        }
+        headers["x-anonymous-id"] = anonId;
+      }
+
       const res = await fetch("/api/feedback", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-anonymous-id": anonId,
-        },
+        headers,
         body: JSON.stringify({
           type,
           targetId,
@@ -69,7 +81,7 @@ export function FeedbackForm({
       });
 
       if (res.status === 429) {
-        setMessage({ text: t.rateLimited, type: "error" });
+        setMessage({ text: tf.rateLimited, type: "error" });
         return;
       }
 
@@ -78,24 +90,42 @@ export function FeedbackForm({
       }
 
       const data = await res.json();
-      setMessage({ text: isEditing ? t.updated : t.success, type: "success" });
+      setMessage({ text: isEditing ? tf.updated : tf.success, type: "success" });
       onSuccess?.(data.feedback);
     } catch {
-      setMessage({ text: t.error, type: "error" });
+      setMessage({ text: tf.error, type: "error" });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async () => {
+    if (rating === 0) return;
+
+    // If not authenticated, show auth modal instead of submitting
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    await doSubmit();
+  };
+
+  // After successful auth, auto-submit the pending review
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false);
+    doSubmit();
   };
 
   return (
     <div className="space-y-4">
       {/* Target label */}
       <div className="text-sm text-content-muted">
-        {type === "LINE" ? t.rateThisLine : type === "VEHICLE" ? t.rateThisVehicle : type === "BIKE_PARK" ? "Avaliar este parque" : type === "BIKE_LANE" ? "Avaliar esta ciclovia" : t.rateThisStop}:{" "}
+        {type === "LINE" ? tf.rateThisLine : type === "VEHICLE" ? tf.rateThisVehicle : type === "BIKE_PARK" ? "Avaliar este parque" : type === "BIKE_LANE" ? "Avaliar esta ciclovia" : tf.rateThisStop}:{" "}
         <span className="font-semibold text-content">{targetName}</span>
         {type === "VEHICLE" && metadata?.lineContext && (
           <div className="text-xs text-content-muted mt-0.5">
-            {t.vehicleOnLine(metadata.lineContext)}
+            {tf.vehicleOnLine(metadata.lineContext)}
           </div>
         )}
       </div>
@@ -133,14 +163,21 @@ export function FeedbackForm({
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value.slice(0, maxComment))}
-          placeholder={t.commentPlaceholder}
+          placeholder={tf.commentPlaceholder}
           rows={3}
           className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-content placeholder-content-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none text-sm"
         />
         <div className="text-xs text-content-muted text-right mt-1">
-          {t.characters(comment.length, maxComment)}
+          {tf.characters(comment.length, maxComment)}
         </div>
       </div>
+
+      {/* Auth hint for unauthenticated users */}
+      {!isAuthenticated && rating > 0 && (
+        <p className="text-xs text-content-muted text-center">
+          {t.auth.loginToSubmit}
+        </p>
+      )}
 
       {/* Submit button */}
       <button
@@ -148,7 +185,7 @@ export function FeedbackForm({
         disabled={rating === 0 || isSubmitting}
         className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-accent hover:bg-accent-hover text-content-inverse shadow-md active:scale-[0.98]"
       >
-        {isSubmitting ? t.submitting : isEditing ? t.update : t.submit}
+        {isSubmitting ? tf.submitting : isEditing ? tf.update : tf.submit}
       </button>
 
       {/* Feedback message */}
@@ -162,6 +199,14 @@ export function FeedbackForm({
         >
           {message.text}
         </div>
+      )}
+
+      {/* Auth modal — shown when unauthenticated user tries to submit */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={handleAuthSuccess}
+        />
       )}
     </div>
   );

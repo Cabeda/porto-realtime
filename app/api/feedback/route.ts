@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkComment } from "@/lib/content-filter";
+import { resolveUserId, getSessionUser } from "@/lib/auth";
 
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE", "BIKE_PARK", "BIKE_LANE"] as const;
 const MAX_COMMENT_LENGTH = 500;
@@ -44,14 +45,6 @@ function stripHtml(str: string): string {
   return str.replace(/<[^>]*>/g, "").trim();
 }
 
-async function getOrCreateUser(anonId: string) {
-  return prisma.user.upsert({
-    where: { anonId },
-    update: {},
-    create: { anonId },
-  });
-}
-
 async function checkRateLimit(userId: string): Promise<boolean> {
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
   const recentCount = await prisma.feedback.count({
@@ -72,9 +65,12 @@ export async function GET(request: NextRequest) {
   const page = Number.isNaN(rawPage) || rawPage < 0 ? 0 : rawPage;
   const rawLimit = parseInt(searchParams.get("limit") || "10", 10);
   const limit = Math.min(Number.isNaN(rawLimit) || rawLimit <= 0 ? 10 : rawLimit, 50);
+
+  // Resolve user identity: prefer session cookie, fall back to anonymous ID
+  const sessionUser = await getSessionUser(request);
   const anonId = request.headers.get("x-anonymous-id");
-  // Only use anonId if it's a valid UUID format
   const validAnonId = anonId && UUID_REGEX.test(anonId) ? anonId : null;
+  const hasUserIdentity = !!sessionUser || !!validAnonId;
 
   if (!type || !targetId) {
     return NextResponse.json(
@@ -93,6 +89,45 @@ export async function GET(request: NextRequest) {
   try {
     // Cast validated type string to Prisma's FeedbackType enum
     const feedbackType = type as "LINE" | "STOP" | "VEHICLE" | "BIKE_PARK" | "BIKE_LANE";
+
+    // Build the user feedback query based on auth method
+    const userFeedbackQuery = sessionUser
+      ? prisma.feedback.findFirst({
+          where: {
+            type: feedbackType,
+            targetId,
+            userId: sessionUser.id,
+          },
+          select: {
+            id: true,
+            type: true,
+            targetId: true,
+            rating: true,
+            comment: true,
+            metadata: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        })
+      : validAnonId
+        ? prisma.feedback.findFirst({
+            where: {
+              type: feedbackType,
+              targetId,
+              user: { anonId: validAnonId },
+            },
+            select: {
+              id: true,
+              type: true,
+              targetId: true,
+              rating: true,
+              comment: true,
+              metadata: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          })
+        : Promise.resolve(null);
 
     const [feedbacks, total, userFeedback] = await Promise.all([
       prisma.feedback.findMany({
@@ -114,36 +149,16 @@ export async function GET(request: NextRequest) {
       prisma.feedback.count({
         where: { type: feedbackType, targetId },
       }),
-      // Get the current user's feedback if they have one
-      validAnonId
-        ? prisma.feedback
-            .findFirst({
-              where: {
-                type: feedbackType,
-                targetId,
-                user: { anonId: validAnonId },
-              },
-              select: {
-                id: true,
-                type: true,
-                targetId: true,
-                rating: true,
-                comment: true,
-                metadata: true,
-                createdAt: true,
-                updatedAt: true,
-              },
-            })
-        : null,
+      userFeedbackQuery,
     ]);
 
     const headers: Record<string, string> = {
       "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
     };
 
-    // When an anonymous user ID is present, the response can contain
+    // When a user identity is present, the response can contain
     // user-specific `userFeedback`. Avoid leaking this from shared caches.
-    if (anonId) {
+    if (hasUserIdentity) {
       headers["Cache-Control"] = "private, no-store";
       headers["Vary"] = "x-anonymous-id";
     }
@@ -164,8 +179,8 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/feedback
+// Auth: session cookie (authenticated) OR x-anonymous-id header (anonymous)
 // Body: { type: "LINE" | "STOP" | "VEHICLE", targetId: string, rating: 1-5, comment?: string, metadata?: { lineContext?: string } }
-// Header: x-anonymous-id: <uuid>
 export async function POST(request: NextRequest) {
   // IP-based rate limit — prevents minting unlimited anonymous IDs
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
@@ -181,15 +196,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const anonId = request.headers.get("x-anonymous-id");
+  // Resolve user identity: prefer session cookie, fall back to anonymous ID
+  const resolved = await resolveUserId(request);
 
-  // Validate UUID v4 format — prevents arbitrary strings as user IDs
-  if (!anonId || !UUID_REGEX.test(anonId)) {
+  if (!resolved) {
     return NextResponse.json(
-      { error: "Missing or invalid x-anonymous-id header" },
+      { error: "Authentication required. Sign in or provide x-anonymous-id header." },
       { status: 401 }
     );
   }
+
+  const { userId } = resolved;
 
   let body: { type?: string; targetId?: string; rating?: number; comment?: string; metadata?: Record<string, unknown> };
   try {
@@ -251,11 +268,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Get or create user
-    const user = await getOrCreateUser(anonId);
-
     // Check rate limit
-    const allowed = await checkRateLimit(user.id);
+    const allowed = await checkRateLimit(userId);
     if (!allowed) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Try again later." },
@@ -278,7 +292,7 @@ export async function POST(request: NextRequest) {
     const feedback = await prisma.feedback.upsert({
       where: {
         userId_type_targetId: {
-          userId: user.id,
+          userId,
           type: feedbackType,
           targetId,
         },
@@ -289,7 +303,7 @@ export async function POST(request: NextRequest) {
         ...(sanitizedMetadata !== null ? { metadata: sanitizedMetadata } : {}),
       },
       create: {
-        userId: user.id,
+        userId,
         type: feedbackType,
         targetId,
         rating,
