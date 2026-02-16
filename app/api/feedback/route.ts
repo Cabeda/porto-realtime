@@ -285,6 +285,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Auto-upvote own review (Reddit-style) — upsert so it's idempotent on updates
+    await prisma.feedbackVote.upsert({
+      where: {
+        userId_feedbackId: {
+          userId,
+          feedbackId: feedback.id,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        feedbackId: feedback.id,
+      },
+    });
+
     return NextResponse.json({ feedback }, { status: 200 });
   } catch (error) {
     console.error("Error creating/updating feedback:", error);

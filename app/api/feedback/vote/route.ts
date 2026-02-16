@@ -53,14 +53,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Don't allow users to upvote their own reviews
-  if (feedback.userId === user.id) {
-    return NextResponse.json(
-      { error: "Cannot upvote your own review" },
-      { status: 400 }
-    );
-  }
-
   try {
     // Toggle: if vote exists, remove it; if not, create it
     const existingVote = await prisma.feedbackVote.findUnique({
