@@ -35,10 +35,11 @@ export function useFeedbackList(
   type: FeedbackType,
   targetId: string | null,
   page = 0,
-  limit = 10
+  limit = 10,
+  sort: "recent" | "helpful" = "recent"
 ) {
   const key = targetId
-    ? `/api/feedback?type=${type}&targetId=${encodeURIComponent(targetId)}&page=${page}&limit=${limit}`
+    ? `/api/feedback?type=${type}&targetId=${encodeURIComponent(targetId)}&page=${page}&limit=${limit}${sort === "helpful" ? "&sort=helpful" : ""}`
     : null;
 
   return useSWR<FeedbackListResponse>(key, jsonFetcher, {

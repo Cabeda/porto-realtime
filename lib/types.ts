@@ -147,6 +147,8 @@ export interface FeedbackItem {
   metadata: FeedbackMetadata | null;
   createdAt: string;
   updatedAt: string;
+  voteCount?: number;
+  userVoted?: boolean;
 }
 
 export interface FeedbackSummaryData {

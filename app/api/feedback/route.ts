@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
   const page = Number.isNaN(rawPage) || rawPage < 0 ? 0 : rawPage;
   const rawLimit = parseInt(searchParams.get("limit") || "10", 10);
   const limit = Math.min(Number.isNaN(rawLimit) || rawLimit <= 0 ? 10 : rawLimit, 50);
+  const sort = searchParams.get("sort"); // "helpful" or default (recent)
 
   // Resolve user identity from session
   const { data: session } = await auth.getSession();
@@ -79,7 +80,9 @@ export async function GET(request: NextRequest) {
     const [feedbacks, total, userFeedback] = await Promise.all([
       prisma.feedback.findMany({
         where: { type: feedbackType, targetId },
-        orderBy: { createdAt: "desc" },
+        orderBy: sort === "helpful"
+          ? { votes: { _count: "desc" as const } }
+          : { createdAt: "desc" as const },
         skip: page * limit,
         take: limit,
         select: {
@@ -91,6 +94,15 @@ export async function GET(request: NextRequest) {
           metadata: true,
           createdAt: true,
           updatedAt: true,
+          _count: { select: { votes: true } },
+          ...(sessionUser
+            ? {
+                votes: {
+                  where: { user: { email: sessionUser.email } },
+                  select: { id: true },
+                },
+              }
+            : {}),
         },
       }),
       prisma.feedback.count({
@@ -98,6 +110,20 @@ export async function GET(request: NextRequest) {
       }),
       userFeedbackQuery,
     ]);
+
+    // Transform feedbacks to include voteCount and userVoted
+    const transformedFeedbacks = feedbacks.map((f) => ({
+      id: f.id,
+      type: f.type,
+      targetId: f.targetId,
+      rating: f.rating,
+      comment: f.comment,
+      metadata: f.metadata,
+      createdAt: f.createdAt,
+      updatedAt: f.updatedAt,
+      voteCount: f._count.votes,
+      userVoted: "votes" in f ? (f.votes as { id: string }[]).length > 0 : false,
+    }));
 
     const headers: Record<string, string> = {};
 
@@ -109,7 +135,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { feedbacks, total, userFeedback },
+      { feedbacks: transformedFeedbacks, total, userFeedback },
       { headers }
     );
   } catch (error) {
@@ -256,6 +282,21 @@ export async function POST(request: NextRequest) {
         metadata: true,
         createdAt: true,
         updatedAt: true,
+      },
+    });
+
+    // Auto-upvote own review (Reddit-style) — upsert so it's idempotent on updates
+    await prisma.feedbackVote.upsert({
+      where: {
+        userId_feedbackId: {
+          userId,
+          feedbackId: feedback.id,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        feedbackId: feedback.id,
       },
     });
 
