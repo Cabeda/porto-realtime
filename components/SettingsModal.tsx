@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useLocale } from "@/lib/i18n";
@@ -25,14 +26,14 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
     setIsDark(document.documentElement.classList.contains("dark"));
   }, []);
 
-  // Close on Escape
+  // Close on Escape (but not when AuthModal is open)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !showAuthModal) onClose();
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  }, [onClose, showAuthModal]);
 
   const toggleDarkMode = () => {
     const newValue = !isDark;
@@ -241,11 +242,12 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
           </div>
         </div>
       </div>
-      {showAuthModal && (
+      {showAuthModal && createPortal(
         <AuthModal
           onClose={() => setShowAuthModal(false)}
           onSuccess={() => setShowAuthModal(false)}
-        />
+        />,
+        document.body
       )}
     </div>
   );

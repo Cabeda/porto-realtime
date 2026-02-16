@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { AuthModal } from "@/components/AuthModal";
@@ -90,11 +91,12 @@ export function UpvoteButton({ feedbackId, voteCount, userVoted, onVoteChange }:
           {count}
         </span>
       </button>
-      {showAuthModal && (
+      {showAuthModal && createPortal(
         <AuthModal
           onClose={() => setShowAuthModal(false)}
           onSuccess={() => setShowAuthModal(false)}
-        />
+        />,
+        document.body
       )}
     </>
   );

@@ -23,6 +23,8 @@ interface AuthContextValue {
   signUp: (email: string, password: string, name: string) => Promise<void>;
   /** Sign in with email + password */
   signIn: (email: string, password: string) => Promise<void>;
+  /** Sign in with a social provider (e.g. Google) */
+  signInSocial: (provider: "google") => Promise<void>;
   /** Clear the session */
   logout: () => Promise<void>;
   /** Send email verification OTP */
@@ -41,6 +43,7 @@ const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
   signUp: async () => {},
   signIn: async () => {},
+  signInSocial: async () => {},
   logout: async () => {},
   sendVerificationOtp: async () => {},
   verifyEmail: async () => {},
@@ -74,6 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
     if (error) throw new Error(error.message ?? "Sign in failed");
+  }, []);
+
+  const signInSocial = useCallback(async (provider: "google") => {
+    const { error } = await authClient.signIn.social({
+      provider,
+      callbackURL: window.location.href,
+    });
+    if (error) throw new Error(error.message ?? "Social sign in failed");
   }, []);
 
   const logout = useCallback(async () => {
@@ -110,13 +121,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user,
       signUp,
       signIn,
+      signInSocial,
       logout,
       sendVerificationOtp,
       verifyEmail,
       requestPasswordReset,
       resetPassword,
     }),
-    [user, session.isPending, signUp, signIn, logout, sendVerificationOtp, verifyEmail, requestPasswordReset, resetPassword]
+    [user, session.isPending, signUp, signIn, signInSocial, logout, sendVerificationOtp, verifyEmail, requestPasswordReset, resetPassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
