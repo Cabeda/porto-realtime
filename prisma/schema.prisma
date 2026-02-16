@@ -7,14 +7,15 @@ generator client {
   output   = "./generated/prisma"
 }
 
-// User model — supports anonymous (anonId) and future email auth
+// User model — authenticated users via Neon Auth
 model User {
-  id        String     @id @default(cuid())
-  anonId    String?    @unique // localStorage UUID for anonymous users
-  email     String?    @unique // for future magic-link auth
-  name      String?
-  createdAt DateTime   @default(now())
-  feedbacks Feedback[]
+  id            String     @id @default(cuid())
+  email         String?    @unique // email from Neon Auth
+  emailVerified DateTime?  // null = not verified, timestamp = when verified
+  name          String?
+  role          UserRole   @default(USER)
+  createdAt     DateTime   @default(now())
+  feedbacks     Feedback[]
 }
 
 // Feedback on lines, stops, and vehicles (extensible to ROUTE_PROPOSAL, FEATURE_REQUEST)
@@ -33,6 +34,11 @@ model Feedback {
   @@unique([userId, type, targetId]) // one rating per user per target (upsert)
   @@index([type, targetId])
   @@index([userId])
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 enum FeedbackType {

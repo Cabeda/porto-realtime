@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkComment } from "@/lib/content-filter";
+import { auth } from "@/lib/auth";
 
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE", "BIKE_PARK", "BIKE_LANE"] as const;
 const MAX_COMMENT_LENGTH = 500;
@@ -8,48 +9,8 @@ const MAX_TARGET_ID_LENGTH = 100;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_MAX = 20; // max 20 submissions per hour
 
-// Global IP-based rate limit to prevent anonymous ID minting attacks
-const IP_RATE_LIMIT_MAX = 60; // max 60 submissions per IP per hour
-const ipSubmissions = new Map<string, { count: number; resetAt: number }>();
-
-// UUID v4 format: 8-4-4-4-12 hex chars
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function checkIpRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = ipSubmissions.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    ipSubmissions.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-
-  entry.count++;
-  return entry.count <= IP_RATE_LIMIT_MAX;
-}
-
-// Periodic cleanup of expired IP entries to prevent memory leak
-// Runs at most once per 10 minutes
-let lastIpCleanup = 0;
-function cleanupIpMap() {
-  const now = Date.now();
-  if (now - lastIpCleanup < 600_000) return;
-  lastIpCleanup = now;
-  for (const [ip, entry] of ipSubmissions) {
-    if (now > entry.resetAt) ipSubmissions.delete(ip);
-  }
-}
-
 function stripHtml(str: string): string {
   return str.replace(/<[^>]*>/g, "").trim();
-}
-
-async function getOrCreateUser(anonId: string) {
-  return prisma.user.upsert({
-    where: { anonId },
-    update: {},
-    create: { anonId },
-  });
 }
 
 async function checkRateLimit(userId: string): Promise<boolean> {
@@ -72,9 +33,10 @@ export async function GET(request: NextRequest) {
   const page = Number.isNaN(rawPage) || rawPage < 0 ? 0 : rawPage;
   const rawLimit = parseInt(searchParams.get("limit") || "10", 10);
   const limit = Math.min(Number.isNaN(rawLimit) || rawLimit <= 0 ? 10 : rawLimit, 50);
-  const anonId = request.headers.get("x-anonymous-id");
-  // Only use anonId if it's a valid UUID format
-  const validAnonId = anonId && UUID_REGEX.test(anonId) ? anonId : null;
+
+  // Resolve user identity from session
+  const { data: session } = await auth.getSession();
+  const sessionUser = session?.user ?? null;
 
   if (!type || !targetId) {
     return NextResponse.json(
@@ -91,8 +53,28 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Cast validated type string to Prisma's FeedbackType enum
     const feedbackType = type as "LINE" | "STOP" | "VEHICLE" | "BIKE_PARK" | "BIKE_LANE";
+
+    // If authenticated, find the user's own feedback for this target
+    const userFeedbackQuery = sessionUser
+      ? prisma.feedback.findFirst({
+          where: {
+            type: feedbackType,
+            targetId,
+            user: { email: sessionUser.email },
+          },
+          select: {
+            id: true,
+            type: true,
+            targetId: true,
+            rating: true,
+            comment: true,
+            metadata: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        })
+      : Promise.resolve(null);
 
     const [feedbacks, total, userFeedback] = await Promise.all([
       prisma.feedback.findMany({
@@ -114,45 +96,21 @@ export async function GET(request: NextRequest) {
       prisma.feedback.count({
         where: { type: feedbackType, targetId },
       }),
-      // Get the current user's feedback if they have one
-      validAnonId
-        ? prisma.feedback
-            .findFirst({
-              where: {
-                type: feedbackType,
-                targetId,
-                user: { anonId: validAnonId },
-              },
-              select: {
-                id: true,
-                type: true,
-                targetId: true,
-                rating: true,
-                comment: true,
-                metadata: true,
-                createdAt: true,
-                updatedAt: true,
-              },
-            })
-        : null,
+      userFeedbackQuery,
     ]);
 
-    const headers: Record<string, string> = {
-      "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
-    };
+    const headers: Record<string, string> = {};
 
-    // When an anonymous user ID is present, the response can contain
-    // user-specific `userFeedback`. Avoid leaking this from shared caches.
-    if (anonId) {
+    if (sessionUser) {
+      // User-specific response — don't cache in shared caches
       headers["Cache-Control"] = "private, no-store";
-      headers["Vary"] = "x-anonymous-id";
+    } else {
+      headers["Cache-Control"] = "public, s-maxage=30, stale-while-revalidate=120";
     }
 
     return NextResponse.json(
       { feedbacks, total, userFeedback },
-      {
-        headers,
-      }
+      { headers }
     );
   } catch (error) {
     console.error("Error fetching feedback:", error);
@@ -164,32 +122,28 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/feedback
-// Body: { type: "LINE" | "STOP" | "VEHICLE", targetId: string, rating: 1-5, comment?: string, metadata?: { lineContext?: string } }
-// Header: x-anonymous-id: <uuid>
+// Auth: session cookie (authenticated) — requires sign-in
+// Body: { type, targetId, rating, comment?, metadata? }
 export async function POST(request: NextRequest) {
-  // IP-based rate limit — prevents minting unlimited anonymous IDs
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip")
-    || "unknown";
+  // Resolve user identity from session
+  const { data: session } = await auth.getSession();
+  const sessionUser = session?.user ?? null;
 
-  cleanupIpMap();
-
-  if (!checkIpRateLimit(ip)) {
+  if (!sessionUser) {
     return NextResponse.json(
-      { error: "Too many requests. Try again later." },
-      { status: 429 }
-    );
-  }
-
-  const anonId = request.headers.get("x-anonymous-id");
-
-  // Validate UUID v4 format — prevents arbitrary strings as user IDs
-  if (!anonId || !UUID_REGEX.test(anonId)) {
-    return NextResponse.json(
-      { error: "Missing or invalid x-anonymous-id header" },
+      { error: "Authentication required. Please sign in." },
       { status: 401 }
     );
   }
+
+  // Find or create our app User linked to Neon Auth user
+  const user = await prisma.user.upsert({
+    where: { email: sessionUser.email },
+    update: {},
+    create: { email: sessionUser.email, emailVerified: new Date() },
+    select: { id: true },
+  });
+  const userId = user.id;
 
   let body: { type?: string; targetId?: string; rating?: number; comment?: string; metadata?: Record<string, unknown> };
   try {
@@ -251,11 +205,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Get or create user
-    const user = await getOrCreateUser(anonId);
-
     // Check rate limit
-    const allowed = await checkRateLimit(user.id);
+    const allowed = await checkRateLimit(userId);
     if (!allowed) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Try again later." },
@@ -278,7 +229,7 @@ export async function POST(request: NextRequest) {
     const feedback = await prisma.feedback.upsert({
       where: {
         userId_type_targetId: {
-          userId: user.id,
+          userId,
           type: feedbackType,
           targetId,
         },
@@ -289,7 +240,7 @@ export async function POST(request: NextRequest) {
         ...(sanitizedMetadata !== null ? { metadata: sanitizedMetadata } : {}),
       },
       create: {
-        userId: user.id,
+        userId,
         type: feedbackType,
         targetId,
         rating,

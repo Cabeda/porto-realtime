@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "@/lib/hooks/useTranslations";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { useLocale } from "@/lib/i18n";
+import { AuthModal } from "@/components/AuthModal";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -12,7 +14,10 @@ interface SettingsModalProps {
 export function SettingsModal({ onClose, onResetOnboarding }: SettingsModalProps) {
   const t = useTranslations();
   const { locale, setLocale } = useLocale();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isDark, setIsDark] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains("dark"));
@@ -38,6 +43,8 @@ export function SettingsModal({ onClose, onResetOnboarding }: SettingsModalProps
       localStorage.setItem("darkMode", "false");
     }
   };
+
+  const initial = user ? (user.name?.[0] || user.email[0]).toUpperCase() : "";
 
   return (
     <div
@@ -118,6 +125,46 @@ export function SettingsModal({ onClose, onResetOnboarding }: SettingsModalProps
             </div>
           </div>
 
+          {/* Account */}
+          <div>
+            <h3 className="text-xs font-semibold text-content-muted uppercase tracking-wide mb-2">
+              {t.auth.account}
+            </h3>
+            {isAuthenticated && user ? (
+              <div className="flex items-center justify-between bg-surface-sunken rounded-lg px-3 py-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-content-inverse text-sm font-bold flex-shrink-0">
+                    {initial}
+                  </div>
+                  <div className="min-w-0">
+                    {user.name && (
+                      <p className="text-sm font-medium text-content truncate">{user.name}</p>
+                    )}
+                    <p className="text-xs text-content-muted truncate">{user.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    setIsLoggingOut(true);
+                    await logout();
+                    setIsLoggingOut(false);
+                  }}
+                  disabled={isLoggingOut}
+                  className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium flex-shrink-0 ml-2 disabled:opacity-50"
+                >
+                  {isLoggingOut ? t.auth.loggingOut : t.auth.logout}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="w-full py-2.5 px-3 rounded-lg text-sm font-medium bg-accent text-content-inverse hover:bg-accent-hover transition-colors"
+              >
+                {t.auth.login}
+              </button>
+            )}
+          </div>
+
           {/* About */}
           <div className="border-t border-border pt-4">
             <h3 className="text-xs font-semibold text-content-muted uppercase tracking-wide mb-2">
@@ -163,6 +210,12 @@ export function SettingsModal({ onClose, onResetOnboarding }: SettingsModalProps
           </div>
         </div>
       </div>
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => setShowAuthModal(false)}
+        />
+      )}
     </div>
   );
 }

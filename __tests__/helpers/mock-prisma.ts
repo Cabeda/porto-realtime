@@ -21,6 +21,22 @@ vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
 }));
 
+// Mock Neon Auth server — default: no session (unauthenticated)
+export const mockGetSession = vi.fn().mockResolvedValue({ data: null });
+
+vi.mock("@/lib/auth", () => ({
+  auth: {
+    getSession: (...args: unknown[]) => mockGetSession(...args),
+    handler: () => ({
+      GET: vi.fn(),
+      POST: vi.fn(),
+      PUT: vi.fn(),
+      DELETE: vi.fn(),
+      PATCH: vi.fn(),
+    }),
+  },
+}));
+
 export function resetMocks() {
   Object.values(mockPrisma).forEach((model) => {
     Object.values(model).forEach((fn) => {
@@ -29,4 +45,7 @@ export function resetMocks() {
       }
     });
   });
+
+  // Re-setup default auth mock after reset
+  mockGetSession.mockReset().mockResolvedValue({ data: null });
 }

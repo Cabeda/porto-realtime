@@ -1,37 +1,37 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mockPrisma, resetMocks } from "../../helpers/mock-prisma";
+import { mockPrisma, mockGetSession, resetMocks } from "../../helpers/mock-prisma";
 
 // Must import after mock setup
 import { GET, POST } from "@/app/api/feedback/route";
 import { NextRequest } from "next/server";
 
-const VALID_UUID = "550e8400-e29b-41d4-a716-446655440000";
-
-function makeGetRequest(params: Record<string, string>, headers?: Record<string, string>) {
+function makeGetRequest(params: Record<string, string>) {
   const url = new URL("http://localhost:3000/api/feedback");
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
-  return new NextRequest(url, {
-    method: "GET",
-    headers: headers || {},
-  });
+  return new NextRequest(url, { method: "GET" });
 }
 
-function makePostRequest(
-  body: Record<string, unknown>,
-  headers?: Record<string, string>
-) {
+function makePostRequest(body: Record<string, unknown>) {
   return new NextRequest("http://localhost:3000/api/feedback", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-anonymous-id": VALID_UUID,
       "x-forwarded-for": "127.0.0.1",
-      ...headers,
     },
     body: JSON.stringify(body),
   });
+}
+
+function mockAuthenticatedSession() {
+  mockGetSession.mockResolvedValue({
+    data: {
+      user: { id: "neon-user-1", email: "test@example.com", name: "Test" },
+      session: { id: "sess-1" },
+    },
+  });
+  mockPrisma.user.upsert.mockResolvedValue({ id: "user1", email: "test@example.com" });
 }
 
 describe("GET /api/feedback", () => {
@@ -86,7 +86,14 @@ describe("GET /api/feedback", () => {
     expect(data.userFeedback).toBeNull();
   });
 
-  it("returns userFeedback when valid x-anonymous-id provided", async () => {
+  it("returns userFeedback when authenticated", async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        user: { id: "neon-user-1", email: "test@example.com", name: "Test" },
+        session: { id: "sess-1" },
+      },
+    });
+
     const userFeedback = {
       id: "fb1",
       type: "STOP",
@@ -102,10 +109,7 @@ describe("GET /api/feedback", () => {
     mockPrisma.feedback.count.mockResolvedValue(0);
     mockPrisma.feedback.findFirst.mockResolvedValue(userFeedback);
 
-    const req = makeGetRequest(
-      { type: "STOP", targetId: "2:BRRS2" },
-      { "x-anonymous-id": VALID_UUID }
-    );
+    const req = makeGetRequest({ type: "STOP", targetId: "2:BRRS2" });
     const res = await GET(req);
     expect(res.status).toBe(200);
 
@@ -129,7 +133,6 @@ describe("GET /api/feedback", () => {
     const data = await res.json();
     expect(data.total).toBe(25);
 
-    // Verify findMany was called with correct skip/take
     expect(mockPrisma.feedback.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         skip: 5,
@@ -142,43 +145,42 @@ describe("GET /api/feedback", () => {
 describe("POST /api/feedback", () => {
   beforeEach(() => resetMocks());
 
-  it("returns 401 when x-anonymous-id is missing", async () => {
-    const req = makePostRequest(
-      { type: "STOP", targetId: "2:BRRS2", rating: 4 },
-      { "x-anonymous-id": "" }
-    );
+  it("returns 401 when not authenticated", async () => {
+    const req = makePostRequest({
+      type: "STOP",
+      targetId: "2:BRRS2",
+      rating: 4,
+    });
     const res = await POST(req);
     expect(res.status).toBe(401);
-  });
-
-  it("returns 401 for invalid UUID in x-anonymous-id", async () => {
-    const req = makePostRequest(
-      { type: "STOP", targetId: "2:BRRS2", rating: 4 },
-      { "x-anonymous-id": "not-a-uuid" }
-    );
-    const res = await POST(req);
-    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.error).toContain("Authentication required");
   });
 
   it("returns 400 when type is missing", async () => {
+    mockAuthenticatedSession();
     const req = makePostRequest({ targetId: "2:BRRS2", rating: 4 });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
   it("returns 400 when targetId is missing", async () => {
+    mockAuthenticatedSession();
     const req = makePostRequest({ type: "STOP", rating: 4 });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
   it("returns 400 when rating is missing", async () => {
+    mockAuthenticatedSession();
     const req = makePostRequest({ type: "STOP", targetId: "2:BRRS2" });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
   it("returns 400 when rating is outside 1-5", async () => {
+    mockAuthenticatedSession();
+
     const req0 = makePostRequest({ type: "STOP", targetId: "2:BRRS2", rating: 0 });
     expect((await POST(req0)).status).toBe(400);
 
@@ -189,12 +191,9 @@ describe("POST /api/feedback", () => {
     expect((await POST(reqFloat)).status).toBe(400);
   });
 
-  it("returns 400 when comment exceeds 500 chars", async () => {
-    // The route strips HTML and slices to 500, so a long plain text comment
-    // gets truncated to 500 — it doesn't return 400.
-    // Use varied chars to avoid triggering the repetitive character filter.
-    const longComment = "This is a test comment that is quite long. ".repeat(20); // ~880 chars
-    mockPrisma.user.upsert.mockResolvedValue({ id: "user1", anonId: VALID_UUID });
+  it("truncates long comments to 500 chars", async () => {
+    mockAuthenticatedSession();
+    const longComment = "This is a test comment that is quite long. ".repeat(20);
     mockPrisma.feedback.count.mockResolvedValue(0);
     mockPrisma.feedback.upsert.mockResolvedValue({
       id: "fb1",
@@ -216,12 +215,12 @@ describe("POST /api/feedback", () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
 
-    // Verify the comment was truncated to 500 chars
     const upsertCall = mockPrisma.feedback.upsert.mock.calls[0][0];
     expect(upsertCall.create.comment.length).toBeLessThanOrEqual(500);
   });
 
   it("returns 400 when targetId exceeds 100 chars", async () => {
+    mockAuthenticatedSession();
     const req = makePostRequest({
       type: "STOP",
       targetId: "x".repeat(101),
@@ -232,7 +231,7 @@ describe("POST /api/feedback", () => {
   });
 
   it("strips HTML tags from comment", async () => {
-    mockPrisma.user.upsert.mockResolvedValue({ id: "user1", anonId: VALID_UUID });
+    mockAuthenticatedSession();
     mockPrisma.feedback.count.mockResolvedValue(0);
     mockPrisma.feedback.upsert.mockResolvedValue({
       id: "fb1",
@@ -260,6 +259,7 @@ describe("POST /api/feedback", () => {
   });
 
   it("blocks profanity via content filter", async () => {
+    mockAuthenticatedSession();
     const req = makePostRequest({
       type: "STOP",
       targetId: "2:BRRS2",
@@ -271,8 +271,9 @@ describe("POST /api/feedback", () => {
   });
 
   it("creates feedback successfully with valid data", async () => {
-    const mockUser = { id: "user1", anonId: VALID_UUID };
-    const mockFeedback = {
+    mockAuthenticatedSession();
+    mockPrisma.feedback.count.mockResolvedValue(0);
+    mockPrisma.feedback.upsert.mockResolvedValue({
       id: "fb1",
       type: "STOP",
       targetId: "2:BRRS2",
@@ -281,11 +282,7 @@ describe("POST /api/feedback", () => {
       metadata: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
-
-    mockPrisma.user.upsert.mockResolvedValue(mockUser);
-    mockPrisma.feedback.count.mockResolvedValue(0);
-    mockPrisma.feedback.upsert.mockResolvedValue(mockFeedback);
+    });
 
     const req = makePostRequest({
       type: "STOP",
@@ -301,8 +298,7 @@ describe("POST /api/feedback", () => {
   });
 
   it("returns 429 when user rate limit exceeded", async () => {
-    const mockUser = { id: "user1", anonId: VALID_UUID };
-    mockPrisma.user.upsert.mockResolvedValue(mockUser);
+    mockAuthenticatedSession();
     mockPrisma.feedback.count.mockResolvedValue(20); // at limit
 
     const req = makePostRequest({
@@ -315,8 +311,9 @@ describe("POST /api/feedback", () => {
   });
 
   it("stores metadata correctly for VEHICLE type", async () => {
-    const mockUser = { id: "user1", anonId: VALID_UUID };
-    const mockFeedback = {
+    mockAuthenticatedSession();
+    mockPrisma.feedback.count.mockResolvedValue(0);
+    mockPrisma.feedback.upsert.mockResolvedValue({
       id: "fb1",
       type: "VEHICLE",
       targetId: "3245",
@@ -325,11 +322,7 @@ describe("POST /api/feedback", () => {
       metadata: { lineContext: "205" },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
-
-    mockPrisma.user.upsert.mockResolvedValue(mockUser);
-    mockPrisma.feedback.count.mockResolvedValue(0);
-    mockPrisma.feedback.upsert.mockResolvedValue(mockFeedback);
+    });
 
     const req = makePostRequest({
       type: "VEHICLE",
