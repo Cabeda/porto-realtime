@@ -252,6 +252,8 @@ const pt = {
     resetSuccess: "Palavra-passe reposta! Pode iniciar sessão.",
     resetError: "Erro ao repor palavra-passe. Tente novamente.",
     backToSignIn: "Voltar ao início de sessão",
+    continueWithGoogle: "Continuar com Google",
+    orDivider: "ou",
   },
 };
 
@@ -507,6 +509,8 @@ const en: typeof pt = {
     resetSuccess: "Password reset! You can now sign in.",
     resetError: "Error resetting password. Try again.",
     backToSignIn: "Back to sign in",
+    continueWithGoogle: "Continue with Google",
+    orDivider: "or",
   },
 };
 

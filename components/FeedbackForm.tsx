@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { AuthModal } from "@/components/AuthModal";
@@ -197,11 +198,12 @@ export function FeedbackForm({
       )}
 
       {/* Auth modal — shown when unauthenticated user tries to submit */}
-      {showAuthModal && (
+      {showAuthModal && createPortal(
         <AuthModal
           onClose={() => setShowAuthModal(false)}
           onSuccess={handleAuthSuccess}
-        />
+        />,
+        document.body
       )}
     </div>
   );
