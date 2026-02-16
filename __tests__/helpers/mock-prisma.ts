@@ -5,7 +5,6 @@ export const mockPrisma = {
   user: {
     upsert: vi.fn(),
     findUnique: vi.fn(),
-    delete: vi.fn(),
   },
   feedback: {
     findMany: vi.fn(),
@@ -14,8 +13,6 @@ export const mockPrisma = {
     upsert: vi.fn(),
     groupBy: vi.fn(),
     create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
   },
 };
 

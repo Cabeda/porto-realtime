@@ -9,38 +9,6 @@ const MAX_TARGET_ID_LENGTH = 100;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_MAX = 20; // max 20 submissions per hour
 
-// Global IP-based rate limit to prevent anonymous ID minting attacks
-const IP_RATE_LIMIT_MAX = 60; // max 60 submissions per IP per hour
-const ipSubmissions = new Map<string, { count: number; resetAt: number }>();
-
-// UUID v4 format: 8-4-4-4-12 hex chars
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function checkIpRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = ipSubmissions.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    ipSubmissions.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-
-  entry.count++;
-  return entry.count <= IP_RATE_LIMIT_MAX;
-}
-
-// Periodic cleanup of expired IP entries to prevent memory leak
-// Runs at most once per 10 minutes
-let lastIpCleanup = 0;
-function cleanupIpMap() {
-  const now = Date.now();
-  if (now - lastIpCleanup < 600_000) return;
-  lastIpCleanup = now;
-  for (const [ip, entry] of ipSubmissions) {
-    if (now > entry.resetAt) ipSubmissions.delete(ip);
-  }
-}
-
 function stripHtml(str: string): string {
   return str.replace(/<[^>]*>/g, "").trim();
 }
@@ -66,12 +34,9 @@ export async function GET(request: NextRequest) {
   const rawLimit = parseInt(searchParams.get("limit") || "10", 10);
   const limit = Math.min(Number.isNaN(rawLimit) || rawLimit <= 0 ? 10 : rawLimit, 50);
 
-  // Resolve user identity: prefer session cookie, fall back to anonymous ID
+  // Resolve user identity from session
   const { data: session } = await auth.getSession();
   const sessionUser = session?.user ?? null;
-  const anonId = request.headers.get("x-anonymous-id");
-  const validAnonId = anonId && UUID_REGEX.test(anonId) ? anonId : null;
-  const hasUserIdentity = !!sessionUser || !!validAnonId;
 
   if (!type || !targetId) {
     return NextResponse.json(
@@ -88,16 +53,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Cast validated type string to Prisma's FeedbackType enum
     const feedbackType = type as "LINE" | "STOP" | "VEHICLE" | "BIKE_PARK" | "BIKE_LANE";
 
-    // Build the user feedback query based on auth method
+    // If authenticated, find the user's own feedback for this target
     const userFeedbackQuery = sessionUser
       ? prisma.feedback.findFirst({
           where: {
             type: feedbackType,
             targetId,
-            userId: sessionUser.id,
+            user: { email: sessionUser.email },
           },
           select: {
             id: true,
@@ -110,25 +74,7 @@ export async function GET(request: NextRequest) {
             updatedAt: true,
           },
         })
-      : validAnonId
-        ? prisma.feedback.findFirst({
-            where: {
-              type: feedbackType,
-              targetId,
-              user: { anonId: validAnonId },
-            },
-            select: {
-              id: true,
-              type: true,
-              targetId: true,
-              rating: true,
-              comment: true,
-              metadata: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          })
-        : Promise.resolve(null);
+      : Promise.resolve(null);
 
     const [feedbacks, total, userFeedback] = await Promise.all([
       prisma.feedback.findMany({
@@ -153,22 +99,18 @@ export async function GET(request: NextRequest) {
       userFeedbackQuery,
     ]);
 
-    const headers: Record<string, string> = {
-      "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
-    };
+    const headers: Record<string, string> = {};
 
-    // When a user identity is present, the response can contain
-    // user-specific `userFeedback`. Avoid leaking this from shared caches.
-    if (hasUserIdentity) {
+    if (sessionUser) {
+      // User-specific response — don't cache in shared caches
       headers["Cache-Control"] = "private, no-store";
-      headers["Vary"] = "x-anonymous-id";
+    } else {
+      headers["Cache-Control"] = "public, s-maxage=30, stale-while-revalidate=120";
     }
 
     return NextResponse.json(
       { feedbacks, total, userFeedback },
-      {
-        headers,
-      }
+      { headers }
     );
   } catch (error) {
     console.error("Error fetching feedback:", error);
@@ -180,104 +122,28 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/feedback
-// Auth: session cookie (authenticated) OR x-anonymous-id header (anonymous)
-// Body: { type: "LINE" | "STOP" | "VEHICLE", targetId: string, rating: 1-5, comment?: string, metadata?: { lineContext?: string } }
+// Auth: session cookie (authenticated) — requires sign-in
+// Body: { type, targetId, rating, comment?, metadata? }
 export async function POST(request: NextRequest) {
-  // IP-based rate limit — prevents minting unlimited anonymous IDs
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip")
-    || "unknown";
-
-  cleanupIpMap();
-
-  if (!checkIpRateLimit(ip)) {
-    return NextResponse.json(
-      { error: "Too many requests. Try again later." },
-      { status: 429 }
-    );
-  }
-
-  // Resolve user identity: prefer session cookie, fall back to anonymous ID
+  // Resolve user identity from session
   const { data: session } = await auth.getSession();
   const sessionUser = session?.user ?? null;
-  const anonId = request.headers.get("x-anonymous-id");
-  const validAnonId = anonId && UUID_REGEX.test(anonId) ? anonId : null;
 
-  let userId: string | null = null;
-
-  if (sessionUser) {
-    // Authenticated user — find or create our app User linked to Neon Auth user
-    const user = await prisma.user.upsert({
-      where: { email: sessionUser.email },
-      update: {},
-      create: { email: sessionUser.email, emailVerified: new Date() },
-      select: { id: true },
-    });
-    userId = user.id;
-
-    // Anonymous-to-authenticated linking: if the client also sent an anonId,
-    // migrate any feedback from the anonymous user to this authenticated user.
-    // This is a one-time merge that happens transparently.
-    if (validAnonId) {
-      try {
-        const anonUser = await prisma.user.findUnique({
-          where: { anonId: validAnonId },
-          select: { id: true },
-        });
-
-        if (anonUser && anonUser.id !== userId) {
-          // Move all feedback from anonymous user to authenticated user.
-          // For duplicates (same type+targetId), keep the authenticated user's
-          // version and delete the anonymous one — the authenticated submission
-          // that's about to happen will be the most recent intent.
-          const anonFeedbacks = await prisma.feedback.findMany({
-            where: { userId: anonUser.id },
-            select: { id: true, type: true, targetId: true },
-          });
-
-          for (const fb of anonFeedbacks) {
-            const existsOnAuth = await prisma.feedback.findFirst({
-              where: { userId, type: fb.type, targetId: fb.targetId },
-              select: { id: true },
-            });
-
-            if (existsOnAuth) {
-              // Authenticated user already has feedback for this target — drop the anon one
-              await prisma.feedback.delete({ where: { id: fb.id } });
-            } else {
-              // Transfer ownership to authenticated user
-              await prisma.feedback.update({
-                where: { id: fb.id },
-                data: { userId },
-              });
-            }
-          }
-
-          // Delete the now-empty anonymous user record
-          await prisma.user.delete({ where: { id: anonUser.id } });
-        }
-      } catch (linkError) {
-        // Linking is best-effort — don't fail the feedback submission
-        console.error("Error linking anonymous reviews:", linkError);
-      }
-    }
-  } else if (validAnonId) {
-    // Anonymous user — find or create by anonId
-    const user = await prisma.user.upsert({
-      where: { anonId: validAnonId },
-      update: {},
-      create: { anonId: validAnonId },
-      select: { id: true },
-    });
-    userId = user.id;
-  }
-
-  if (!userId) {
+  if (!sessionUser) {
     return NextResponse.json(
-      { error: "Authentication required. Sign in or provide x-anonymous-id header." },
+      { error: "Authentication required. Please sign in." },
       { status: 401 }
     );
   }
+
+  // Find or create our app User linked to Neon Auth user
+  const user = await prisma.user.upsert({
+    where: { email: sessionUser.email },
+    update: {},
+    create: { email: sessionUser.email, emailVerified: new Date() },
+    select: { id: true },
+  });
+  const userId = user.id;
 
   let body: { type?: string; targetId?: string; rating?: number; comment?: string; metadata?: Record<string, unknown> };
   try {
