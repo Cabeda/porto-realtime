@@ -14,6 +14,19 @@ export const mockPrisma = {
     groupBy: vi.fn(),
     create: vi.fn(),
   },
+  feedbackVote: {
+    upsert: vi.fn(),
+  },
+  report: {
+    create: vi.fn(),
+    count: vi.fn(),
+  },
+  checkIn: {
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    count: vi.fn(),
+  },
 };
 
 // Mock the @/lib/prisma module

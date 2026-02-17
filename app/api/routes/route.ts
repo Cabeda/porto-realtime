@@ -1,19 +1,16 @@
 import { NextResponse } from "next/server";
 import { OTPRoutesSimpleResponseSchema } from "@/lib/schemas/otp";
+import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 import type { RouteInfo } from "@/lib/types";
 
-// In-memory cache
-let routesCache: RouteInfo[] | null = null;
-let cacheTimestamp = 0;
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const staleCache = new StaleCache<RouteInfo[]>(24 * 60 * 60 * 1000); // 24 hours
 
 export async function GET() {
-  const now = Date.now();
-
-  // Return cached data if still valid
-  if (routesCache && now - cacheTimestamp < CACHE_DURATION) {
+  // Return fresh cached data immediately
+  const cached = staleCache.get();
+  if (cached?.fresh) {
     return NextResponse.json(
-      { routes: routesCache },
+      { routes: cached.data },
       {
         headers: {
           "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
@@ -24,30 +21,29 @@ export async function GET() {
   }
 
   try {
-    const response = await fetch(
+    const response = await fetchWithRetry(
       "https://otp.portodigital.pt/otp/routers/default/index/graphql",
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Origin: "https://explore.porto.pt",
+        maxRetries: 3,
+        timeoutMs: 15000,
+        init: {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Origin: "https://explore.porto.pt",
+          },
+          body: JSON.stringify({
+            query: `query { routes { gtfsId shortName longName mode } }`,
+          }),
         },
-        body: JSON.stringify({
-          query: `query { routes { gtfsId shortName longName mode } }`,
-        }),
       }
     );
-
-    if (!response.ok) {
-      throw new Error(`OTP API returned ${response.status}`);
-    }
 
     const raw = await response.json();
     const parsed = OTPRoutesSimpleResponseSchema.safeParse(raw);
 
     if (!parsed.success) {
       console.warn("OTP routes response validation failed:", parsed.error.message);
-      // Try raw data as fallback
       if (!raw?.data?.routes) {
         throw new Error("Invalid response from OTP API");
       }
@@ -63,7 +59,6 @@ export async function GET() {
         gtfsId: r.gtfsId,
       }))
       .sort((a: RouteInfo, b: RouteInfo) => {
-        // Sort: BUS first, then SUBWAY; within each, numeric then alpha
         if (a.mode !== b.mode) {
           if (a.mode === "BUS") return -1;
           if (b.mode === "BUS") return 1;
@@ -77,8 +72,7 @@ export async function GET() {
         return a.shortName.localeCompare(b.shortName);
       });
 
-    routesCache = routes;
-    cacheTimestamp = now;
+    staleCache.set(routes);
 
     return NextResponse.json(
       { routes },
@@ -92,9 +86,9 @@ export async function GET() {
   } catch (error) {
     console.error("Error fetching routes:", error);
 
-    if (routesCache) {
+    if (cached) {
       return NextResponse.json(
-        { routes: routesCache },
+        { routes: cached.data },
         { headers: { "X-Cache-Status": "STALE" } }
       );
     }

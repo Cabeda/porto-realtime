@@ -4,6 +4,7 @@ import { checkComment } from "@/lib/content-filter";
 import { auth } from "@/lib/auth";
 
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE", "BIKE_PARK", "BIKE_LANE"] as const;
+const VALID_TAGS = ["OVERCROWDED", "LATE", "DIRTY", "ACCESSIBILITY", "SAFETY", "BROKEN_INFRASTRUCTURE", "FREQUENCY", "ROUTE_COVERAGE"] as const;
 const MAX_COMMENT_LENGTH = 500;
 const MAX_TARGET_ID_LENGTH = 100;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
   const rawLimit = parseInt(searchParams.get("limit") || "10", 10);
   const limit = Math.min(Number.isNaN(rawLimit) || rawLimit <= 0 ? 10 : rawLimit, 50);
   const sort = searchParams.get("sort"); // "helpful" or default (recent)
+  const tag = searchParams.get("tag"); // optional tag filter
 
   // Resolve user identity from session
   const { data: session } = await auth.getSession();
@@ -56,6 +58,18 @@ export async function GET(request: NextRequest) {
   try {
     const feedbackType = type as "LINE" | "STOP" | "VEHICLE" | "BIKE_PARK" | "BIKE_LANE";
 
+    // Build where clause — always exclude hidden feedback
+    const where: Record<string, unknown> = {
+      type: feedbackType,
+      targetId,
+      hidden: false,
+    };
+
+    // Optional tag filter
+    if (tag && VALID_TAGS.includes(tag as (typeof VALID_TAGS)[number])) {
+      where.tags = { has: tag };
+    }
+
     // If authenticated, find the user's own feedback for this target
     const userFeedbackQuery = sessionUser
       ? prisma.feedback.findFirst({
@@ -71,6 +85,7 @@ export async function GET(request: NextRequest) {
             rating: true,
             comment: true,
             metadata: true,
+            tags: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -79,7 +94,7 @@ export async function GET(request: NextRequest) {
 
     const [feedbacks, total, userFeedback] = await Promise.all([
       prisma.feedback.findMany({
-        where: { type: feedbackType, targetId },
+        where,
         orderBy: sort === "helpful"
           ? { votes: { _count: "desc" as const } }
           : { createdAt: "desc" as const },
@@ -92,6 +107,7 @@ export async function GET(request: NextRequest) {
           rating: true,
           comment: true,
           metadata: true,
+          tags: true,
           createdAt: true,
           updatedAt: true,
           _count: { select: { votes: true } },
@@ -101,17 +117,19 @@ export async function GET(request: NextRequest) {
                   where: { user: { email: sessionUser.email } },
                   select: { id: true },
                 },
+                reports: {
+                  where: { user: { email: sessionUser.email } },
+                  select: { id: true },
+                },
               }
             : {}),
         },
       }),
-      prisma.feedback.count({
-        where: { type: feedbackType, targetId },
-      }),
+      prisma.feedback.count({ where }),
       userFeedbackQuery,
     ]);
 
-    // Transform feedbacks to include voteCount and userVoted
+    // Transform feedbacks to include voteCount, userVoted, userReported
     const transformedFeedbacks = feedbacks.map((f) => ({
       id: f.id,
       type: f.type,
@@ -119,16 +137,17 @@ export async function GET(request: NextRequest) {
       rating: f.rating,
       comment: f.comment,
       metadata: f.metadata,
+      tags: f.tags,
       createdAt: f.createdAt,
       updatedAt: f.updatedAt,
       voteCount: f._count.votes,
       userVoted: "votes" in f ? (f.votes as { id: string }[]).length > 0 : false,
+      userReported: "reports" in f ? (f.reports as { id: string }[]).length > 0 : false,
     }));
 
     const headers: Record<string, string> = {};
 
     if (sessionUser) {
-      // User-specific response — don't cache in shared caches
       headers["Cache-Control"] = "private, no-store";
     } else {
       headers["Cache-Control"] = "public, s-maxage=30, stale-while-revalidate=120";
@@ -149,7 +168,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/feedback
 // Auth: session cookie (authenticated) — requires sign-in
-// Body: { type, targetId, rating, comment?, metadata? }
+// Body: { type, targetId, rating, comment?, metadata?, tags? }
 export async function POST(request: NextRequest) {
   // Resolve user identity from session
   const { data: session } = await auth.getSession();
@@ -171,14 +190,14 @@ export async function POST(request: NextRequest) {
   });
   const userId = user.id;
 
-  let body: { type?: string; targetId?: string; rating?: number; comment?: string; metadata?: Record<string, unknown> };
+  let body: { type?: string; targetId?: string; rating?: number; comment?: string; metadata?: Record<string, unknown>; tags?: string[] };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { type, targetId, rating, comment, metadata } = body;
+  const { type, targetId, rating, comment, metadata, tags } = body;
 
   // Validate type
   if (!type || !VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
@@ -202,6 +221,12 @@ export async function POST(request: NextRequest) {
       { error: "rating must be an integer between 1 and 5" },
       { status: 400 }
     );
+  }
+
+  // Validate and sanitize tags
+  let sanitizedTags: string[] = [];
+  if (tags && Array.isArray(tags)) {
+    sanitizedTags = tags.filter((t) => VALID_TAGS.includes(t as (typeof VALID_TAGS)[number]));
   }
 
   // Validate and sanitize comment
@@ -263,6 +288,7 @@ export async function POST(request: NextRequest) {
       update: {
         rating,
         comment: sanitizedComment,
+        tags: sanitizedTags,
         ...(sanitizedMetadata !== null ? { metadata: sanitizedMetadata } : {}),
       },
       create: {
@@ -271,6 +297,7 @@ export async function POST(request: NextRequest) {
         targetId,
         rating,
         comment: sanitizedComment,
+        tags: sanitizedTags,
         ...(sanitizedMetadata !== null ? { metadata: sanitizedMetadata } : {}),
       },
       select: {
@@ -280,6 +307,7 @@ export async function POST(request: NextRequest) {
         rating: true,
         comment: true,
         metadata: true,
+        tags: true,
         createdAt: true,
         updatedAt: true,
       },

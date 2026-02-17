@@ -134,6 +134,30 @@ export interface BikeParksResponse {
 
 export type FeedbackType = "LINE" | "STOP" | "VEHICLE" | "BIKE_PARK" | "BIKE_LANE";
 
+// Issue tags for structured feedback categorization
+export type FeedbackTag =
+  | "OVERCROWDED"
+  | "LATE"
+  | "DIRTY"
+  | "ACCESSIBILITY"
+  | "SAFETY"
+  | "BROKEN_INFRASTRUCTURE"
+  | "FREQUENCY"
+  | "ROUTE_COVERAGE";
+
+export const FEEDBACK_TAGS: FeedbackTag[] = [
+  "OVERCROWDED",
+  "LATE",
+  "DIRTY",
+  "ACCESSIBILITY",
+  "SAFETY",
+  "BROKEN_INFRASTRUCTURE",
+  "FREQUENCY",
+  "ROUTE_COVERAGE",
+];
+
+export type ReportReason = "SPAM" | "OFFENSIVE" | "MISLEADING" | "OTHER";
+
 export interface FeedbackMetadata {
   lineContext?: string; // routeShortName the vehicle was on when rated
 }
@@ -145,10 +169,12 @@ export interface FeedbackItem {
   rating: number;
   comment: string | null;
   metadata: FeedbackMetadata | null;
+  tags: FeedbackTag[];
   createdAt: string;
   updatedAt: string;
   voteCount?: number;
   userVoted?: boolean;
+  userReported?: boolean;
 }
 
 export interface FeedbackSummaryData {
@@ -172,4 +198,23 @@ export interface FeedbackCreateRequest {
   rating: number;
   comment?: string;
   metadata?: FeedbackMetadata;
+  tags?: FeedbackTag[];
+}
+
+// Transit check-in types
+
+export type TransitMode = "BUS" | "METRO" | "BIKE" | "WALK" | "SCOOTER";
+
+export interface CheckInStats {
+  total: number;
+  byMode: Record<TransitMode, number>;
+  todayTotal: number;
+}
+
+export interface CheckInItem {
+  id: string;
+  mode: TransitMode;
+  targetId: string | null;
+  createdAt: string;
+  expiresAt: string;
 }

@@ -8,6 +8,7 @@ import {
   unwrapLocation,
 } from "@/lib/schemas/fiware";
 import { OTPRoutesResponseSchema } from "@/lib/schemas/otp";
+import { fetchWithRetry } from "@/lib/api-fetch";
 
 interface Bus {
   id: string;
@@ -37,66 +38,7 @@ let lastSuccessfulBusData: Bus[] | null = null;
 let lastSuccessfulTimestamp = 0;
 const STALE_DATA_THRESHOLD = 5 * 60 * 1000; // 5 minutes
 
-// Retry logic with exponential backoff
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  maxRetries = 3,
-  timeoutMs = 10000
-): Promise<Response> {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (response.ok) {
-        return response;
-      }
-
-      // Don't retry on 4xx errors (client errors)
-      if (response.status >= 400 && response.status < 500) {
-        throw new Error(`API returned ${response.status}`);
-      }
-
-      // Retry on 5xx (server errors)
-      if (attempt < maxRetries - 1) {
-        const backoffMs = Math.min(1000 * Math.pow(2, attempt), 10000);
-        console.log(`Retry ${attempt + 1}/${maxRetries} after ${backoffMs}ms`);
-        await new Promise((resolve) => setTimeout(resolve, backoffMs));
-        continue;
-      }
-
-      throw new Error(
-        `API returned ${response.status} after ${maxRetries} attempts`
-      );
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name === "AbortError") {
-        console.error(
-          `Request timeout (${timeoutMs}ms) on attempt ${attempt + 1}`
-        );
-      }
-
-      if (attempt === maxRetries - 1) {
-        throw error;
-      }
-
-      const backoffMs = Math.min(1000 * Math.pow(2, attempt), 10000);
-      console.log(
-        `Retry ${attempt + 1}/${maxRetries} after ${backoffMs}ms due to: ${error instanceof Error ? error.message : error}`
-      );
-      await new Promise((resolve) => setTimeout(resolve, backoffMs));
-    }
-  }
-
-  throw new Error("Max retries exceeded");
-}
+// fetchWithRetry is now imported from @/lib/api-fetch
 
 async function fetchRouteDestinations(): Promise<
   Map<string, RouteDirectionMap>
@@ -112,17 +54,19 @@ async function fetchRouteDestinations(): Promise<
     const response = await fetchWithRetry(
       "https://otp.portodigital.pt/otp/routers/default/index/graphql",
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Origin: "https://explore.porto.pt",
+        maxRetries: 3,
+        timeoutMs: 15000,
+        init: {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Origin: "https://explore.porto.pt",
+          },
+          body: JSON.stringify({
+            query: `query { routes { gtfsId shortName longName patterns { headsign directionId } } }`,
+          }),
         },
-        body: JSON.stringify({
-          query: `query { routes { gtfsId shortName longName patterns { headsign directionId } } }`,
-        }),
-      },
-      3,
-      15000
+      }
     );
 
     const raw = await response.json();
@@ -188,17 +132,19 @@ export async function GET(request: NextRequest) {
     const response = await fetchWithRetry(
       "https://broker.fiware.urbanplatform.portodigital.pt/v2/entities?q=vehicleType==bus&limit=1000",
       {
-        method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:147.0) Gecko/20100101 Firefox/147.0",
-          Accept: "*/*",
-          "Accept-Language": "en-US,en;q=0.9",
-          "Cache-Control": "no-cache",
+        maxRetries: 3,
+        timeoutMs: 10000,
+        init: {
+          method: "GET",
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:147.0) Gecko/20100101 Firefox/147.0",
+            Accept: "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control": "no-cache",
+          },
         },
-      },
-      3,
-      10000
+      }
     );
 
     const rawData = await response.json();

@@ -32,6 +32,8 @@ function mockAuthenticatedSession() {
     },
   });
   mockPrisma.user.upsert.mockResolvedValue({ id: "user1", email: "test@example.com" });
+  // Auto-upvote mock (added by tags/moderation feature)
+  mockPrisma.feedbackVote.upsert.mockResolvedValue({ id: "vote1", userId: "user1", feedbackId: "fb1" });
 }
 
 describe("GET /api/feedback", () => {
@@ -68,8 +70,10 @@ describe("GET /api/feedback", () => {
         rating: 4,
         comment: "Nice stop",
         metadata: null,
+        tags: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        _count: { votes: 0 },
       },
     ];
 

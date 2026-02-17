@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 // @ts-ignore - No types available for @mapbox/polyline
 import polyline from "@mapbox/polyline";
 import { OTPLineResponseSchema } from "@/lib/schemas/otp";
+import { fetchWithRetry, KeyedStaleCache } from "@/lib/api-fetch";
 
 const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
+
+// Per-line stale cache (1 hour — route info is stable)
+const staleCache = new KeyedStaleCache<unknown>(60 * 60 * 1000, 200);
 
 const QUERY = `
   query RouteInfo($name: String!) {
@@ -32,7 +36,6 @@ const QUERY = `
 `;
 
 // GET /api/line?id=205
-// Returns route info with patterns, stops, and decoded polylines
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const lineId = searchParams.get("id");
@@ -45,21 +48,21 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(OTP_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Origin: "https://explore.porto.pt",
+    const response = await fetchWithRetry(OTP_URL, {
+      maxRetries: 3,
+      timeoutMs: 10000,
+      init: {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://explore.porto.pt",
+        },
+        body: JSON.stringify({
+          query: QUERY,
+          variables: { name: lineId },
+        }),
       },
-      body: JSON.stringify({
-        query: QUERY,
-        variables: { name: lineId },
-      }),
     });
-
-    if (!response.ok) {
-      throw new Error(`OTP API returned ${response.status}`);
-    }
 
     const raw = await response.json();
     const parsed = OTPLineResponseSchema.safeParse(raw);
@@ -77,12 +80,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Find exact match by shortName (OTP name search is fuzzy)
     const route = routes.find(
       (r: { shortName: string }) => r.shortName === lineId
     ) || routes[0];
 
-    // Transform patterns: decode polylines and deduplicate stops
     const patterns = (route.patterns || []).map(
       (p: {
         id: string;
@@ -113,7 +114,6 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    // Collect unique stops across all patterns (preserving order from first pattern)
     const seenStops = new Set<string>();
     const allStops: { gtfsId: string; name: string; lat: number; lon: number; code: string }[] = [];
     for (const p of patterns) {
@@ -125,22 +125,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      {
-        gtfsId: route.gtfsId,
-        shortName: route.shortName,
-        longName: route.longName,
-        patterns,
-        stops: allStops,
+    const data = {
+      gtfsId: route.gtfsId,
+      shortName: route.shortName,
+      longName: route.longName,
+      patterns,
+      stops: allStops,
+    };
+
+    staleCache.set(lineId, data);
+
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
       },
-      {
-        headers: {
-          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
-        },
-      }
-    );
+    });
   } catch (error) {
     console.error("Error fetching line info:", error);
+
+    const cached = staleCache.get(lineId);
+    if (cached) {
+      return NextResponse.json({ ...cached.data as object, stale: true });
+    }
+
     return NextResponse.json(
       { error: "Failed to fetch line info" },
       { status: 500 }

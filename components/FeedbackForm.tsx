@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { AuthModal } from "@/components/AuthModal";
-import type { FeedbackType, FeedbackItem, FeedbackMetadata } from "@/lib/types";
+import { TagSelector } from "@/components/TagSelector";
+import type { FeedbackType, FeedbackItem, FeedbackMetadata, FeedbackTag } from "@/lib/types";
 
 interface FeedbackFormProps {
   type: FeedbackType;
@@ -32,6 +33,7 @@ export function FeedbackForm({
   const [rating, setRating] = useState(existingFeedback?.rating ?? 0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState(existingFeedback?.comment ?? "");
+  const [selectedTags, setSelectedTags] = useState<FeedbackTag[]>(existingFeedback?.tags ?? []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -45,6 +47,7 @@ export function FeedbackForm({
   useEffect(() => {
     setRating(existingFeedback?.rating ?? 0);
     setComment(existingFeedback?.comment ?? "");
+    setSelectedTags(existingFeedback?.tags ?? []);
     setMessage(null);
   }, [targetId, existingFeedback]);
 
@@ -63,6 +66,7 @@ export function FeedbackForm({
           targetId,
           rating,
           comment: comment.trim() || undefined,
+          tags: selectedTags.length > 0 ? selectedTags : undefined,
           ...(metadata ? { metadata } : {}),
         }),
       });
@@ -167,6 +171,9 @@ export function FeedbackForm({
           {tf.characters(comment.length, maxComment)}
         </div>
       </div>
+
+      {/* Issue tags */}
+      <TagSelector selected={selectedTags} onChange={setSelectedTags} />
 
       {/* Auth hint for unauthenticated users */}
       {!isAuthenticated && rating > 0 && (

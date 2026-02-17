@@ -16,8 +16,10 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { BottomSheet } from "@/components/BottomSheet";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { GlobalSearch } from "@/components/GlobalSearch";
-import { busesFetcher, stationsFetcher, fetcher } from "@/lib/fetchers";
+import { busesFetcher, stationsFetcher, routesFetcher, routeShapesFetcher, bikeParksFetcher, bikeLanesFetcher } from "@/lib/fetchers";
 import { useFeedbackList } from "@/lib/hooks/useFeedback";
+import { CheckInFAB } from "@/components/CheckInFAB";
+import { CommunityPulse } from "@/components/CommunityPulse";
 import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem, BikeParksResponse, BikeLanesResponse } from "@/lib/types";
 
 function MapPageContent() {
@@ -211,7 +213,7 @@ function MapPageContent() {
 
   const { data: routePatternsData } = useSWR<RoutePatternsResponse>(
     selectedRoutes.length > 0 ? "/api/route-shapes" : null,
-    fetcher,
+    routeShapesFetcher,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -222,7 +224,7 @@ function MapPageContent() {
   // Fetch all transit routes from OTP (source of truth)
   const { data: otpRoutesData } = useSWR<RoutesResponse>(
     "/api/routes",
-    fetcher,
+    routesFetcher,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -234,7 +236,7 @@ function MapPageContent() {
   // Fetch bike parks
   const { data: bikeParksData } = useSWR<BikeParksResponse>(
     "/api/bike-parks",
-    fetcher,
+    bikeParksFetcher,
     {
       refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
       revalidateOnFocus: false,
@@ -244,7 +246,7 @@ function MapPageContent() {
   // Fetch bike lanes
   const { data: bikeLanesData } = useSWR<BikeLanesResponse>(
     "/api/bike-lanes",
-    fetcher,
+    bikeLanesFetcher,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -787,6 +789,12 @@ function MapPageContent() {
             </div>
           )}
         </BottomSheet>
+
+        {/* Check-in FAB (#49) */}
+        <CheckInFAB />
+
+        {/* Community Pulse (#50) */}
+        <CommunityPulse />
       </main>
     </div>
   );

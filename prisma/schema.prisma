@@ -17,6 +17,8 @@ model User {
   createdAt     DateTime   @default(now())
   feedbacks     Feedback[]
   feedbackVotes FeedbackVote[]
+  reports       Report[]
+  checkIns      CheckIn[]
 }
 
 // Feedback on lines, stops, and vehicles (extensible to ROUTE_PROPOSAL, FEATURE_REQUEST)
@@ -29,9 +31,12 @@ model Feedback {
   rating    Int // 1-5 stars
   comment   String? // optional, max 500 chars
   metadata  Json? // optional context: e.g. { "lineContext": "205" } for vehicle feedback
+  tags      String[] @default([]) // issue tags: OVERCROWDED, LATE, DIRTY, etc.
+  hidden    Boolean  @default(false) // auto-hidden after N reports
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   votes     FeedbackVote[]
+  reports   Report[]
 
   @@unique([userId, type, targetId]) // one rating per user per target (upsert)
   @@index([type, targetId])
@@ -51,6 +56,34 @@ model FeedbackVote {
   @@index([feedbackId])
 }
 
+// Report on a feedback review — one per user per review
+model Report {
+  id         String       @id @default(cuid())
+  feedbackId String
+  feedback   Feedback     @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason     ReportReason
+  createdAt  DateTime     @default(now())
+
+  @@unique([feedbackId, userId]) // one report per user per feedback
+  @@index([feedbackId])
+}
+
+// Transit check-in — users check in to a transit mode
+model CheckIn {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mode      TransitMode
+  targetId  String?     // optional: line shortName ("205"), metro line ("D")
+  createdAt DateTime    @default(now())
+  expiresAt DateTime    // createdAt + 1 hour
+
+  @@index([expiresAt])
+  @@index([userId])
+}
+
 enum UserRole {
   USER
   ADMIN
@@ -63,4 +96,19 @@ enum FeedbackType {
   VEHICLE // feedback on a specific physical bus (by vehicleNumber)
   BIKE_PARK // bike parking stations
   BIKE_LANE // bike lanes (ciclovias)
+}
+
+enum ReportReason {
+  SPAM
+  OFFENSIVE
+  MISLEADING
+  OTHER
+}
+
+enum TransitMode {
+  BUS
+  METRO
+  BIKE
+  WALK
+  SCOOTER
 }
