@@ -4,6 +4,35 @@ import withPWA from "@ducanh2912/next-pwa";
 const nextConfig = {
   // Explicitly configure Turbopack to silence webpack warning
   turbopack: {},
+  // Security headers (GDPR, OWASP)
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "geolocation=(self), camera=(), microphone=(), interest-cohort=()" },
+          { key: "X-DNS-Prefetch-Control", value: "on" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+        ],
+      },
+      {
+        // Prevent caching of API responses that contain personal data
+        source: "/api/checkin",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store" },
+        ],
+      },
+      {
+        source: "/api/feedback/report",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store" },
+        ],
+      },
+    ];
+  },
 };
 
 export default withPWA({

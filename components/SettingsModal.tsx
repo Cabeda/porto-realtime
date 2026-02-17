@@ -23,6 +23,9 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
   const [isDark, setIsDark] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains("dark"));
@@ -36,6 +39,13 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose, showAuthModal]);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const toggleDarkMode = () => {
     const newValue = !isDark;
@@ -187,6 +197,7 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
               {t.auth.account}
             </h3>
             {isAuthenticated && user ? (
+              <>
               <div className="flex items-center justify-between bg-surface-sunken rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-content-inverse text-sm font-bold flex-shrink-0">
@@ -211,6 +222,73 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
                   {isLoggingOut ? t.auth.loggingOut : t.auth.logout}
                 </button>
               </div>
+              {/* GDPR: Export data + Delete account */}
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/account");
+                      if (!res.ok) throw new Error();
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `portomove-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch {
+                      setToast(t.auth.exportDataError);
+                    }
+                  }}
+                  className="flex-1 py-2 px-3 rounded-lg text-xs font-medium bg-surface-sunken text-content-secondary hover:bg-border transition-colors"
+                >
+                  📥 {t.auth.exportData}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex-1 py-2 px-3 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                >
+                  🗑️ {t.auth.deleteAccount}
+                </button>
+              </div>
+              {showDeleteConfirm && (
+                <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <p className="text-xs text-red-700 dark:text-red-300 mb-2">{t.auth.deleteAccountConfirm}</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        setIsDeleting(true);
+                        try {
+                          const res = await fetch("/api/account", { method: "DELETE" });
+                          if (res.ok) {
+                            await logout();
+                            setToast(t.auth.deleteAccountSuccess);
+                            onClose();
+                          } else {
+                            setToast(t.auth.deleteAccountError);
+                          }
+                        } catch {
+                          setToast(t.auth.deleteAccountError);
+                        } finally {
+                          setIsDeleting(false);
+                          setShowDeleteConfirm(false);
+                        }
+                      }}
+                      disabled={isDeleting}
+                      className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      {isDeleting ? t.auth.deleting : t.auth.deleteAccount}
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="flex-1 py-1.5 px-3 rounded-lg text-xs font-medium bg-surface-sunken text-content-secondary hover:bg-border transition-colors"
+                    >
+                      {t.auth.close}
+                    </button>
+                  </div>
+                </div>
+              )}
+              </>
             ) : (
               <button
                 onClick={() => setShowAuthModal(true)}
@@ -247,6 +325,12 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
 
           {/* Footer actions */}
           <div className="border-t border-border pt-4 space-y-2">
+            <a
+              href="/privacy"
+              className="text-sm text-accent hover:text-accent-hover transition-colors block"
+            >
+              🔒 {t.settings.privacyPolicy}
+            </a>
             {onResetOnboarding && (
               <button
                 onClick={() => { onResetOnboarding(); onClose(); }}
@@ -271,6 +355,12 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
           onClose={() => setShowAuthModal(false)}
           onSuccess={() => setShowAuthModal(false)}
         />,
+        document.body
+      )}
+      {toast && createPortal(
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[3000] bg-surface-raised text-content text-sm font-medium px-4 py-2 rounded-xl shadow-lg border border-border animate-fade-in">
+          {toast}
+        </div>,
         document.body
       )}
     </div>
