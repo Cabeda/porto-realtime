@@ -106,32 +106,41 @@ export function CheckInFAB() {
   };
 
   const modeEmoji = activeCheckIn
-    ? MODE_OPTIONS.find((m) => m.mode === activeCheckIn.mode)?.emoji ?? "📍"
-    : "📍";
+    ? MODE_OPTIONS.find((m) => m.mode === activeCheckIn.mode)?.emoji ?? "🚏"
+    : null;
 
   return (
     <>
-      {/* FAB */}
+      {/* FAB — stacked above the location button on the right */}
       <button
         onClick={handleFABClick}
         disabled={isLoading}
-        className={`absolute left-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:opacity-50 ${
+        className={`absolute right-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:opacity-50 ${
           activeCheckIn
             ? "bg-green-500 border-green-600 text-white animate-pulse"
             : "bg-accent border-accent text-white hover:brightness-110"
         }`}
-        style={{ bottom: "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px))" }}
+        style={{ bottom: "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 3.5rem)" }}
         title={activeCheckIn ? t.checkin.endCheckIn : t.checkin.checkIn}
         aria-label={activeCheckIn ? `${t.checkin.activeCheckIn} — ${t.checkin.minutesLeft(minutesLeft)}` : t.checkin.checkIn}
       >
-        <span className="text-xl leading-none">{activeCheckIn ? modeEmoji : "📍"}</span>
+        {activeCheckIn ? (
+          <span className="text-xl leading-none">{modeEmoji}</span>
+        ) : (
+          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+            <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" />
+            <path d="M12 8v6" />
+            <path d="M9 11h6" />
+          </svg>
+        )}
       </button>
 
       {/* Active check-in badge */}
       {activeCheckIn && minutesLeft > 0 && (
         <div
-          className="absolute left-[3.75rem] z-[1001] bg-green-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow whitespace-nowrap"
-          style={{ bottom: "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 0.875rem)" }}
+          className="absolute right-[3.75rem] z-[1001] bg-green-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow whitespace-nowrap"
+          style={{ bottom: "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 4.375rem)" }}
         >
           {t.checkin.minutesLeft(minutesLeft)}
         </div>
@@ -142,8 +151,8 @@ export function CheckInFAB() {
         <div className="fixed inset-0 z-[2000]" onClick={() => setShowPicker(false)}>
           <div className="absolute inset-0 bg-black/30" />
           <div
-            className="absolute left-4 bg-surface-raised rounded-2xl shadow-xl p-3 flex flex-col gap-2 min-w-[180px] animate-fade-in"
-            style={{ bottom: "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 3.5rem)" }}
+            className="absolute right-4 bg-surface-raised rounded-2xl shadow-xl p-3 flex flex-col gap-2 min-w-[180px] animate-fade-in"
+            style={{ bottom: "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 7rem)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-xs font-semibold text-content-secondary px-1 mb-1">{t.checkin.selectMode}</p>
