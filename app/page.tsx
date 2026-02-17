@@ -487,14 +487,14 @@ function MapPageContent() {
         <button
           onClick={handleLocateMe}
           disabled={isLocating}
-          className={`absolute bottom-24 right-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:cursor-not-allowed sm:bottom-6 ${
+          className={`absolute right-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:cursor-not-allowed ${
             isLocating
               ? "bg-blue-500 border-blue-600 animate-pulse"
               : userLocation
                 ? "bg-blue-500 hover:bg-blue-600 border-blue-600 text-white"
                 : "bg-surface-raised hover:bg-surface-sunken border-border"
           }`}
-          style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          style={{ bottom: 'calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px))' }}
           title={isLocating ? t.map.gettingLocation : userLocation ? t.map.updateLocation : t.map.getMyLocation}
         >
           {isLocating ? (
