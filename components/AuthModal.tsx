@@ -254,14 +254,17 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
   return (
     <div
       className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={(e) => {
+      onMouseDown={(e) => {
         if (e.target === e.currentTarget && !isSocialLoading) onClose();
       }}
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
-      <div className="bg-surface-raised rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+      <div
+        className="bg-surface-raised rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-2">
           <h2 className="text-lg font-bold text-content">{title}</h2>

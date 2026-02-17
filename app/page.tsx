@@ -11,6 +11,7 @@ import { MapSkeleton } from "@/components/LoadingSkeletons";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { LeafletMap } from "@/components/LeafletMap";
 import { RouteFilterPanel } from "@/components/RouteFilterPanel";
+import { MapLayerChips } from "@/components/MapLayerChips";
 import { SettingsModal } from "@/components/SettingsModal";
 import { BottomSheet } from "@/components/BottomSheet";
 import { FeedbackForm } from "@/components/FeedbackForm";
@@ -503,98 +504,64 @@ function MapPageContent() {
           )}
         </button>
 
-        {/* Top-right controls */}
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 max-w-[calc(100vw-2rem)]">
-          <RouteFilterPanel
-            allRoutes={allRoutes}
-            liveRoutes={liveRoutes}
-            selectedRoutes={selectedRoutes}
-            favoriteRoutes={favoriteRoutes}
-            showRouteFilter={showRouteFilter}
-            onTogglePanel={() => setShowRouteFilter(!showRouteFilter)}
-            onToggleRoute={toggleRoute}
-            onClearFilters={() => setSelectedRoutes([])}
-            onToggleFavorite={toggleFavorite}
+        {/* Map layer chips — Google Maps style */}
+        <div className="absolute top-3 left-3 right-3 z-[1000]">
+          <MapLayerChips
+            showStops={showStops}
+            onToggleStops={() => setShowStops(!showStops)}
+            stopsDisabled={!stopsData?.data?.stops}
+            showRoutes={showRoutes}
+            onToggleRoutes={() => setShowRoutes(!showRoutes)}
+            routesDisabled={selectedRoutes.length === 0 || !routePatternsData?.patterns}
+            showBikeParks={showBikeParks}
+            onToggleBikeParks={() => setShowBikeParks(!showBikeParks)}
+            bikeParksDisabled={!bikeParksData?.parks || bikeParksData.parks.length === 0}
+            showBikeLanes={showBikeLanes}
+            onToggleBikeLanes={() => setShowBikeLanes(!showBikeLanes)}
+            bikeLanesDisabled={!bikeLanesData?.lanes || bikeLanesData.lanes.length === 0}
+            selectedRoutesCount={selectedRoutes.length}
+            onOpenRouteFilter={() => setShowRouteFilter(!showRouteFilter)}
           />
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowStops(!showStops)}
-              disabled={!stopsData?.data?.stops}
-              className={`flex-1 font-semibold py-2 px-3 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
-                showStops
-                  ? "bg-red-500 hover:bg-red-600 text-white border-red-600 dark:border-red-500"
-                  : "bg-surface-raised hover:bg-surface-sunken text-content-secondary border-border"
-              }`}
-              title={!stopsData?.data?.stops ? t.map.stopsUnavailable : showStops ? t.map.hideStops : t.map.showStops}
-            >
-              🚏 {t.map.stops}
-            </button>
-
-            <button
-              onClick={() => setShowRoutes(!showRoutes)}
-              disabled={selectedRoutes.length === 0 || !routePatternsData?.patterns}
-              className={`flex-1 font-semibold py-2 px-3 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
-                showRoutes
-                  ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-600 dark:border-blue-500"
-                  : "bg-surface-raised hover:bg-surface-sunken text-content-secondary border-border"
-              }`}
-              title={selectedRoutes.length === 0 ? t.map.selectLinesToSeePaths : showRoutes ? t.map.hidePaths : t.map.showPaths}
-            >
-              🛣️ {t.map.paths}
-            </button>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowBikeParks(!showBikeParks)}
-              disabled={!bikeParksData?.parks || bikeParksData.parks.length === 0}
-              className={`flex-1 font-semibold py-2 px-3 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
-                showBikeParks
-                  ? "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600 dark:border-emerald-500"
-                  : "bg-surface-raised hover:bg-surface-sunken text-content-secondary border-border"
-              }`}
-              title={showBikeParks ? "Esconder parques de bicicletas" : "Mostrar parques de bicicletas"}
-            >
-              🚲 Parques
-            </button>
-
-            <button
-              onClick={() => setShowBikeLanes(!showBikeLanes)}
-              disabled={!bikeLanesData?.lanes || bikeLanesData.lanes.length === 0}
-              className={`flex-1 font-semibold py-2 px-3 rounded-lg shadow-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm ${
-                showBikeLanes
-                  ? "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600 dark:border-emerald-500"
-                  : "bg-surface-raised hover:bg-surface-sunken text-content-secondary border-border"
-              }`}
-              title={showBikeLanes ? "Esconder ciclovias" : "Mostrar ciclovias"}
-            >
-              🛤️ Ciclovias
-            </button>
-          </div>
         </div>
+
+        {/* Route filter panel (shown when filter chip is tapped) */}
+        {showRouteFilter && (
+          <div className="absolute top-14 left-3 right-3 z-[1000] max-w-md">
+            <RouteFilterPanel
+              allRoutes={allRoutes}
+              liveRoutes={liveRoutes}
+              selectedRoutes={selectedRoutes}
+              favoriteRoutes={favoriteRoutes}
+              showRouteFilter={showRouteFilter}
+              onTogglePanel={() => setShowRouteFilter(!showRouteFilter)}
+              onToggleRoute={toggleRoute}
+              onClearFilters={() => setSelectedRoutes([])}
+              onToggleFavorite={toggleFavorite}
+            />
+          </div>
+        )}
 
         {/* Notification banners */}
         {error && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-lg max-w-md">
+          <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-lg max-w-md">
             <p className="text-red-800 dark:text-red-200 text-sm">{t.map.errorLoadingBuses}</p>
           </div>
         )}
 
         {stopsError && (
-          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
+          <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
             <p className="text-yellow-800 dark:text-yellow-200 text-sm">{t.map.stopsUnavailableError}</p>
           </div>
         )}
 
         {locationError && (
-          <div className="absolute top-28 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
+          <div className="absolute top-36 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
             <p className="text-yellow-800 dark:text-yellow-200 text-sm">{locationError}</p>
           </div>
         )}
 
         {showLocationSuccess && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1001] bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 shadow-lg max-w-md animate-fade-in">
+          <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-[1001] bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 shadow-lg max-w-md animate-fade-in">
             <div className="flex items-center gap-2">
               <span className="text-lg">✓</span>
               <p className="text-green-800 dark:text-green-200 text-sm font-medium">{t.map.locationSuccess}</p>
@@ -603,7 +570,7 @@ function MapPageContent() {
         )}
 
         {highlightedStationId && stopsData?.data?.stops && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 shadow-lg max-w-md">
+          <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 shadow-lg max-w-md">
             <div className="flex items-center gap-2">
               <span className="text-lg">📍</span>
               <div>

@@ -77,39 +77,31 @@ export function RouteFilterPanel({
 
   return (
     <div className="bg-surface-raised rounded-lg shadow-lg border border-border">
-      <button
-        onClick={onTogglePanel}
-        className="w-full p-3 flex items-center justify-between hover:bg-surface-sunken rounded-t-lg transition-colors"
-      >
-        <span className="font-semibold text-content-secondary text-sm flex items-center gap-2">
-          🚌 {t.map.filterRoutes}
-          {selectedRoutes.length > 0 && (
-            <span className="text-xs bg-accent text-content-inverse px-2 py-0.5 rounded-full">
-              {selectedRoutes.length}
-            </span>
-          )}
-        </span>
-        <span className="text-content-muted text-sm">
-          {showRouteFilter ? '▲' : '▼'}
-        </span>
-      </button>
-
       {showRouteFilter && (
-        <div className="p-3 pt-0 border-t border-border max-h-[calc(100vh-12rem)] overflow-y-auto">
-          <div className="flex items-center justify-between mb-2 pt-2">
+        <div className="p-3 max-h-[calc(100vh-12rem)] overflow-y-auto">
+          <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-content-muted">
               {selectedRoutes.length > 0
                 ? t.map.routesSelected(selectedRoutes.length)
                 : t.map.allRoutes}
             </div>
-            {selectedRoutes.length > 0 && (
+            <div className="flex items-center gap-2">
+              {selectedRoutes.length > 0 && (
+                <button
+                  onClick={onClearFilters}
+                  className="text-xs text-accent hover:text-accent-hover font-medium"
+                >
+                  {t.map.clearFilters}
+                </button>
+              )}
               <button
-                onClick={onClearFilters}
-                className="text-xs text-accent hover:text-accent-hover font-medium"
+                onClick={onTogglePanel}
+                className="text-xs text-content-muted hover:text-content transition-colors"
+                aria-label="Close"
               >
-                {t.map.clearFilters}
+                ✕
               </button>
-            )}
+            </div>
           </div>
 
           {/* Bus routes */}

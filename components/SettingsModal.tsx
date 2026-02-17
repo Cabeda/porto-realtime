@@ -52,11 +52,13 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
   return (
     <div
       className="fixed inset-0 bg-black/50 z-[2000] flex items-end sm:items-center justify-center"
-      onClick={onClose}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="bg-surface-raised rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-surface-raised rounded-t-2xl">
