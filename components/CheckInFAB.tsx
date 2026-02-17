@@ -15,6 +15,18 @@ const MODE_OPTIONS: { mode: TransitMode; emoji: string; key: keyof ReturnType<ty
   { mode: "SCOOTER", emoji: "🛴", key: "scooter" },
 ];
 
+/** Get current position as a promise (best-effort, short timeout) */
+function getPosition(): Promise<{ lat: number; lon: number } | null> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+    );
+  });
+}
+
 export function CheckInFAB() {
   const t = useTranslations();
   const { isAuthenticated } = useAuth();
@@ -58,25 +70,14 @@ export function CheckInFAB() {
     if (activeCheckIn && minutesLeft <= 0) setActiveCheckIn(null);
   }, [activeCheckIn, minutesLeft]);
 
-  const handleFABClick = () => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
-    if (activeCheckIn) {
-      handleEndCheckIn();
-    } else {
-      setShowPicker(true);
-    }
-  };
-
-  const handleCheckIn = async (mode: TransitMode) => {
+  const handleCheckIn = useCallback(async (mode: TransitMode, targetId?: string) => {
     setIsLoading(true);
     try {
+      const pos = await getPosition();
       const res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode }),
+        body: JSON.stringify({ mode, targetId, lat: pos?.lat, lon: pos?.lon }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -91,7 +92,7 @@ export function CheckInFAB() {
       setIsLoading(false);
       setShowPicker(false);
     }
-  };
+  }, [t]);
 
   const handleEndCheckIn = async () => {
     setIsLoading(true);
@@ -104,6 +105,34 @@ export function CheckInFAB() {
       setIsLoading(false);
     }
   };
+
+  const handleFABClick = () => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (activeCheckIn) {
+      handleEndCheckIn();
+    } else {
+      setShowPicker(true);
+    }
+  };
+
+  // Listen for check-in requests from bus popups
+  useEffect(() => {
+    const handleBusCheckIn = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!isAuthenticated) {
+        setShowAuthModal(true);
+        return;
+      }
+      if (detail?.routeShortName) {
+        handleCheckIn("BUS", detail.routeShortName);
+      }
+    };
+    window.addEventListener("open-bus-checkin", handleBusCheckIn);
+    return () => window.removeEventListener("open-bus-checkin", handleBusCheckIn);
+  }, [isAuthenticated, handleCheckIn]);
 
   const modeEmoji = activeCheckIn
     ? MODE_OPTIONS.find((m) => m.mode === activeCheckIn.mode)?.emoji ?? "🚏"

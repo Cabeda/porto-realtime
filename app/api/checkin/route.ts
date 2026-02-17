@@ -25,14 +25,14 @@ export async function POST(request: NextRequest) {
     select: { id: true },
   });
 
-  let body: { mode?: string; targetId?: string };
+  let body: { mode?: string; targetId?: string; lat?: number; lon?: number };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { mode, targetId } = body;
+  const { mode, targetId, lat, lon } = body;
 
   if (!mode || !VALID_MODES.includes(mode as (typeof VALID_MODES)[number])) {
     return NextResponse.json(
@@ -51,12 +51,18 @@ export async function POST(request: NextRequest) {
       where: { userId: user.id },
     });
 
+    // Validate optional lat/lon
+    const checkinLat = typeof lat === "number" && lat >= -90 && lat <= 90 ? lat : null;
+    const checkinLon = typeof lon === "number" && lon >= -180 && lon <= 180 ? lon : null;
+
     // Create new check-in
     const checkIn = await prisma.checkIn.create({
       data: {
         userId: user.id,
         mode: transitMode,
         targetId: targetId || null,
+        lat: checkinLat,
+        lon: checkinLon,
         expiresAt,
       },
       select: {

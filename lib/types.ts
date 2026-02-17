@@ -218,3 +218,14 @@ export interface CheckInItem {
   createdAt: string;
   expiresAt: string;
 }
+
+export interface ActiveCheckIn {
+  mode: TransitMode;
+  targetId: string | null;
+  lat: number;
+  lon: number;
+}
+
+export interface ActiveCheckInsResponse {
+  checkIns: ActiveCheckIn[];
+}

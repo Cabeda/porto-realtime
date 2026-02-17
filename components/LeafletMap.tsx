@@ -134,6 +134,7 @@ interface LeafletMapProps {
   showBikeLanes?: boolean;
   selectedBikeLanes?: string[];
   mapStyle?: string;
+  onMapReady?: (map: LMap) => void;
 }
 
 export function LeafletMap({
@@ -153,6 +154,7 @@ export function LeafletMap({
   showBikeLanes = false,
   selectedBikeLanes = [],
   mapStyle = "standard",
+  onMapReady,
 }: LeafletMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<LMap | null>(null);
@@ -223,6 +225,7 @@ export function LeafletMap({
       }).addTo(map);
 
       setIsMapReady(true);
+      onMapReady?.(map);
       logger.log("Map initialized and ready");
 
       // Event delegation on map container for bus popup rate buttons.
@@ -275,6 +278,18 @@ export function LeafletMap({
             window.dispatchEvent(
               new CustomEvent("open-bike-lane-feedback", {
                 detail: { laneId, laneName },
+              })
+            );
+          }
+        }
+        // Check-in from bus popup
+        const checkinTarget = (e.target as HTMLElement).closest("[data-checkin-line]");
+        if (checkinTarget) {
+          const routeShortName = checkinTarget.getAttribute("data-checkin-line");
+          if (routeShortName) {
+            window.dispatchEvent(
+              new CustomEvent("open-bus-checkin", {
+                detail: { routeShortName },
               })
             );
           }
@@ -387,6 +402,7 @@ export function LeafletMap({
               <button data-rate-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="flex:1;padding:6px 12px;background:#eab308;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Linha ${escapeHtml(bus.routeShortName)}</button>
               ${bus.vehicleNumber ? `<button data-rate-vehicle="${escapeHtml(bus.vehicleNumber)}" data-vehicle-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="flex:1;padding:6px 12px;background:#6366f1;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Bus ${escapeHtml(bus.vehicleNumber)}</button>` : ''}
             </div>
+            <button data-checkin-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="width:100%;padding:6px 12px;margin-top:6px;background:#10b981;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">📍 Check-in</button>
           </div>`;
 
         const busIcon = L.divIcon({

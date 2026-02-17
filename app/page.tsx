@@ -20,6 +20,8 @@ import { busesFetcher, stationsFetcher, routesFetcher, routeShapesFetcher, bikeP
 import { useFeedbackList } from "@/lib/hooks/useFeedback";
 import { CheckInFAB } from "@/components/CheckInFAB";
 import { CommunityPulse } from "@/components/CommunityPulse";
+import { ActivityBubbles } from "@/components/ActivityBubbles";
+import type { Map as LMap } from "leaflet";
 import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem, BikeParksResponse, BikeLanesResponse } from "@/lib/types";
 
 function MapPageContent() {
@@ -85,6 +87,14 @@ function MapPageContent() {
       return localStorage.getItem("mapStyle") || "standard";
     }
     return "standard";
+  });
+  const [leafletMap, setLeafletMap] = useState<LMap | null>(null);
+  const [showActivity, setShowActivity] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("showActivity");
+      return saved !== null ? JSON.parse(saved) : true;
+    }
+    return true;
   });
 
   // Feedback state for bottom sheet (triggered by bus popup custom event)
@@ -355,6 +365,7 @@ function MapPageContent() {
   useEffect(() => { localStorage.setItem("showBikeParks", JSON.stringify(showBikeParks)); }, [showBikeParks]);
   useEffect(() => { localStorage.setItem("showBikeLanes", JSON.stringify(showBikeLanes)); }, [showBikeLanes]);
   useEffect(() => { localStorage.setItem("selectedBikeLanes", JSON.stringify(selectedBikeLanes)); }, [selectedBikeLanes]);
+  useEffect(() => { localStorage.setItem("showActivity", JSON.stringify(showActivity)); }, [showActivity]);
 
   const handleRateLine = useCallback((route: string) => {
     setFeedbackLineId(route);
@@ -609,6 +620,7 @@ function MapPageContent() {
             showBikeLanes={showBikeLanes}
             selectedBikeLanes={selectedBikeLanes}
             mapStyle={mapStyle}
+            onMapReady={setLeafletMap}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
@@ -622,7 +634,7 @@ function MapPageContent() {
           </div>
         )}
 
-        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowSettings(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} mapStyle={mapStyle} onMapStyleChange={setMapStyle} />}
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowSettings(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} mapStyle={mapStyle} onMapStyleChange={setMapStyle} showActivity={showActivity} onToggleActivity={setShowActivity} />}
 
         {/* Line Feedback Bottom Sheet */}
         <BottomSheet
@@ -795,6 +807,9 @@ function MapPageContent() {
 
         {/* Community Pulse (#50) */}
         <CommunityPulse />
+
+        {/* Activity Bubbles — subtle map animations for live check-ins */}
+        <ActivityBubbles map={leafletMap} show={showActivity} />
       </main>
     </div>
   );

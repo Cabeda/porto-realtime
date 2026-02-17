@@ -12,9 +12,11 @@ interface SettingsModalProps {
   onResetOnboarding?: () => void;
   mapStyle?: string;
   onMapStyleChange?: (style: string) => void;
+  showActivity?: boolean;
+  onToggleActivity?: (show: boolean) => void;
 }
 
-export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyleChange }: SettingsModalProps) {
+export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyleChange, showActivity, onToggleActivity }: SettingsModalProps) {
   const t = useTranslations();
   const { locale, setLocale } = useLocale();
   const { user, isAuthenticated, logout } = useAuth();
@@ -158,6 +160,26 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Activity Bubbles Toggle */}
+          {onToggleActivity && (
+            <div>
+              <h3 className="text-xs font-semibold text-content-muted uppercase tracking-wide mb-2">
+                {t.settings.showActivity}
+              </h3>
+              <button
+                onClick={() => onToggleActivity(!showActivity)}
+                className={`w-full py-2.5 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${
+                  showActivity
+                    ? "bg-accent text-white"
+                    : "bg-surface-sunken text-content-secondary hover:bg-border"
+                }`}
+              >
+                <span>✨ {t.settings.showActivityDesc}</span>
+                <span className="text-lg">{showActivity ? "✓" : ""}</span>
+              </button>
             </div>
           )}
 

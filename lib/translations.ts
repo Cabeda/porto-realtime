@@ -229,6 +229,8 @@ const pt = {
     mapStandard: "Padrão",
     mapSatellite: "Satélite",
     mapTerrain: "Terreno",
+    showActivity: "Atividade no mapa",
+    showActivityDesc: "Mostrar animações de check-ins ativos",
   },
   auth: {
     loginTitle: "Iniciar sessão",
@@ -534,6 +536,8 @@ const en: typeof pt = {
     mapStandard: "Standard",
     mapSatellite: "Satellite",
     mapTerrain: "Terrain",
+    showActivity: "Map activity",
+    showActivityDesc: "Show animations for active check-ins",
   },
   auth: {
     loginTitle: "Sign in",
