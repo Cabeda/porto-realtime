@@ -293,6 +293,36 @@ export function LeafletMap({
               })
             );
           }
+          return;
+        }
+        // Check-in from bike lane popup
+        const checkinBikeTarget = (e.target as HTMLElement).closest("[data-checkin-bike]");
+        if (checkinBikeTarget) {
+          const laneName = checkinBikeTarget.getAttribute("data-checkin-bike");
+          const lat = checkinBikeTarget.getAttribute("data-checkin-lat");
+          const lon = checkinBikeTarget.getAttribute("data-checkin-lon");
+          if (laneName) {
+            window.dispatchEvent(
+              new CustomEvent("open-bike-checkin", {
+                detail: { laneName, lat: lat || undefined, lon: lon || undefined },
+              })
+            );
+          }
+          return;
+        }
+        // Check-in from bike park popup
+        const checkinBikeParkTarget = (e.target as HTMLElement).closest("[data-checkin-bike-park]");
+        if (checkinBikeParkTarget) {
+          const parkName = checkinBikeParkTarget.getAttribute("data-checkin-bike-park");
+          const lat = checkinBikeParkTarget.getAttribute("data-checkin-lat");
+          const lon = checkinBikeParkTarget.getAttribute("data-checkin-lon");
+          if (parkName) {
+            window.dispatchEvent(
+              new CustomEvent("open-bike-park-checkin", {
+                detail: { parkName, lat: lat || undefined, lon: lon || undefined },
+              })
+            );
+          }
         }
       });
     });
@@ -784,6 +814,7 @@ export function LeafletMap({
             <button data-rate-bike-park="${escapeHtml(park.id)}" data-park-name="${escapeHtml(park.name)}" class="bike-park-rate-btn" style="width:100%;padding:8px 12px;background:#10b981;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
               ★ Avaliar este parque
             </button>
+            <button data-checkin-bike-park="${escapeHtml(park.name)}" data-checkin-lat="${park.lat}" data-checkin-lon="${park.lon}" class="bike-park-rate-btn" style="width:100%;padding:6px 12px;margin-top:6px;background:#059669;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">🅿️ Check-in</button>
           </div>`;
 
         const parkIcon = L.divIcon({
@@ -843,6 +874,21 @@ export function LeafletMap({
         const baseColor = typeColors[lane.type] || '#10b981';
         const color = isPlanned ? '#9ca3af' : baseColor;
 
+        // Compute a midpoint from the lane's first segment for fallback check-in location
+        let midLat = '';
+        let midLon = '';
+        if (Array.isArray(lane.segments) && lane.segments.length > 0) {
+          const seg = lane.segments[0];
+          if (Array.isArray(seg) && seg.length >= 2) {
+            const midIdx = Math.floor(seg.length / 2);
+            const coord = seg[midIdx];
+            if (Array.isArray(coord) && coord.length >= 2) {
+              midLat = String(Number(coord[1]));
+              midLon = String(Number(coord[0]));
+            }
+          }
+        }
+
         const popupContent = `
           <div class="bike-lane-popup text-sm" style="min-width:200px;font-family:system-ui,sans-serif;">
             <a href="/reviews/bike-lane?id=${encodeURIComponent(lane.name)}" style="font-weight:700;font-size:14px;color:${color};text-decoration:none;display:block;margin-bottom:4px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(lane.name)}</a>
@@ -856,6 +902,7 @@ export function LeafletMap({
             <button data-rate-bike-lane="${escapeHtml(lane.id)}" data-lane-name="${escapeHtml(lane.name)}" class="bike-lane-rate-btn" style="width:100%;padding:8px 12px;background:${color};color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
               ★ Avaliar esta ciclovia
             </button>
+            <button data-checkin-bike="${escapeHtml(lane.name)}" data-checkin-lat="${midLat}" data-checkin-lon="${midLon}" class="bike-lane-rate-btn" style="width:100%;padding:6px 12px;margin-top:6px;background:#10b981;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">🚲 Check-in</button>
           </div>
         `;
 

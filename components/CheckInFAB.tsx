@@ -70,14 +70,16 @@ export function CheckInFAB() {
     if (activeCheckIn && minutesLeft <= 0) setActiveCheckIn(null);
   }, [activeCheckIn, minutesLeft]);
 
-  const handleCheckIn = useCallback(async (mode: TransitMode, targetId?: string) => {
+  const handleCheckIn = useCallback(async (mode: TransitMode, targetId?: string, fallbackLat?: number, fallbackLon?: number) => {
     setIsLoading(true);
     try {
       const pos = await getPosition();
+      const lat = pos?.lat ?? fallbackLat;
+      const lon = pos?.lon ?? fallbackLon;
       const res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, targetId, lat: pos?.lat, lon: pos?.lon }),
+        body: JSON.stringify({ mode, targetId, lat, lon }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -132,6 +134,42 @@ export function CheckInFAB() {
     };
     window.addEventListener("open-bus-checkin", handleBusCheckIn);
     return () => window.removeEventListener("open-bus-checkin", handleBusCheckIn);
+  }, [isAuthenticated, handleCheckIn]);
+
+  // Listen for check-in requests from bike lane popups
+  useEffect(() => {
+    const handleBikeCheckIn = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!isAuthenticated) {
+        setShowAuthModal(true);
+        return;
+      }
+      if (detail?.laneName) {
+        const lat = detail.lat ? parseFloat(detail.lat) : undefined;
+        const lon = detail.lon ? parseFloat(detail.lon) : undefined;
+        handleCheckIn("BIKE", detail.laneName, lat, lon);
+      }
+    };
+    window.addEventListener("open-bike-checkin", handleBikeCheckIn);
+    return () => window.removeEventListener("open-bike-checkin", handleBikeCheckIn);
+  }, [isAuthenticated, handleCheckIn]);
+
+  // Listen for check-in requests from bike park popups
+  useEffect(() => {
+    const handleBikeParkCheckIn = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!isAuthenticated) {
+        setShowAuthModal(true);
+        return;
+      }
+      if (detail?.parkName) {
+        const lat = detail.lat ? parseFloat(detail.lat) : undefined;
+        const lon = detail.lon ? parseFloat(detail.lon) : undefined;
+        handleCheckIn("BIKE", detail.parkName, lat, lon);
+      }
+    };
+    window.addEventListener("open-bike-park-checkin", handleBikeParkCheckIn);
+    return () => window.removeEventListener("open-bike-park-checkin", handleBikeParkCheckIn);
   }, [isAuthenticated, handleCheckIn]);
 
   const modeEmoji = activeCheckIn
