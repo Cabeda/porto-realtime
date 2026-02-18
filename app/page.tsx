@@ -19,7 +19,6 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { busesFetcher, stationsFetcher, routesFetcher, routeShapesFetcher, bikeParksFetcher, bikeLanesFetcher } from "@/lib/fetchers";
 import { useFeedbackList } from "@/lib/hooks/useFeedback";
 import { CheckInFAB } from "@/components/CheckInFAB";
-import { CommunityPulse } from "@/components/CommunityPulse";
 import { ActivityBubbles } from "@/components/ActivityBubbles";
 import type { Map as LMap } from "leaflet";
 import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem, BikeParksResponse, BikeLanesResponse } from "@/lib/types";
@@ -805,11 +804,8 @@ function MapPageContent() {
         {/* Check-in FAB (#49) */}
         <CheckInFAB />
 
-        {/* Community Pulse (#50) */}
-        <CommunityPulse />
-
-        {/* Activity Bubbles — subtle map animations for live check-ins */}
-        <ActivityBubbles map={leafletMap} show={showActivity} />
+        {/* Activity Bubbles — map-embedded indicators for live check-ins */}
+        <ActivityBubbles map={leafletMap} show={showActivity} bikeLanes={bikeLanesData?.lanes} />
       </main>
     </div>
   );

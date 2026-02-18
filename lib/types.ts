@@ -224,8 +224,11 @@ export interface ActiveCheckIn {
   targetId: string | null;
   lat: number;
   lon: number;
+  count: number;
 }
 
 export interface ActiveCheckInsResponse {
   checkIns: ActiveCheckIn[];
+  total: number;
+  todayTotal: number;
 }

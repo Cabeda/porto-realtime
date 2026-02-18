@@ -1,26 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-/** Round coordinate to ~111m precision (3 decimal places) for privacy */
-function fuzzCoord(val: number | null): number | null {
-  if (val === null) return null;
-  return Math.round(val * 1000) / 1000;
-}
-
-// GET /api/checkin/active — Public endpoint returning active check-ins with locations
-// Used by the map activity layer to show live transit activity bubbles
-// Coordinates are fuzzed to ~111m precision to protect user privacy (GDPR)
-// Returns: { checkIns: [{ mode, lat, lon, targetId }] }
+// GET /api/checkin/active — Public endpoint returning active check-ins aggregated by target
+// Used by the map activity layer to show live transit activity on map elements
+// Returns: { checkIns: [{ mode, targetId, lat, lon, count }], total, todayTotal }
 export async function GET() {
   try {
     const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Clean up expired check-ins to minimize stored location data (GDPR data minimization)
+    // Clean up expired check-ins (GDPR data minimization)
     await prisma.checkIn.deleteMany({
       where: { expiresAt: { lte: now } },
     });
 
-    const checkIns = await prisma.checkIn.findMany({
+    // Get all active check-ins with locations
+    const raw = await prisma.checkIn.findMany({
       where: {
         expiresAt: { gt: now },
         lat: { not: null },
@@ -34,16 +29,36 @@ export async function GET() {
       },
     });
 
-    // Fuzz coordinates before sending to client — never expose exact locations
-    const fuzzedCheckIns = checkIns.map((c) => ({
-      mode: c.mode,
-      targetId: c.targetId,
-      lat: fuzzCoord(c.lat),
-      lon: fuzzCoord(c.lon),
-    }));
+    // Aggregate by mode+targetId — show count per target
+    const grouped = new Map<string, { mode: string; targetId: string | null; lat: number; lon: number; count: number }>();
+    for (const ci of raw) {
+      const key = `${ci.mode}:${ci.targetId ?? "_"}`;
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        grouped.set(key, {
+          mode: ci.mode,
+          targetId: ci.targetId,
+          lat: ci.lat!,
+          lon: ci.lon!,
+          count: 1,
+        });
+      }
+    }
+
+    // Count total active and today's total
+    const total = raw.length;
+    const todayTotal = await prisma.checkIn.count({
+      where: { createdAt: { gte: todayStart } },
+    });
 
     return NextResponse.json(
-      { checkIns: fuzzedCheckIns },
+      {
+        checkIns: Array.from(grouped.values()),
+        total,
+        todayTotal,
+      },
       {
         headers: {
           "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30",
@@ -52,6 +67,6 @@ export async function GET() {
     );
   } catch (error) {
     console.error("Error fetching active check-ins:", error);
-    return NextResponse.json({ checkIns: [] }, { status: 500 });
+    return NextResponse.json({ checkIns: [], total: 0, todayTotal: 0 }, { status: 500 });
   }
 }
