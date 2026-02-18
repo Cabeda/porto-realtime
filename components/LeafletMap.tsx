@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import type { Map as LMap, Marker, LatLngBounds, Polyline, TileLayer as LTileLayer } from "leaflet";
 import { logger } from "@/lib/logger";
 import { escapeHtml } from "@/lib/sanitize";
+import { storage } from "@/lib/storage";
 import type { Bus, Stop, PatternGeometry, BikePark, BikeLane, ActiveCheckIn } from "@/lib/types";
 
 // Color palette for routes (vibrant colors that work in light and dark mode)
@@ -223,12 +224,24 @@ export function LeafletMap({
     import("leaflet").then((L) => {
       if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-      const center = userLocation || [41.1579, -8.6291];
-      const zoom = userLocation ? 15 : 13;
+      // Priority: userLocation > saved position > default Porto center
+      const savedPos = storage.get<{ lat: number; lon: number; zoom: number }>("mapPosition");
+      const center = userLocation || (savedPos ? [savedPos.lat, savedPos.lon] as [number, number] : [41.1579, -8.6291]);
+      const zoom = userLocation ? 15 : (savedPos ? savedPos.zoom : 13);
 
       const map = L.map(mapContainerRef.current, { maxZoom: 19, zoomControl: false }).setView(center as [number, number], zoom);
       L.control.zoom({ position: "bottomleft" }).addTo(map);
       mapInstanceRef.current = map;
+
+      // Persist map position on move (debounced)
+      let saveTimeout: ReturnType<typeof setTimeout>;
+      map.on("moveend", () => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+          const c = map.getCenter();
+          storage.set("mapPosition", { lat: c.lat, lon: c.lng, zoom: map.getZoom() }, 1);
+        }, 500);
+      });
 
       const tileConfigs: Record<string, { url: string; attribution: string; maxZoom: number }> = {
         standard: {
