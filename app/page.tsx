@@ -293,8 +293,8 @@ function MapPageContent() {
           if (action === "add") {
             if (idx >= 0) {
               checkIns[idx] = { ...checkIns[idx], count: checkIns[idx].count + 1 };
-            } else if (detail.lat != null && detail.lon != null) {
-              checkIns.push({ mode: detail.mode, targetId: detail.targetId || "", lat: detail.lat, lon: detail.lon, count: 1 });
+            } else {
+              checkIns.push({ mode: detail.mode, targetId: detail.targetId || "", lat: detail.lat ?? null, lon: detail.lon ?? null, count: 1 });
             }
             return { ...base, checkIns, total: base.total + 1, todayTotal: base.todayTotal + 1 };
           } else {

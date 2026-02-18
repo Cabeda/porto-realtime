@@ -458,15 +458,24 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
       const badgeCandidates: typeof data.checkIns = [];
 
       for (const ci of data.checkIns) {
-        if (ci.lat == null || ci.lon == null) continue;
-
         // Skip BUS and METRO — handled by LeafletMap (rider badges on bus markers + stop markers)
         if (ci.mode === "BUS" || ci.mode === "METRO") continue;
 
+        // Resolve location: use stored coords for infrastructure, or userLocation for privacy-safe check-ins
+        let ciLat = ci.lat;
+        let ciLon = ci.lon;
+        const isUserLocCheckin = ci.targetId === "bike-here" || ci.targetId === "walk" || ci.targetId === "scooter";
+        if ((ciLat == null || ciLon == null) && isUserLocCheckin && userLocation) {
+          ciLat = userLocation[0];
+          ciLon = userLocation[1];
+        }
+
         if (ci.mode === "BIKE" && ci.targetId) {
-          // "Cycling here" — static bike marker at user's location
+          // "Cycling here" — static bike marker at user's location (client-side only)
           if (ci.targetId === "bike-here") {
-            bikeHereMarkers.push({ lat: ci.lat, lon: ci.lon, count: ci.count });
+            if (ciLat != null && ciLon != null) {
+              bikeHereMarkers.push({ lat: ciLat, lon: ciLon, count: ci.count });
+            }
             continue;
           }
           const lane = laneByKey.get(ci.targetId);
@@ -478,7 +487,12 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
           if (isBikePark) continue;
         }
 
-        badgeCandidates.push(ci);
+        // For walk/scooter without stored coords, inject userLocation
+        if (ciLat != null && ciLon != null) {
+          badgeCandidates.push({ ...ci, lat: ciLat, lon: ciLon });
+        } else if (ci.lat != null && ci.lon != null) {
+          badgeCandidates.push(ci);
+        }
       }
 
       // Store badge data for the moveend handler

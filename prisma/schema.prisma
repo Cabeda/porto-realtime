@@ -79,7 +79,7 @@ model CheckIn {
   user      User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   mode      TransitMode
   targetId  String?     // optional: line shortName ("205"), metro line ("D")
-  lat       Float?      // location: infrastructure coords or quantized (~100m) user GPS
+  lat       Float?      // infrastructure coords (bus stop, bike park); null for user-location check-ins
   lon       Float?
   anonHash  String?     // truncated hash of IP+UA for anonymous rate limiting (not PII)
   createdAt DateTime    @default(now())

@@ -222,8 +222,8 @@ export interface CheckInItem {
 export interface ActiveCheckIn {
   mode: TransitMode;
   targetId: string | null;
-  lat: number;
-  lon: number;
+  lat: number | null;
+  lon: number | null;
   count: number;
 }
 

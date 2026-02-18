@@ -21,20 +21,19 @@ export async function GET() {
       }).catch((err) => console.error("Cleanup error:", err)); // fire-and-forget
     }
 
-    // Get all active check-ins with locations using raw SQL
-    // (Prisma 7 has strict null filtering that complicates nullable field queries)
+    // Get all active check-ins using raw SQL
+    // Returns both infrastructure check-ins (with lat/lon) and user-location
+    // check-ins (bike-here, walk, scooter — no lat/lon stored for privacy)
     const raw = await prisma.$queryRaw<
-      { mode: string; targetId: string | null; lat: number; lon: number }[]
+      { mode: string; targetId: string | null; lat: number | null; lon: number | null }[]
     >`
       SELECT "mode", "targetId", "lat", "lon"
       FROM "CheckIn"
       WHERE "expiresAt" > ${now}
-        AND "lat" IS NOT NULL
-        AND "lon" IS NOT NULL
     `;
 
     // Aggregate by mode+targetId — show count per target
-    const grouped = new Map<string, { mode: string; targetId: string | null; lat: number; lon: number; count: number }>();
+    const grouped = new Map<string, { mode: string; targetId: string | null; lat: number | null; lon: number | null; count: number }>();
     for (const ci of raw) {
       const key = `${ci.mode}:${ci.targetId ?? "_"}`;
       const existing = grouped.get(key);
@@ -44,8 +43,8 @@ export async function GET() {
         grouped.set(key, {
           mode: ci.mode,
           targetId: ci.targetId,
-          lat: ci.lat!,
-          lon: ci.lon!,
+          lat: ci.lat ?? null,
+          lon: ci.lon ?? null,
           count: 1,
         });
       }
