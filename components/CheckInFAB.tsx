@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
-import type { TransitMode, CheckInItem } from "@/lib/types";
+import type { TransitMode, CheckInItem, Bus, Stop, BikePark, BikeLane } from "@/lib/types";
 
 const MODE_OPTIONS: { mode: TransitMode; emoji: string; key: keyof ReturnType<typeof import("@/lib/hooks/useTranslations").useTranslations>["checkin"] }[] = [
   { mode: "BUS", emoji: "🚌", key: "bus" },
@@ -14,7 +14,114 @@ const MODE_OPTIONS: { mode: TransitMode; emoji: string; key: keyof ReturnType<ty
   { mode: "SCOOTER", emoji: "🛴", key: "scooter" },
 ];
 
-export function CheckInFAB() {
+/** Haversine distance in meters between two [lat, lon] points */
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Max distance (meters) to consider a target "nearby" */
+const MAX_NEARBY_DISTANCE = 2000;
+
+interface NearestTarget {
+  targetId: string;
+  lat: number;
+  lon: number;
+  label: string;
+}
+
+interface CheckInFABProps {
+  userLocation?: [number, number] | null;
+  buses?: Bus[];
+  stops?: Stop[];
+  bikeParks?: BikePark[];
+  bikeLanes?: BikeLane[];
+}
+
+/**
+ * Find the nearest infrastructure target for a given transit mode.
+ * For BUS: nearest live bus, falling back to nearest bus stop.
+ * For METRO: nearest metro stop.
+ * For BIKE: nearest bike park, falling back to nearest bike lane midpoint.
+ * For WALK/SCOOTER: uses user location directly (no specific infrastructure).
+ */
+function findNearestTarget(
+  mode: TransitMode,
+  userLat: number,
+  userLon: number,
+  buses: Bus[],
+  stops: Stop[],
+  bikeParks: BikePark[],
+  bikeLanes: BikeLane[],
+  t: ReturnType<typeof import("@/lib/hooks/useTranslations").useTranslations>,
+): NearestTarget | null {
+  // Build a list of candidates based on mode, then pick the closest one
+  const candidates: { id: string; lat: number; lon: number; label: string }[] = [];
+
+  if (mode === "BUS") {
+    // Live buses first
+    for (const bus of buses) {
+      candidates.push({ id: bus.routeShortName, lat: bus.lat, lon: bus.lon, label: t.checkin.nearestBus(bus.routeShortName) });
+    }
+    // Bus stops as fallback
+    for (const stop of stops) {
+      if (!stop.vehicleMode || stop.vehicleMode === "BUS") {
+        candidates.push({ id: stop.name, lat: stop.lat, lon: stop.lon, label: t.checkin.nearestStop(stop.name) });
+      }
+    }
+  } else if (mode === "METRO") {
+    // Metro/tram/rail stops first
+    for (const stop of stops) {
+      if (stop.vehicleMode === "SUBWAY" || stop.vehicleMode === "TRAM" || stop.vehicleMode === "RAIL") {
+        candidates.push({ id: stop.name, lat: stop.lat, lon: stop.lon, label: t.checkin.nearestStop(stop.name) });
+      }
+    }
+    // Fall back to any stop
+    if (candidates.length === 0) {
+      for (const stop of stops) {
+        candidates.push({ id: stop.name, lat: stop.lat, lon: stop.lon, label: t.checkin.nearestStop(stop.name) });
+      }
+    }
+  } else if (mode === "BIKE") {
+    // Bike parks
+    for (const park of bikeParks) {
+      candidates.push({ id: park.name, lat: park.lat, lon: park.lon, label: t.checkin.nearestBikePark(park.name) });
+    }
+    // Bike lane midpoints as fallback
+    for (const lane of bikeLanes) {
+      if (lane.segments.length > 0) {
+        const seg = lane.segments[0];
+        if (seg.length > 0) {
+          const mid = seg[Math.floor(seg.length / 2)];
+          // BikeLane segments are [lon, lat]
+          candidates.push({ id: lane.name, lat: mid[1], lon: mid[0], label: lane.name });
+        }
+      }
+    }
+  } else {
+    // WALK / SCOOTER — use user location directly as the target
+    return { targetId: mode.toLowerCase(), lat: userLat, lon: userLon, label: "" };
+  }
+
+  // Find closest candidate within MAX_NEARBY_DISTANCE
+  let bestDist = Infinity;
+  let best: (typeof candidates)[number] | null = null;
+  for (const c of candidates) {
+    const dist = haversineMeters(userLat, userLon, c.lat, c.lon);
+    if (dist <= MAX_NEARBY_DISTANCE && dist < bestDist) {
+      bestDist = dist;
+      best = c;
+    }
+  }
+
+  return best ? { targetId: best.id, lat: best.lat, lon: best.lon, label: best.label } : null;
+}
+
+export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [], bikeLanes = [] }: CheckInFABProps) {
   const t = useTranslations();
   const { isAuthenticated } = useAuth();
   const [showPicker, setShowPicker] = useState(false);
@@ -98,6 +205,25 @@ export function CheckInFAB() {
       setShowPicker(false);
     }
   }, [t, isAuthenticated]);
+
+  /** Handle mode selection from the FAB picker — finds nearest target automatically */
+  const handleModeSelect = useCallback((mode: TransitMode) => {
+    if (!userLocation) {
+      setToast(t.checkin.locationRequired);
+      setShowPicker(false);
+      return;
+    }
+
+    const target = findNearestTarget(mode, userLocation[0], userLocation[1], buses, stops, bikeParks, bikeLanes, t);
+
+    if (!target) {
+      setToast(t.checkin.noNearbyTarget);
+      setShowPicker(false);
+      return;
+    }
+
+    handleCheckIn(mode, target.targetId, target.lat, target.lon);
+  }, [userLocation, buses, stops, bikeParks, bikeLanes, t, handleCheckIn]);
 
   const handleEndCheckIn = async () => {
     setIsLoading(true);
@@ -221,7 +347,7 @@ export function CheckInFAB() {
             {MODE_OPTIONS.map(({ mode, emoji, key }) => (
               <button
                 key={mode}
-                onClick={() => handleCheckIn(mode)}
+                onClick={() => handleModeSelect(mode)}
                 disabled={isLoading}
                 className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-surface-sunken transition-colors text-left disabled:opacity-50"
               >

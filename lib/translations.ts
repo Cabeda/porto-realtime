@@ -309,6 +309,11 @@ const pt = {
     checkInSuccess: "Check-in feito!",
     checkInError: "Erro no check-in. Tente novamente.",
     selectLine: "Selecionar linha (opcional)",
+    locationRequired: "Ative a localização para fazer check-in",
+    nearestBus: (name: string) => `Autocarro mais próximo: ${name}`,
+    nearestStop: (name: string) => `Paragem mais próxima: ${name}`,
+    nearestBikePark: (name: string) => `Parque mais próximo: ${name}`,
+    noNearbyTarget: "Nenhuma infraestrutura próxima encontrada",
   },
   pulse: {
     peopleUsing: (count: number) => `${count} ${count === 1 ? "pessoa a usar" : "pessoas a usar"} transportes agora`,
@@ -657,6 +662,11 @@ const en: typeof pt = {
     checkInSuccess: "Checked in!",
     checkInError: "Check-in failed. Try again.",
     selectLine: "Select line (optional)",
+    locationRequired: "Enable location to check in",
+    nearestBus: (name: string) => `Nearest bus: ${name}`,
+    nearestStop: (name: string) => `Nearest stop: ${name}`,
+    nearestBikePark: (name: string) => `Nearest bike park: ${name}`,
+    noNearbyTarget: "No nearby infrastructure found",
   },
   pulse: {
     peopleUsing: (count: number) => `${count} ${count === 1 ? "person using" : "people using"} transit now`,

@@ -75,9 +75,6 @@ function MapPageContent() {
     return [];
   });
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
-  const [lastDataTime, setLastDataTime] = useState<number | null>(null);
-  const [timeSinceUpdate, setTimeSinceUpdate] = useState("");
-  const [isDataStale, setIsDataStale] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [showLocationSuccess, setShowLocationSuccess] = useState(false);
@@ -338,28 +335,6 @@ function MapPageContent() {
   // Flat list of route shortNames for backward-compatible usage (search, favorites, feedback)
   const availableRouteNames: string[] = allRoutes.map((r) => r.shortName);
 
-  // Track when bus data was last received
-  useEffect(() => {
-    if (data?.buses && data.buses.length > 0) {
-      setLastDataTime(Date.now());
-      setIsDataStale(!!data.stale);
-    }
-  }, [data]);
-
-  // Update "time since last update" every second
-  useEffect(() => {
-    if (!lastDataTime) return;
-    const updateLabel = () => {
-      const seconds = Math.floor((Date.now() - lastDataTime) / 1000);
-      if (seconds < 5) setTimeSinceUpdate("agora");
-      else if (seconds < 60) setTimeSinceUpdate(`${seconds}s`);
-      else setTimeSinceUpdate(`${Math.floor(seconds / 60)}m`);
-    };
-    updateLabel();
-    const interval = setInterval(updateLabel, 1000);
-    return () => clearInterval(interval);
-  }, [lastDataTime]);
-
   const handleLocateMe = () => {
     setIsLocating(true);
     setLocationError(null);
@@ -515,16 +490,6 @@ function MapPageContent() {
                 <span className="sm:hidden">{t.map.appName}</span>
                 {isRefreshing && <span className="animate-spin text-base">🔄</span>}
               </h1>
-              <p className="text-xs text-content-secondary flex items-center gap-2">
-                {data ? (
-                  <>
-                    {t.map.busesCount(filteredBuses.length)}
-                    {selectedRoutes.length > 0 && <span className="text-content-muted"> / {data.buses.length}</span>}
-                    {timeSinceUpdate && <span className="text-content-muted">· {timeSinceUpdate}</span>}
-                    {isDataStale && <span className="text-amber-600 dark:text-amber-400 font-medium">· {t.map.cachedData}</span>}
-                  </>
-                ) : t.map.loading}
-              </p>
             </div>
             <div className="hidden sm:flex items-center gap-1">
               <Link
@@ -867,7 +832,13 @@ function MapPageContent() {
         </BottomSheet>
 
         {/* Check-in FAB (#49) */}
-        <CheckInFAB />
+        <CheckInFAB
+          userLocation={userLocation}
+          buses={data?.buses}
+          stops={stopsData?.data?.stops}
+          bikeParks={bikeParksData?.parks}
+          bikeLanes={bikeLanesData?.lanes}
+        />
 
         {/* Activity Bubbles — map-embedded indicators for live check-ins */}
         <ActivityBubbles map={leafletMap} show={showActivity} bikeLanes={bikeLanesData?.lanes} animate={showAnimations} activeCheckIns={activeCheckInsData} />
