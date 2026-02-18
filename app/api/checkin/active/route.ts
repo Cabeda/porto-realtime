@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+// Debounce expired check-in cleanup — run at most once per 60 seconds
+let lastCleanup = 0;
+const CLEANUP_INTERVAL_MS = 60_000;
+
 // GET /api/checkin/active — Public endpoint returning active check-ins aggregated by target
 // Used by the map activity layer to show live transit activity on map elements
 // Returns: { checkIns: [{ mode, targetId, lat, lon, count }], total, todayTotal }
@@ -9,10 +13,13 @@ export async function GET() {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Clean up expired check-ins (GDPR data minimization)
-    await prisma.checkIn.deleteMany({
-      where: { expiresAt: { lte: now } },
-    });
+    // Clean up expired check-ins at most once per minute (GDPR data minimization)
+    if (Date.now() - lastCleanup > CLEANUP_INTERVAL_MS) {
+      lastCleanup = Date.now();
+      prisma.checkIn.deleteMany({
+        where: { expiresAt: { lte: now } },
+      }).catch((err) => console.error("Cleanup error:", err)); // fire-and-forget
+    }
 
     // Get all active check-ins with locations using raw SQL
     // (Prisma 7 has strict null filtering that complicates nullable field queries)

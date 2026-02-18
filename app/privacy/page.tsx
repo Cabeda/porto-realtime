@@ -56,6 +56,11 @@ export default function PrivacyPage() {
         </div>
 
         <div>
+          <h2 className="text-base font-semibold text-content mb-2">{t.privacy.cookiesTitle}</h2>
+          <p>{t.privacy.cookiesDesc}</p>
+        </div>
+
+        <div>
           <h2 className="text-base font-semibold text-content mb-2">{t.privacy.thirdPartyTitle}</h2>
           <p>{t.privacy.thirdPartyDesc}</p>
         </div>

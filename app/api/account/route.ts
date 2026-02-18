@@ -3,6 +3,23 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { validateOrigin, safeGetSession } from "@/lib/security";
 
+const EXPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const EXPORT_RATE_LIMIT_MAX = 5; // max 5 exports per 15 min window
+
+// Simple in-memory rate limiter for data export (per email)
+const exportTimestamps = new Map<string, number[]>();
+
+function checkExportRateLimit(email: string): boolean {
+  const now = Date.now();
+  const timestamps = (exportTimestamps.get(email) || []).filter(
+    (t) => now - t < EXPORT_RATE_LIMIT_WINDOW_MS
+  );
+  if (timestamps.length >= EXPORT_RATE_LIMIT_MAX) return false;
+  timestamps.push(now);
+  exportTimestamps.set(email, timestamps);
+  return true;
+}
+
 // DELETE /api/account — Delete user account and all associated data (GDPR Article 17 — Right to Erasure)
 // Cascading deletes handle: feedbacks, feedback votes, reports, check-ins
 export async function DELETE(request: NextRequest) {
@@ -34,7 +51,14 @@ export async function DELETE(request: NextRequest) {
       where: { id: user.id },
     });
 
-    return NextResponse.json({ deleted: true });
+    // Audit log (no PII — just the event)
+    console.info(`[AUDIT] Account deleted: userId=${user.id}`);
+
+    // Invalidate session by clearing auth cookies
+    const response = NextResponse.json({ deleted: true });
+    response.cookies.set("__session", "", { maxAge: 0, path: "/" });
+    response.cookies.set("anon_checkin", "", { maxAge: 0, path: "/" });
+    return response;
   } catch (error) {
     console.error("Error deleting account:", error);
     return NextResponse.json(
@@ -56,7 +80,16 @@ export async function GET() {
     );
   }
 
+  // Rate limit data exports
+  if (!checkExportRateLimit(sessionUser.email)) {
+    return NextResponse.json(
+      { error: "Too many export requests. Try again later." },
+      { status: 429 }
+    );
+  }
+
   try {
+    const now = new Date();
     const user = await prisma.user.findUnique({
       where: { email: sessionUser.email },
       select: {
@@ -89,6 +122,9 @@ export async function GET() {
           },
         },
         checkIns: {
+          where: {
+            expiresAt: { gt: now }, // Only export active (non-expired) check-ins
+          },
           select: {
             mode: true,
             targetId: true,
@@ -103,6 +139,9 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    // Audit log (no PII — just the event)
+    console.info(`[AUDIT] Data exported: userId=${user.id}`);
 
     return NextResponse.json(
       {

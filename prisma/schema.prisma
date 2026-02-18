@@ -88,6 +88,7 @@ model CheckIn {
   @@index([expiresAt])
   @@index([userId])
   @@index([anonHash, createdAt]) // for anonymous rate limiting queries
+  @@index([expiresAt, mode, targetId]) // for active check-in aggregation queries
 }
 
 enum UserRole {
