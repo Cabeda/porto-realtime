@@ -227,7 +227,7 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
   }, [activeCheckIn, minutesLeft, isAuthenticated]);
 
   // Check-in handler — works for both anonymous and authenticated users
-  // lat/lon are target infrastructure coordinates (bus stop, bike park), NOT user GPS
+  // lat/lon are target infrastructure coordinates or user GPS (quantized server-side to ~100m)
   const handleCheckIn = useCallback(async (mode: TransitMode, targetId?: string, targetLat?: number, targetLon?: number) => {
     // Block if anon user already has an active check-in (client-side guard)
     if (!isAuthenticated && activeCheckIn) {
