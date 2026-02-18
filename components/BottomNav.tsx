@@ -12,6 +12,7 @@ export function BottomNav() {
     { href: "/", label: t.nav.map, icon: "🗺️", match: (p: string) => p === "/" },
     { href: "/stations", label: t.nav.stations, icon: "🚏", match: (p: string) => p.startsWith("/station") },
     { href: "/reviews", label: t.nav.reviews, icon: "⭐", match: (p: string) => p.startsWith("/reviews") },
+    { href: "/proposals", label: t.nav.proposals, icon: "💡", match: (p: string) => p.startsWith("/proposals") },
   ];
 
   return (

@@ -9,16 +9,19 @@ generator client {
 
 // User model — authenticated users via Neon Auth
 model User {
-  id            String     @id @default(cuid())
-  email         String?    @unique // email from Neon Auth
-  emailVerified DateTime?  // null = not verified, timestamp = when verified
-  name          String?
-  role          UserRole   @default(USER)
-  createdAt     DateTime   @default(now())
-  feedbacks     Feedback[]
-  feedbackVotes FeedbackVote[]
-  reports       Report[]
-  checkIns      CheckIn[]
+  id              String           @id @default(cuid())
+  email           String?          @unique // email from Neon Auth
+  emailVerified   DateTime?        // null = not verified, timestamp = when verified
+  name            String?
+  role            UserRole         @default(USER)
+  createdAt       DateTime         @default(now())
+  feedbacks       Feedback[]
+  feedbackVotes   FeedbackVote[]
+  reports         Report[]
+  checkIns        CheckIn[]
+  proposals       Proposal[]
+  proposalVotes   ProposalVote[]
+  proposalReports ProposalReport[]
 }
 
 // Feedback on lines, stops, and vehicles (extensible to ROUTE_PROPOSAL, FEATURE_REQUEST)
@@ -118,4 +121,69 @@ enum TransitMode {
   BIKE
   WALK
   SCOOTER
+}
+
+// --- Proposals: community suggestions for transit improvements ---
+
+enum ProposalType {
+  BIKE_LANE    // improve existing or propose new bike lanes
+  STOP         // stop improvements (shelter, accessibility, signage)
+  LINE         // improve existing or propose new transit lines
+}
+
+enum ProposalStatus {
+  OPEN
+  UNDER_REVIEW // enough votes to be considered
+  CLOSED
+  ARCHIVED
+}
+
+// Community proposal for transit improvements
+model Proposal {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        ProposalType
+  title       String           // concise summary, max 120 chars
+  description String           // detailed justification, max 2000 chars
+  targetId    String?          // optional: line shortName, stop gtfsId, bike lane id
+  linkUrl     String?          // optional reference URL for more details
+  status      ProposalStatus   @default(OPEN)
+  hidden      Boolean          @default(false) // auto-hidden after N reports
+  votes       ProposalVote[]
+  reports     ProposalReport[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([userId])
+  @@index([type, targetId])
+}
+
+// Upvote on a proposal — one per user per proposal
+model ProposalVote {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposalId String
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, proposalId])
+  @@index([proposalId])
+}
+
+// Report on a proposal — one per user per proposal
+model ProposalReport {
+  id         String       @id @default(cuid())
+  proposalId String
+  proposal   Proposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason     ReportReason
+  createdAt  DateTime     @default(now())
+
+  @@unique([proposalId, userId]) // one report per user per proposal
+  @@index([proposalId])
 }

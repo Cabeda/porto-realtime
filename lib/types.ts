@@ -232,3 +232,37 @@ export interface ActiveCheckInsResponse {
   total: number;
   todayTotal: number;
 }
+
+// Proposal types
+
+export type ProposalType = "BIKE_LANE" | "STOP" | "LINE";
+export type ProposalStatus = "OPEN" | "UNDER_REVIEW" | "CLOSED" | "ARCHIVED";
+
+export interface ProposalItem {
+  id: string;
+  type: ProposalType;
+  title: string;
+  description: string;
+  targetId: string | null;
+  linkUrl: string | null;
+  status: ProposalStatus;
+  createdAt: string;
+  updatedAt: string;
+  voteCount: number;
+  userVoted: boolean;
+  userReported: boolean;
+  isOwner: boolean;
+}
+
+export interface ProposalListResponse {
+  proposals: ProposalItem[];
+  total: number;
+}
+
+export interface ProposalCreateRequest {
+  type: ProposalType;
+  title: string;
+  description: string;
+  targetId?: string;
+  linkUrl?: string;
+}
