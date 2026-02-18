@@ -314,6 +314,10 @@ const pt = {
     nearestStop: (name: string) => `Paragem mais próxima: ${name}`,
     nearestBikePark: (name: string) => `Parque mais próximo: ${name}`,
     noNearbyTarget: "Nenhuma infraestrutura próxima encontrada",
+    pickTarget: "Escolha o local",
+    back: "Voltar",
+    alreadyCheckedIn: "Já tem um check-in ativo. Aguarde que expire ou inicie sessão para alterar.",
+    signInToChange: "Inicie sessão para alterar o check-in",
   },
   pulse: {
     peopleUsing: (count: number) => `${count} ${count === 1 ? "pessoa a usar" : "pessoas a usar"} transportes agora`,
@@ -667,6 +671,10 @@ const en: typeof pt = {
     nearestStop: (name: string) => `Nearest stop: ${name}`,
     nearestBikePark: (name: string) => `Nearest bike park: ${name}`,
     noNearbyTarget: "No nearby infrastructure found",
+    pickTarget: "Pick a location",
+    back: "Back",
+    alreadyCheckedIn: "You already have an active check-in. Wait for it to expire or sign in to change it.",
+    signInToChange: "Sign in to change your check-in",
   },
   pulse: {
     peopleUsing: (count: number) => `${count} ${count === 1 ? "person using" : "people using"} transit now`,

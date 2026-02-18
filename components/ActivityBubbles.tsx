@@ -285,7 +285,7 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
       for (const ci of data.checkIns) {
         if (ci.lat == null || ci.lon == null) continue;
 
-        // Skip modes handled directly by LeafletMap markers
+        // Skip BUS and METRO — handled by LeafletMap (rider badges on bus markers + stop markers)
         if (ci.mode === "BUS" || ci.mode === "METRO") continue;
 
         if (ci.mode === "BIKE" && ci.targetId) {
@@ -387,8 +387,8 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
             });
           }
 
-          // Count badge at longest segment midpoint
-          if (count > 1 && segsToUse.length > 0) {
+          // Count badge only if there are more check-ins than visible animated bikes
+          if (count > visibleCount && segsToUse.length > 0) {
             const longest = segsToUse.reduce((a, b) => a.totalMeters > b.totalMeters ? a : b);
             const midPos = interpolateAlongPath(longest.path, longest.dists, 0.5);
             const badgeHtml = `<div class="activity-badge" style="background:#10b981;">

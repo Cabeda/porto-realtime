@@ -11,6 +11,33 @@ const ANON_RATE_LIMIT_PER_IP = 5; // max 5 anonymous check-ins per fingerprint p
 const ANON_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const MAX_TARGET_ID_LENGTH = 100;
 
+// Porto metropolitan area bounding box — rejects coordinates clearly outside the region
+const PORTO_BOUNDS = {
+  minLat: 40.95,
+  maxLat: 41.35,
+  minLon: -8.80,
+  maxLon: -8.45,
+};
+
+// Max plausible speed in km/h — anything faster is likely GPS spoofing
+const MAX_SPEED_KMH = 200;
+
+/** Haversine distance in km between two points */
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Check if coordinates are within the Porto metropolitan area */
+function isWithinPortoBounds(lat: number, lon: number): boolean {
+  return lat >= PORTO_BOUNDS.minLat && lat <= PORTO_BOUNDS.maxLat
+    && lon >= PORTO_BOUNDS.minLon && lon <= PORTO_BOUNDS.maxLon;
+}
+
 /** Hash IP + User-Agent for anonymous rate limiting. Never stored — used in-memory only. */
 function anonFingerprint(request: NextRequest): string {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
@@ -60,10 +87,59 @@ export async function POST(request: NextRequest) {
   const checkinLat = typeof lat === "number" && lat >= -90 && lat <= 90 ? lat : null;
   const checkinLon = typeof lon === "number" && lon >= -180 && lon <= 180 ? lon : null;
 
+  // Anti-spoofing: reject coordinates outside Porto metropolitan area
+  if (checkinLat !== null && checkinLon !== null && !isWithinPortoBounds(checkinLat, checkinLon)) {
+    return NextResponse.json(
+      { error: "Coordinates outside service area" },
+      { status: 400 }
+    );
+  }
+
   const transitMode = mode as "BUS" | "METRO" | "BIKE" | "WALK" | "SCOOTER";
   const now = new Date();
 
   try {
+    // Anti-spoofing: velocity check — reject if implied speed from last check-in is unrealistic
+    // Works for both auth and anon users
+    const fingerprint = sessionUser ? null : anonFingerprint(request);
+    const fingerprintShort = fingerprint ? fingerprint.slice(0, 16) : null;
+
+    if (checkinLat !== null && checkinLon !== null) {
+      let prevCheckIn: { lat: number; lon: number; createdAt: Date }[] = [];
+
+      if (sessionUser) {
+        const user = await prisma.user.findUnique({
+          where: { email: sessionUser.email },
+          select: { id: true },
+        });
+        if (user) {
+          prevCheckIn = await prisma.checkIn.findMany({
+            where: { userId: user.id },
+            select: { lat: true, lon: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          }) as { lat: number; lon: number; createdAt: Date }[];
+        }
+      } else if (fingerprintShort) {
+        prevCheckIn = await prisma.$queryRaw<{ lat: number; lon: number; createdAt: Date }[]>`
+          SELECT "lat", "lon", "createdAt" FROM "CheckIn"
+          WHERE "userId" IS NULL AND "anonHash" = ${fingerprintShort}
+          ORDER BY "createdAt" DESC LIMIT 1
+        `;
+      }
+
+      if (prevCheckIn.length > 0 && prevCheckIn[0].lat != null && prevCheckIn[0].lon != null) {
+        const prev = prevCheckIn[0];
+        const distKm = haversineKm(prev.lat, prev.lon, checkinLat, checkinLon);
+        const timeDiffHours = (now.getTime() - new Date(prev.createdAt).getTime()) / (1000 * 60 * 60);
+        if (timeDiffHours > 0 && distKm / timeDiffHours > MAX_SPEED_KMH) {
+          return NextResponse.json(
+            { error: "Location change too fast. Please try again later." },
+            { status: 400 }
+          );
+        }
+      }
+    }
     if (sessionUser) {
       // --- Authenticated check-in ---
       const user = await prisma.user.upsert({
@@ -101,12 +177,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ checkIn }, { status: 200 });
     } else {
       // --- Anonymous check-in ---
-      // Rate limit by hashed fingerprint (IP + UA) — stored as truncated hash for counting only
-      const fingerprint = anonFingerprint(request);
-      const fingerprintShort = fingerprint.slice(0, 16); // truncated — enough for rate limiting, less PII risk
+      // fingerprint/fingerprintShort already computed above for velocity check
       const windowStart = new Date(now.getTime() - ANON_RATE_LIMIT_WINDOW_MS);
 
-      // Count recent anonymous check-ins from this fingerprint
+      // Check if this anonymous user already has an active (non-expired) check-in
+      const existingActive = await prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(*) as count FROM "CheckIn"
+        WHERE "userId" IS NULL
+          AND "anonHash" = ${fingerprintShort}
+          AND "expiresAt" > ${now}
+      `.then(rows => Number(rows[0].count));
+
+      if (existingActive > 0) {
+        return NextResponse.json(
+          { error: "ALREADY_CHECKED_IN", message: "You already have an active check-in. Wait for it to expire or sign in to change it." },
+          { status: 409 }
+        );
+      }
+
+      // Rate limit: count recent anonymous check-ins from this fingerprint (including expired)
       const recentCount = await prisma.$queryRaw<[{ count: bigint }]>`
         SELECT COUNT(*) as count FROM "CheckIn"
         WHERE "userId" IS NULL
@@ -136,7 +225,7 @@ export async function POST(request: NextRequest) {
       // Set a cookie with the fingerprint hash so we can loosely track
       // "this browser's check-in" without storing any personal data
       const response = NextResponse.json({ checkIn }, { status: 200 });
-      response.cookies.set("anon_checkin", fingerprint, {
+      response.cookies.set("anon_checkin", fingerprint!, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",

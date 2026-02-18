@@ -136,6 +136,7 @@ interface LeafletMapProps {
   mapStyle?: string;
   onMapReady?: (map: LMap) => void;
   activeCheckIns?: ActiveCheckIn[];
+  showActivity?: boolean;
 }
 
 export function LeafletMap({
@@ -157,6 +158,7 @@ export function LeafletMap({
   mapStyle = "standard",
   onMapReady,
   activeCheckIns = [],
+  showActivity = false,
 }: LeafletMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<LMap | null>(null);
@@ -198,6 +200,17 @@ export function LeafletMap({
       }
     }
     return counts;
+  }, [activeCheckIns]);
+
+  // Set of stop gtfsIds with active check-ins (any mode) — used to show stops even when showStops is off
+  const activeStopIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const ci of activeCheckIns) {
+      if (ci.targetId && (ci.mode === "BUS" || ci.mode === "METRO")) {
+        ids.add(ci.targetId);
+      }
+    }
+    return ids;
   }, [activeCheckIns]);
 
   useEffect(() => {
@@ -317,50 +330,7 @@ export function LeafletMap({
             );
           }
         }
-        // Check-in from bus popup
-        const checkinTarget = (e.target as HTMLElement).closest("[data-checkin-line]");
-        if (checkinTarget) {
-          const routeShortName = checkinTarget.getAttribute("data-checkin-line");
-          const lat = checkinTarget.getAttribute("data-checkin-lat");
-          const lon = checkinTarget.getAttribute("data-checkin-lon");
-          if (routeShortName) {
-            window.dispatchEvent(
-              new CustomEvent("open-bus-checkin", {
-                detail: { routeShortName, lat: lat || undefined, lon: lon || undefined },
-              })
-            );
-          }
-          return;
-        }
-        // Check-in from bike lane popup
-        const checkinBikeTarget = (e.target as HTMLElement).closest("[data-checkin-bike]");
-        if (checkinBikeTarget) {
-          const laneName = checkinBikeTarget.getAttribute("data-checkin-bike");
-          const lat = checkinBikeTarget.getAttribute("data-checkin-lat");
-          const lon = checkinBikeTarget.getAttribute("data-checkin-lon");
-          if (laneName) {
-            window.dispatchEvent(
-              new CustomEvent("open-bike-checkin", {
-                detail: { laneName, lat: lat || undefined, lon: lon || undefined },
-              })
-            );
-          }
-          return;
-        }
-        // Check-in from bike park popup
-        const checkinBikeParkTarget = (e.target as HTMLElement).closest("[data-checkin-bike-park]");
-        if (checkinBikeParkTarget) {
-          const parkName = checkinBikeParkTarget.getAttribute("data-checkin-bike-park");
-          const lat = checkinBikeParkTarget.getAttribute("data-checkin-lat");
-          const lon = checkinBikeParkTarget.getAttribute("data-checkin-lon");
-          if (parkName) {
-            window.dispatchEvent(
-              new CustomEvent("open-bike-park-checkin", {
-                detail: { parkName, lat: lat || undefined, lon: lon || undefined },
-              })
-            );
-          }
-        }
+        // (Check-in buttons removed — check-in is FAB-only for reliable GPS proximity)
       });
     });
 
@@ -476,7 +446,6 @@ export function LeafletMap({
               <button data-rate-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="flex:1;padding:6px 12px;background:#eab308;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Linha ${escapeHtml(bus.routeShortName)}</button>
               ${bus.vehicleNumber ? `<button data-rate-vehicle="${escapeHtml(bus.vehicleNumber)}" data-vehicle-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="flex:1;padding:6px 12px;background:#6366f1;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Bus ${escapeHtml(bus.vehicleNumber)}</button>` : ''}
             </div>
-            <button data-checkin-line="${escapeHtml(bus.routeShortName)}" data-checkin-lat="${bus.lat}" data-checkin-lon="${bus.lon}" class="bus-popup-rate-btn" style="width:100%;padding:6px 12px;margin-top:6px;background:#10b981;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">📍 Check-in</button>
           </div>`;
 
         const busIcon = L.divIcon({
@@ -553,7 +522,9 @@ export function LeafletMap({
         stopMarkersRef.current.forEach((marker) => marker.remove());
         stopMarkersRef.current = [];
 
-        if (!showStops || stops.length === 0) return;
+        if (stops.length === 0) return;
+        // If stops are hidden AND activity is off (or no active stops), nothing to render
+        if (!showStops && (!showActivity || activeStopIds.size === 0)) return;
 
         const zoom = map.getZoom();
         const bounds = map.getBounds();
@@ -562,24 +533,34 @@ export function LeafletMap({
         stops
           .filter((stop) => {
             if (!bounds.contains([stop.lat, stop.lon])) return false;
+            const hasActivity = activeStopIds.has(stop.gtfsId);
+            // If stops are hidden, only show stops with active check-ins
+            if (!showStops) return hasActivity && showActivity;
             // Metro stops visible from zoom 12+, bus stops from zoom 15+
+            // But always show stops with active check-ins regardless of zoom
+            if (hasActivity && showActivity) return true;
             const isMetro = stop.vehicleMode === "SUBWAY";
             return isMetro ? zoom >= 12 : zoom >= 15;
           })
           .forEach((stop) => {
             const isMetro = stop.vehicleMode === "SUBWAY";
+            // Count check-ins at this stop across BUS and METRO modes (using gtfsId for unique matching)
+            const stopRiders = (checkInCounts.get(`BUS:${stop.gtfsId}`) || 0) + (checkInCounts.get(`METRO:${stop.gtfsId}`) || 0);
+            const riderBadge = stopRiders > 0
+              ? `<div style="position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;background:#10b981;border:2px solid white;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;font-family:system-ui,sans-serif;padding:0 3px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">${stopRiders}</div>`
+              : "";
             const stopIconHtml = isMetro
-              ? `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 22 22" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3));cursor:pointer;">
+              ? `<div style="position:relative;display:inline-block;"><svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 22 22" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3));cursor:pointer;">
                   <circle cx="11" cy="11" r="10" fill="#2563eb" stroke="white" stroke-width="1.5"/>
                   <text x="11" y="15.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="white">M</text>
-                </svg>`
-              : `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="34" viewBox="0 0 20 24" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3));cursor:pointer;">
+                </svg>${riderBadge}</div>`
+              : `<div style="position:relative;display:inline-block;"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="34" viewBox="0 0 20 24" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3));cursor:pointer;">
                   <rect x="9" y="8" width="2" height="16" rx="1" fill="#5f6368"/>
                   <rect x="2" y="0" width="16" height="12" rx="2.5" fill="#0d9488" stroke="white" stroke-width="1"/>
                   <path d="M6.5 3.5h7a1 1 0 011 1v2.5a1 1 0 01-1 1h-7a1 1 0 01-1-1V4.5a1 1 0 011-1z" fill="white" opacity="0.9"/>
                   <rect x="6" y="8.5" width="3" height="1.5" rx="0.5" fill="white" opacity="0.7"/>
                   <rect x="11" y="8.5" width="3" height="1.5" rx="0.5" fill="white" opacity="0.7"/>
-                </svg>`;
+                </svg>${riderBadge}</div>`;
             const stopIcon = L.divIcon({
               html: stopIconHtml,
               className: "custom-stop-marker",
@@ -682,7 +663,7 @@ export function LeafletMap({
     renderVisibleStops();
     map.on("moveend", renderVisibleStops);
     return () => { map.off("moveend", renderVisibleStops); };
-  }, [stops, showStops, isMapReady]);
+  }, [stops, showStops, isMapReady, showActivity, activeStopIds, checkInCounts]);
 
   // Fly to user location
   useEffect(() => {
@@ -817,20 +798,22 @@ export function LeafletMap({
 
   // Bike parks markers
   useEffect(() => {
-    if (!mapInstanceRef.current || !isMapReady) return;
+    if (!mapInstanceRef.current || !isMapReady || bikeParks.length === 0) return;
 
     import("leaflet").then((L) => {
       // Clear existing bike park markers
       bikeParkMarkersRef.current.forEach((marker) => marker.remove());
       bikeParkMarkersRef.current = [];
 
-      if (!showBikeParks || bikeParks.length === 0) return;
+      if (!showBikeParks && (!showActivity || !bikeParks.some(p => (checkInCounts.get(`BIKE:${p.id}`) || 0) > 0))) return;
 
       bikeParks.forEach((park) => {
+        const parkRiders = checkInCounts.get(`BIKE:${park.id}`) || 0;
+        // If bike parks are hidden, only show parks with active check-ins
+        if (!showBikeParks && parkRiders === 0) return;
         const occupancyPercent = park.capacity > 0 ? Math.round((park.occupied / park.capacity) * 100) : 0;
         const occupancyColor = occupancyPercent >= 90 ? '#ef4444' : occupancyPercent >= 70 ? '#f59e0b' : '#22c55e';
         const availabilityText = park.available > 0 ? `${park.available} vagas` : 'Lotado';
-        const parkRiders = checkInCounts.get(`BIKE:${park.name}`) || 0;
         const parkRiderBadge = parkRiders > 0
           ? `<div style="position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;background:#3b82f6;border:2px solid white;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;font-family:system-ui,sans-serif;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">${parkRiders}</div>`
           : "";
@@ -871,7 +854,6 @@ export function LeafletMap({
             <button data-rate-bike-park="${escapeHtml(park.id)}" data-park-name="${escapeHtml(park.name)}" class="bike-park-rate-btn" style="width:100%;padding:8px 12px;background:#10b981;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
               ★ Avaliar este parque
             </button>
-            <button data-checkin-bike-park="${escapeHtml(park.name)}" data-checkin-lat="${park.lat}" data-checkin-lon="${park.lon}" class="bike-park-rate-btn" style="width:100%;padding:6px 12px;margin-top:6px;background:#059669;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">🅿️ Check-in</button>
           </div>`;
 
         const parkIcon = L.divIcon({
@@ -894,7 +876,7 @@ export function LeafletMap({
 
       logger.log(`Rendered ${bikeParkMarkersRef.current.length} bike park markers`);
     });
-  }, [bikeParks, showBikeParks, isMapReady, checkInCounts]);
+  }, [bikeParks, showBikeParks, isMapReady, checkInCounts, showActivity]);
 
   // Bike lanes polylines
   useEffect(() => {
@@ -910,12 +892,14 @@ export function LeafletMap({
       });
       bikeLaneLayersRef.current = [];
 
-      if (!showBikeLanes) return;
+      if (!showBikeLanes && (!showActivity || !bikeLanes.some(l => (checkInCounts.get(`BIKE:${l.name}`) || 0) > 0))) return;
 
-      // Filter lanes if specific ones are selected
-      const lanesToShow = selectedBikeLanes.length > 0
-        ? bikeLanes.filter((lane) => selectedBikeLanes.includes(lane.id))
-        : bikeLanes;
+      // Filter lanes if specific ones are selected (only when showBikeLanes is on)
+      const lanesToShow = showBikeLanes && selectedBikeLanes.length > 0
+        ? bikeLanes.filter((lane) => selectedBikeLanes.includes(lane.id) || (showActivity && (checkInCounts.get(`BIKE:${lane.name}`) || 0) > 0))
+        : showBikeLanes
+          ? bikeLanes
+          : bikeLanes.filter((lane) => (checkInCounts.get(`BIKE:${lane.name}`) || 0) > 0);
 
       lanesToShow.forEach((lane) => {
         if (!mapInstanceRef.current) return;
@@ -961,7 +945,6 @@ export function LeafletMap({
             <button data-rate-bike-lane="${escapeHtml(lane.id)}" data-lane-name="${escapeHtml(lane.name)}" class="bike-lane-rate-btn" style="width:100%;padding:8px 12px;background:${color};color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
               ★ Avaliar esta ciclovia
             </button>
-            <button data-checkin-bike="${escapeHtml(lane.name)}" data-checkin-lat="${midLat}" data-checkin-lon="${midLon}" class="bike-lane-rate-btn" style="width:100%;padding:6px 12px;margin-top:6px;background:#10b981;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">🚲 Check-in</button>
           </div>
         `;
 
@@ -1001,7 +984,7 @@ export function LeafletMap({
 
       logger.log(`Rendered ${bikeLaneLayersRef.current.length} bike lane polylines`);
     });
-  }, [bikeLanes, showBikeLanes, selectedBikeLanes, isMapReady, checkInCounts]);
+  }, [bikeLanes, showBikeLanes, selectedBikeLanes, isMapReady, checkInCounts, showActivity]);
 
   return <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />;
 }

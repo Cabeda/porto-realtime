@@ -650,6 +650,7 @@ function MapPageContent() {
             mapStyle={mapStyle}
             onMapReady={setLeafletMap}
             activeCheckIns={activeCheckInsData?.checkIns}
+            showActivity={showActivity}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
@@ -838,6 +839,7 @@ function MapPageContent() {
           stops={stopsData?.data?.stops}
           bikeParks={bikeParksData?.parks}
           bikeLanes={bikeLanesData?.lanes}
+          onLocationAcquired={setUserLocation}
         />
 
         {/* Activity Bubbles — map-embedded indicators for live check-ins */}
