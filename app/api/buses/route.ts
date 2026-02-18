@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSimulatedBuses } from "@/lib/simulate";
+import { toTitleCase } from "@/lib/strings";
 import {
   FiwareVehiclesResponseSchema,
   type FiwareVehicleEntity,
@@ -317,7 +318,7 @@ export async function GET(request: NextRequest) {
           lat: coords[1],
           lon: coords[0],
           routeShortName: String(routeShortName),
-          routeLongName: String(routeLongName),
+          routeLongName: toTitleCase(String(routeLongName)),
           heading: Number(heading),
           speed: Number(speed),
           lastUpdated: String(lastUpdated),

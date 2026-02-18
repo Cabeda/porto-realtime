@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import polyline from "@mapbox/polyline";
 import { OTPRouteShapesResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
+import { toTitleCase } from "@/lib/strings";
 
 interface PatternGeometry {
   patternId: string;
@@ -103,7 +104,7 @@ export async function GET() {
             allPatterns.push({
               patternId: pattern.id,
               routeShortName: route.shortName,
-              routeLongName: route.longName,
+              routeLongName: toTitleCase(route.longName),
               headsign: pattern.headsign || "",
               directionId: pattern.directionId,
               geometry: {

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import polyline from "@mapbox/polyline";
 import { OTPLineResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry, KeyedStaleCache } from "@/lib/api-fetch";
+import { toTitleCase } from "@/lib/strings";
 
 const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 
@@ -128,7 +129,7 @@ export async function GET(request: NextRequest) {
     const data = {
       gtfsId: route.gtfsId,
       shortName: route.shortName,
-      longName: route.longName,
+      longName: toTitleCase(route.longName),
       patterns,
       stops: allStops,
     };
