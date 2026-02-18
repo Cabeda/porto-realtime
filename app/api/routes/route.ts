@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { OTPRoutesSimpleResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 import { toTitleCase } from "@/lib/strings";
+import { readFallback } from "@/lib/fallback";
 import type { RouteInfo } from "@/lib/types";
 
 const staleCache = new StaleCache<RouteInfo[]>(24 * 60 * 60 * 1000); // 24 hours
@@ -92,6 +93,15 @@ export async function GET() {
         { routes: cached.data },
         { headers: { "X-Cache-Status": "STALE" } }
       );
+    }
+
+    // Layer 4: static fallback from public/fallback/routes.json
+    const fallback = await readFallback<{ routes: RouteInfo[] }>("routes.json");
+    if (fallback?.routes?.length) {
+      console.log("Returning static fallback for routes");
+      return NextResponse.json(fallback, {
+        headers: { "X-Cache-Status": "FALLBACK" },
+      });
     }
 
     return NextResponse.json(

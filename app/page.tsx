@@ -78,6 +78,7 @@ function MapPageContent() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [showLocationSuccess, setShowLocationSuccess] = useState(false);
+  const [degradedDismissed, setDegradedDismissed] = useState(false);
   const [mapStyle, setMapStyle] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("mapStyle") || "standard";
@@ -608,6 +609,22 @@ function MapPageContent() {
         {stopsError && (
           <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
             <p className="text-yellow-800 dark:text-yellow-200 text-sm">{t.map.stopsUnavailableError}</p>
+          </div>
+        )}
+
+        {/* Degraded-state banner: shown when bus data loaded but is stale, or stops failed */}
+        {!degradedDismissed && data && (error || stopsError) && (
+          <div className="absolute bottom-[calc(var(--bottom-nav-height)+var(--bottom-nav-gap)+env(safe-area-inset-bottom,0px)+3.5rem)] left-1/2 transform -translate-x-1/2 z-[1000] bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 shadow-lg max-w-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-amber-600 dark:text-amber-400 text-xs flex-shrink-0">⚠</span>
+              <p className="text-amber-800 dark:text-amber-200 text-xs flex-1">{t.map.dataOutdated}</p>
+              <button
+                onClick={() => setDegradedDismissed(true)}
+                className="text-amber-600 dark:text-amber-400 text-xs font-medium hover:underline flex-shrink-0"
+              >
+                {t.map.dismiss}
+              </button>
+            </div>
           </div>
         )}
 

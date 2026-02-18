@@ -43,6 +43,8 @@ const pt = {
     gettingLocation: "A obter localização...",
     updateLocation: "Atualizar localização",
     getMyLocation: "Obter a minha localização",
+    dataOutdated: "Alguns dados podem estar desatualizados",
+    dismiss: "Fechar",
   },
   stations: {
     title: "Estações",
@@ -401,6 +403,8 @@ const en: typeof pt = {
     gettingLocation: "Getting location...",
     updateLocation: "Update location",
     getMyLocation: "Get my location",
+    dataOutdated: "Some data may be outdated",
+    dismiss: "Dismiss",
   },
   stations: {
     title: "Stations",
