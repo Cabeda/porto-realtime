@@ -14,9 +14,11 @@ interface SettingsModalProps {
   onMapStyleChange?: (style: string) => void;
   showActivity?: boolean;
   onToggleActivity?: (show: boolean) => void;
+  showAnimations?: boolean;
+  onToggleAnimations?: (show: boolean) => void;
 }
 
-export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyleChange, showActivity, onToggleActivity }: SettingsModalProps) {
+export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyleChange, showActivity, onToggleActivity, showAnimations, onToggleAnimations }: SettingsModalProps) {
   const t = useTranslations();
   const { locale, setLocale } = useLocale();
   const { user, isAuthenticated, logout } = useAuth();
@@ -190,6 +192,21 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
                 <span>✨ {t.settings.showActivityDesc}</span>
                 <span className="text-lg">{showActivity ? "✓" : ""}</span>
               </button>
+
+              {/* Animations sub-toggle — only visible when activity is on */}
+              {showActivity && onToggleAnimations && (
+                <button
+                  onClick={() => onToggleAnimations(!showAnimations)}
+                  className={`w-full mt-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${
+                    showAnimations
+                      ? "bg-emerald-500 text-white"
+                      : "bg-surface-sunken text-content-secondary hover:bg-border"
+                  }`}
+                >
+                  <span>🚲 {t.settings.showAnimationsDesc}</span>
+                  <span className="text-lg">{showAnimations ? "✓" : ""}</span>
+                </button>
+              )}
             </div>
           )}
 

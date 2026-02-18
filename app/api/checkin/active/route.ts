@@ -14,20 +14,17 @@ export async function GET() {
       where: { expiresAt: { lte: now } },
     });
 
-    // Get all active check-ins with locations
-    const raw = await prisma.checkIn.findMany({
-      where: {
-        expiresAt: { gt: now },
-        lat: { not: null },
-        lon: { not: null },
-      },
-      select: {
-        mode: true,
-        targetId: true,
-        lat: true,
-        lon: true,
-      },
-    });
+    // Get all active check-ins with locations using raw SQL
+    // (Prisma 7 has strict null filtering that complicates nullable field queries)
+    const raw = await prisma.$queryRaw<
+      { mode: string; targetId: string | null; lat: number; lon: number }[]
+    >`
+      SELECT "mode", "targetId", "lat", "lon"
+      FROM "CheckIn"
+      WHERE "expiresAt" > ${now}
+        AND "lat" IS NOT NULL
+        AND "lon" IS NOT NULL
+    `;
 
     // Aggregate by mode+targetId — show count per target
     const grouped = new Map<string, { mode: string; targetId: string | null; lat: number; lon: number; count: number }>();

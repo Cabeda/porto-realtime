@@ -95,6 +95,13 @@ function MapPageContent() {
     }
     return true;
   });
+  const [showAnimations, setShowAnimations] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("showAnimations");
+      return saved !== null ? JSON.parse(saved) : true;
+    }
+    return true;
+  });
 
   // Feedback state for bottom sheet (triggered by bus popup custom event)
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
@@ -365,6 +372,7 @@ function MapPageContent() {
   useEffect(() => { localStorage.setItem("showBikeLanes", JSON.stringify(showBikeLanes)); }, [showBikeLanes]);
   useEffect(() => { localStorage.setItem("selectedBikeLanes", JSON.stringify(selectedBikeLanes)); }, [selectedBikeLanes]);
   useEffect(() => { localStorage.setItem("showActivity", JSON.stringify(showActivity)); }, [showActivity]);
+  useEffect(() => { localStorage.setItem("showAnimations", JSON.stringify(showAnimations)); }, [showAnimations]);
 
   const handleRateLine = useCallback((route: string) => {
     setFeedbackLineId(route);
@@ -633,7 +641,7 @@ function MapPageContent() {
           </div>
         )}
 
-        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowSettings(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} mapStyle={mapStyle} onMapStyleChange={setMapStyle} showActivity={showActivity} onToggleActivity={setShowActivity} />}
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowSettings(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} mapStyle={mapStyle} onMapStyleChange={setMapStyle} showActivity={showActivity} onToggleActivity={setShowActivity} showAnimations={showAnimations} onToggleAnimations={setShowAnimations} />}
 
         {/* Line Feedback Bottom Sheet */}
         <BottomSheet
@@ -805,7 +813,7 @@ function MapPageContent() {
         <CheckInFAB />
 
         {/* Activity Bubbles — map-embedded indicators for live check-ins */}
-        <ActivityBubbles map={leafletMap} show={showActivity} bikeLanes={bikeLanesData?.lanes} />
+        <ActivityBubbles map={leafletMap} show={showActivity} bikeLanes={bikeLanesData?.lanes} animate={showAnimations} />
       </main>
     </div>
   );

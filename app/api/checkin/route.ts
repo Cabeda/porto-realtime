@@ -24,8 +24,13 @@ function anonFingerprint(request: NextRequest): string {
 // Body: { mode: "BUS", targetId?: "205", lat?: number, lon?: number }
 // lat/lon represent the TARGET infrastructure location (bus stop, bike park), NOT user GPS
 export async function POST(request: NextRequest) {
-  const { data: session } = await auth.getSession();
-  const sessionUser = session?.user ?? null;
+  let sessionUser: { email: string } | null = null;
+  try {
+    const { data: session } = await auth.getSession();
+    sessionUser = session?.user ?? null;
+  } catch {
+    // No valid session (e.g. no cookies) — proceed as anonymous
+  }
 
   let body: { mode?: string; targetId?: string; lat?: number; lon?: number };
   try {
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
 
       const checkIn = await prisma.checkIn.create({
         data: {
-          userId: user.id,
+          user: { connect: { id: user.id } },
           mode: transitMode,
           targetId: targetId || null,
           lat: checkinLat,
@@ -96,12 +101,12 @@ export async function POST(request: NextRequest) {
       // We use a simple approach: count all anonymous check-ins created recently
       // and compare against a reasonable global limit per fingerprint
       // Since we don't store the fingerprint, we use a generous global anon limit
-      const recentAnonCount = await prisma.checkIn.count({
-        where: {
-          userId: null,
-          createdAt: { gte: windowStart },
-        },
-      });
+      // Count recent anonymous check-ins for simple anti-abuse
+      // We count all recent check-ins without userId as a global anon limit
+      const recentAnonCount = await prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(*) as count FROM "CheckIn"
+        WHERE "userId" IS NULL AND "createdAt" >= ${windowStart}
+      `.then(rows => Number(rows[0].count));
 
       // If there are too many anonymous check-ins globally, apply stricter limits
       // This is a simple anti-abuse measure without storing any personal data
@@ -113,23 +118,16 @@ export async function POST(request: NextRequest) {
       }
 
       const expiresAt = new Date(now.getTime() + ANON_CHECKIN_DURATION_MS);
+      const id = crypto.randomUUID();
 
-      const checkIn = await prisma.checkIn.create({
-        data: {
-          // No userId — fully anonymous
-          mode: transitMode,
-          targetId: targetId || null,
-          lat: checkinLat,
-          lon: checkinLon,
-          expiresAt,
-        },
-        select: {
-          mode: true,
-          targetId: true,
-          createdAt: true,
-          expiresAt: true,
-        },
-      });
+      // Use raw SQL for anonymous check-ins — Prisma 7 requires the user relation
+      // even when userId is optional, so we bypass it for null userId
+      await prisma.$executeRaw`
+        INSERT INTO "CheckIn" ("id", "mode", "targetId", "lat", "lon", "expiresAt", "createdAt")
+        VALUES (${id}, ${transitMode}::"TransitMode", ${targetId || null}, ${checkinLat}, ${checkinLon}, ${expiresAt}, ${now})
+      `;
+
+      const checkIn = { id, mode: transitMode, targetId: targetId || null, createdAt: now.toISOString(), expiresAt: expiresAt.toISOString() };
 
       // Set a cookie with the fingerprint hash so we can loosely track
       // "this browser's check-in" without storing any personal data

@@ -40,6 +40,7 @@ interface ActivityBubblesProps {
   map: LMap | null;
   show: boolean;
   bikeLanes?: BikeLane[];
+  animate?: boolean;
 }
 
 /** Flatten a BikeLane's segments into a single [lat, lon][] polyline path. */
@@ -107,7 +108,7 @@ function interpolateAlongPath(
  * - Bike lanes: animated bike icon that follows the actual lane geometry at ~15 km/h, looping
  * Auto-refreshes every 30s via SWR.
  */
-export function ActivityBubbles({ map, show, bikeLanes }: ActivityBubblesProps) {
+export function ActivityBubbles({ map, show, bikeLanes, animate = true }: ActivityBubblesProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markersRef = useRef<any[]>([]);
   const animFrameRef = useRef<number | null>(null);
@@ -243,42 +244,44 @@ export function ActivityBubbles({ map, show, bikeLanes }: ActivityBubblesProps) 
         const totalMeters = dists[dists.length - 1];
         if (totalMeters < 10) continue; // skip degenerate lanes
 
-        // Speed in m/s for cycling, with slight random variation (±15%)
-        const speedMs = MODE_SPEED_MS.BIKE * (0.85 + Math.random() * 0.3);
-        // Convert to progress/second: speed_ms / total_meters
-        const progressPerSec = speedMs / totalMeters;
+        if (animate) {
+          // Speed in m/s for cycling, with slight random variation (±15%)
+          const speedMs = MODE_SPEED_MS.BIKE * (0.85 + Math.random() * 0.3);
+          // Convert to progress/second: speed_ms / total_meters
+          const progressPerSec = speedMs / totalMeters;
 
-        // Show up to 3 bike icons per lane, staggered evenly along the path
-        const visibleCount = Math.min(count, 3);
-        for (let j = 0; j < visibleCount; j++) {
-          const icon = L.divIcon({
-            html: `<span class="activity-bike-anim">🚲</span>`,
-            className: "activity-bike-marker",
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-          });
+          // Show up to 3 bike icons per lane, staggered evenly along the path
+          const visibleCount = Math.min(count, 3);
+          for (let j = 0; j < visibleCount; j++) {
+            const icon = L.divIcon({
+              html: `<span class="activity-bike-anim">🚲</span>`,
+              className: "activity-bike-marker",
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            });
 
-          const startProgress = j / visibleCount;
-          const startPos = interpolateAlongPath(path, dists, startProgress);
-          const marker = L.marker(startPos, {
-            icon,
-            interactive: false,
-            zIndexOffset: 900,
-          }).addTo(map);
+            const startProgress = j / visibleCount;
+            const startPos = interpolateAlongPath(path, dists, startProgress);
+            const marker = L.marker(startPos, {
+              icon,
+              interactive: false,
+              zIndexOffset: 900,
+            }).addTo(map);
 
-          markersRef.current.push(marker);
-          bikeMarkers.push({
-            marker,
-            path,
-            dists,
-            totalMeters,
-            progress: startProgress,
-            speed: progressPerSec * (0.92 + Math.random() * 0.16), // slight per-icon variation
-          });
+            markersRef.current.push(marker);
+            bikeMarkers.push({
+              marker,
+              path,
+              dists,
+              totalMeters,
+              progress: startProgress,
+              speed: progressPerSec * (0.92 + Math.random() * 0.16), // slight per-icon variation
+            });
+          }
         }
 
-        // Show a count badge at the lane midpoint if more than 1 rider
-        if (count > 1) {
+        // Show a count badge at the lane midpoint (always when count > 1, or when not animating)
+        if (count > 1 || !animate) {
           const midPos = interpolateAlongPath(path, dists, 0.5);
           const badgeHtml = `<div class="activity-badge" style="background:#10b981;">
             <span class="activity-badge-emoji">🚲</span>
@@ -332,7 +335,7 @@ export function ActivityBubbles({ map, show, bikeLanes }: ActivityBubblesProps) 
       markersRef.current = [];
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [data, show, map, bikeLanes]);
+  }, [data, show, map, bikeLanes, animate]);
 
   return null;
 }

@@ -230,7 +230,9 @@ const pt = {
     mapSatellite: "Satélite",
     mapTerrain: "Terreno",
     showActivity: "Atividade no mapa",
-    showActivityDesc: "Mostrar animações de check-ins ativos",
+    showActivityDesc: "Mostrar indicadores de check-ins ativos",
+    showAnimations: "Animações",
+    showAnimationsDesc: "Animar ícones ao longo das rotas",
     privacyPolicy: "Política de Privacidade",
   },
   auth: {
@@ -574,7 +576,9 @@ const en: typeof pt = {
     mapSatellite: "Satellite",
     mapTerrain: "Terrain",
     showActivity: "Map activity",
-    showActivityDesc: "Show animations for active check-ins",
+    showActivityDesc: "Show indicators for active check-ins",
+    showAnimations: "Animations",
+    showAnimationsDesc: "Animate icons along routes",
     privacyPolicy: "Privacy Policy",
   },
   auth: {
