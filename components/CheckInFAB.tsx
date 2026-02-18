@@ -128,10 +128,11 @@ function findNearbyCandidates(
       }
     }
     // Always offer "cycling here" at user's location — signals demand for bike infrastructure
-    candidates.push({ targetId: "bike-here", lat: userLat, lon: userLon, label: t.checkin.cyclingHere, emoji: "🚲", distance: 0, priority: 2 });
+    // lat/lon NOT sent to API (privacy) — shown client-side only via userLocation prop
+    candidates.push({ targetId: "bike-here", lat: 0, lon: 0, label: t.checkin.cyclingHere, emoji: "🚲", distance: 0, priority: 2 });
   } else {
-    // WALK / SCOOTER — user location directly
-    return [{ targetId: mode.toLowerCase(), lat: userLat, lon: userLon, label: "", emoji: mode === "WALK" ? "🚶" : "🛴", distance: 0, priority: 0 }];
+    // WALK / SCOOTER — no lat/lon sent to API (privacy) — shown client-side only
+    return [{ targetId: mode.toLowerCase(), lat: 0, lon: 0, label: "", emoji: mode === "WALK" ? "🚶" : "🛴", distance: 0, priority: 0 }];
   }
 
   // Sort by priority first (live/primary before static/fallback), then by distance
@@ -331,10 +332,10 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
       return;
     }
 
-    // WALK/SCOOTER: auto-pick (user location, no infrastructure to disambiguate)
+    // WALK/SCOOTER: auto-pick — no lat/lon sent to API (privacy)
     if (mode === "WALK" || mode === "SCOOTER") {
       const best = candidates[0];
-      handleCheckIn(mode, best.targetId, best.lat, best.lon);
+      handleCheckIn(mode, best.targetId, undefined, undefined);
       return;
     }
 
@@ -444,7 +445,11 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
                 {nearbyCandidates.map((c, i) => (
                   <button
                     key={`${c.targetId}-${i}`}
-                    onClick={() => handleCheckIn(selectedMode, c.targetId, c.lat, c.lon)}
+                    onClick={() => {
+                      // Don't send lat/lon for user-location check-ins (privacy)
+                      const isUserLoc = c.targetId === "bike-here" || c.targetId === "walk" || c.targetId === "scooter";
+                      handleCheckIn(selectedMode, c.targetId, isUserLoc ? undefined : c.lat, isUserLoc ? undefined : c.lon);
+                    }}
                     disabled={isLoading}
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-surface-sunken transition-colors text-left disabled:opacity-50"
                   >

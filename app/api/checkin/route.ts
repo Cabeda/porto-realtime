@@ -51,7 +51,7 @@ function anonFingerprint(request: NextRequest): string {
 // Authenticated: replaces existing check-in, 1h TTL, linked to user
 // Anonymous: 30min TTL, rate limited by IP hash, no userId stored
 // Body: { mode: "BUS", targetId?: "205", lat?: number, lon?: number }
-// lat/lon: infrastructure coords for stops/parks, or quantized (~100m) user GPS for bike-here/walk/scooter
+// lat/lon: infrastructure coords for stops/parks; null for bike-here/walk/scooter (privacy)
 export async function POST(request: NextRequest) {
   // CSRF protection
   const csrfError = validateOrigin(request);
@@ -84,15 +84,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate optional lat/lon (target infrastructure coordinates)
-  const rawLat = typeof lat === "number" && lat >= -90 && lat <= 90 ? lat : null;
-  const rawLon = typeof lon === "number" && lon >= -180 && lon <= 180 ? lon : null;
-
-  // Privacy: quantize coordinates to ~100m precision (3 decimal places) for
-  // non-infrastructure check-ins (bike-here, walk, scooter) where lat/lon
-  // represents the user's actual GPS position rather than a fixed stop/park.
-  const isUserLocation = !targetId || targetId === "bike-here" || targetId === "walk" || targetId === "scooter";
-  const checkinLat = rawLat !== null && isUserLocation ? Math.round(rawLat * 1000) / 1000 : rawLat;
-  const checkinLon = rawLon !== null && isUserLocation ? Math.round(rawLon * 1000) / 1000 : rawLon;
+  const checkinLat = typeof lat === "number" && lat >= -90 && lat <= 90 ? lat : null;
+  const checkinLon = typeof lon === "number" && lon >= -180 && lon <= 180 ? lon : null;
 
   // Anti-spoofing: reject coordinates outside Porto metropolitan area
   if (checkinLat !== null && checkinLon !== null && !isWithinPortoBounds(checkinLat, checkinLon)) {
