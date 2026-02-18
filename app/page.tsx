@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from "react";
+import { useEffect, useState, useMemo, Suspense, useCallback } from "react";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -271,7 +271,7 @@ function MapPageContent() {
   // Fetch active check-ins for map indicators (badges on bus/bike/metro markers)
   const { data: activeCheckInsData, mutate: mutateActiveCheckIns } = useSWR<ActiveCheckInsResponse>(
     showActivity ? "/api/checkin/active" : null,
-    (url: string) => fetch(url).then(r => r.json()),
+    (url: string) => fetch(url, { cache: "no-store" }).then(r => r.json()),
     { refreshInterval: 30000, revalidateOnFocus: true }
   );
 
@@ -420,9 +420,25 @@ function MapPageContent() {
     }
   }, [favoriteRoutes, availableRouteNames, favoritesAppliedOnLoad, selectedRoutes.length]);
 
-  const filteredBuses = data?.buses && selectedRoutes.length > 0
-    ? data.buses.filter(bus => selectedRoutes.includes(bus.routeShortName))
-    : data?.buses || [];
+  // Set of individual bus IDs (FIWARE entity IDs) with active check-ins
+  // Used to override route filters — buses with activity are always shown on the map
+  const activeBusIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (showActivity && activeCheckInsData?.checkIns) {
+      for (const ci of activeCheckInsData.checkIns) {
+        if (ci.mode === "BUS" && ci.targetId) {
+          ids.add(ci.targetId);
+        }
+      }
+    }
+    return ids;
+  }, [activeCheckInsData, showActivity]);
+
+  const filteredBuses = data?.buses
+    ? selectedRoutes.length > 0
+      ? data.buses.filter(bus => selectedRoutes.includes(bus.routeShortName) || activeBusIds.has(bus.id))
+      : data.buses
+    : [];
 
   const toggleRoute = (route: string) => {
     setSelectedRoutes(prev =>
@@ -843,7 +859,7 @@ function MapPageContent() {
         />
 
         {/* Activity Bubbles — map-embedded indicators for live check-ins */}
-        <ActivityBubbles map={leafletMap} show={showActivity} bikeLanes={bikeLanesData?.lanes} animate={showAnimations} activeCheckIns={activeCheckInsData} />
+        <ActivityBubbles map={leafletMap} show={showActivity} bikeLanes={bikeLanesData?.lanes} animate={showAnimations} activeCheckIns={activeCheckInsData} userLocation={userLocation} />
       </main>
     </div>
   );

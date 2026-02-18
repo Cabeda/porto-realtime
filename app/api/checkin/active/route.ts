@@ -65,7 +65,11 @@ export async function GET() {
       },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=0, stale-while-revalidate=15",
+          // no-cache forces browsers (including Firefox) to revalidate every time,
+          // while s-maxage=0 + stale-while-revalidate handles CDN caching.
+          // Without no-cache, Firefox may serve stale responses from its HTTP cache
+          // even when SWR triggers a new fetch.
+          "Cache-Control": "no-cache, no-store, must-revalidate, public, s-maxage=0, stale-while-revalidate=15",
         },
       }
     );

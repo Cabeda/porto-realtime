@@ -72,20 +72,14 @@ function findNearbyCandidates(
   const candidates: NearbyCandidate[] = [];
 
   if (mode === "BUS") {
-    // Live buses — deduplicate by route, keep closest per route
-    const closestBusByRoute = new Map<string, { bus: Bus; dist: number }>();
+    // Live buses — show each individual bus (unique by FIWARE id)
     for (const bus of buses) {
       const dist = haversineMeters(userLat, userLon, bus.lat, bus.lon);
       if (dist <= MAX_NEARBY_BUS_METRO) {
-        const existing = closestBusByRoute.get(bus.routeShortName);
-        if (!existing || dist < existing.dist) {
-          closestBusByRoute.set(bus.routeShortName, { bus, dist });
-        }
+        const destination = bus.routeLongName ? ` → ${toTitleCase(bus.routeLongName)}` : "";
+        const vehicleLabel = bus.vehicleNumber ? ` (#${bus.vehicleNumber})` : "";
+        candidates.push({ targetId: bus.id, lat: bus.lat, lon: bus.lon, label: `${t.checkin.bus} ${bus.routeShortName}${vehicleLabel}${destination}`, emoji: "🚌", distance: dist, priority: 0 });
       }
-    }
-    for (const [, { bus, dist }] of closestBusByRoute) {
-      const destination = bus.routeLongName ? ` → ${toTitleCase(bus.routeLongName)}` : "";
-      candidates.push({ targetId: bus.routeShortName, lat: bus.lat, lon: bus.lon, label: `${t.checkin.bus} ${bus.routeShortName}${destination}`, emoji: "🚌", distance: dist, priority: 0 });
     }
     // Bus stops as fallback
     for (const stop of stops) {
@@ -138,6 +132,8 @@ function findNearbyCandidates(
         }
       }
     }
+    // Always offer "cycling here" at user's location — signals demand for bike infrastructure
+    candidates.push({ targetId: "bike-here", lat: userLat, lon: userLon, label: t.checkin.cyclingHere, emoji: "🚲", distance: 0, priority: 2 });
   } else {
     // WALK / SCOOTER — user location directly
     return [{ targetId: mode.toLowerCase(), lat: userLat, lon: userLon, label: "", emoji: mode === "WALK" ? "🚶" : "🛴", distance: 0, priority: 0 }];

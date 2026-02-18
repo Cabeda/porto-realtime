@@ -191,6 +191,8 @@ export function LeafletMap({
   }, [routePatterns]);
 
   // Build a lookup: mode:targetId → rider count from active check-ins
+  // Supports both individual bus IDs (FIWARE entity IDs like "urn:ngsi-ld:Vehicle:1234")
+  // and legacy route-based targetIds (like "205") for backward compatibility
   const checkInCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const ci of activeCheckIns) {
@@ -202,11 +204,13 @@ export function LeafletMap({
     return counts;
   }, [activeCheckIns]);
 
-  // Set of stop gtfsIds with active check-ins (any mode) — used to show stops even when showStops is off
+  // Set of stop gtfsIds with active check-ins — used to show stops even when showStops is off
+  // Only METRO check-ins use stop gtfsIds as targetIds; BUS check-ins now use
+  // individual FIWARE bus entity IDs, so they won't match stop gtfsIds.
   const activeStopIds = useMemo(() => {
     const ids = new Set<string>();
     for (const ci of activeCheckIns) {
-      if (ci.targetId && (ci.mode === "BUS" || ci.mode === "METRO")) {
+      if (ci.targetId && ci.mode === "METRO") {
         ids.add(ci.targetId);
       }
     }
@@ -417,8 +421,9 @@ export function LeafletMap({
           ? destinationText.substring(0, 17) + '...'
           : destinationText;
         const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
-        const riderCount = checkInCounts.get(`BUS:${bus.routeShortName}`) || 0;
-        const prevCount = prevRiderCountsRef.current.get(bus.routeShortName) || 0;
+        // Look up rider count by individual bus ID (FIWARE entity ID)
+        const riderCount = checkInCounts.get(`BUS:${bus.id}`) || 0;
+        const prevCount = prevRiderCountsRef.current.get(bus.id) || 0;
         const isNew = riderCount > 0 && riderCount > prevCount;
         const animClass = isNew ? "rider-badge rider-badge-pop" : "rider-badge";
         const riderBadge = riderCount > 0
@@ -504,8 +509,8 @@ export function LeafletMap({
       // Snapshot current rider counts so pop animation only fires once per increase
       const next = new Map<string, number>();
       buses.forEach((b) => {
-        const c = checkInCounts.get(`BUS:${b.routeShortName}`) || 0;
-        if (c > 0) next.set(b.routeShortName, c);
+        const c = checkInCounts.get(`BUS:${b.id}`) || 0;
+        if (c > 0) next.set(b.id, c);
       });
       prevRiderCountsRef.current = next;
     });
