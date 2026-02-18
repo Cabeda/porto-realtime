@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from "react";
+import { useEffect, useState, useMemo, Suspense, useCallback } from "react";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -16,9 +16,12 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { BottomSheet } from "@/components/BottomSheet";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { GlobalSearch } from "@/components/GlobalSearch";
-import { busesFetcher, stationsFetcher, fetcher } from "@/lib/fetchers";
+import { busesFetcher, stationsFetcher, routesFetcher, routeShapesFetcher, bikeParksFetcher, bikeLanesFetcher } from "@/lib/fetchers";
 import { useFeedbackList } from "@/lib/hooks/useFeedback";
-import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem, BikeParksResponse, BikeLanesResponse } from "@/lib/types";
+import { CheckInFAB } from "@/components/CheckInFAB";
+import { ActivityBubbles } from "@/components/ActivityBubbles";
+import type { Map as LMap } from "leaflet";
+import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem, BikeParksResponse, BikeLanesResponse, ActiveCheckInsResponse } from "@/lib/types";
 
 function MapPageContent() {
   const t = useTranslations();
@@ -72,9 +75,6 @@ function MapPageContent() {
     return [];
   });
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
-  const [lastDataTime, setLastDataTime] = useState<number | null>(null);
-  const [timeSinceUpdate, setTimeSinceUpdate] = useState("");
-  const [isDataStale, setIsDataStale] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [showLocationSuccess, setShowLocationSuccess] = useState(false);
@@ -83,6 +83,21 @@ function MapPageContent() {
       return localStorage.getItem("mapStyle") || "standard";
     }
     return "standard";
+  });
+  const [leafletMap, setLeafletMap] = useState<LMap | null>(null);
+  const [showActivity, setShowActivity] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("showActivity");
+      return saved !== null ? JSON.parse(saved) : true;
+    }
+    return true;
+  });
+  const [showAnimations, setShowAnimations] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("showAnimations");
+      return saved !== null ? JSON.parse(saved) : true;
+    }
+    return true;
   });
 
   // Feedback state for bottom sheet (triggered by bus popup custom event)
@@ -211,7 +226,7 @@ function MapPageContent() {
 
   const { data: routePatternsData } = useSWR<RoutePatternsResponse>(
     selectedRoutes.length > 0 ? "/api/route-shapes" : null,
-    fetcher,
+    routeShapesFetcher,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -222,7 +237,7 @@ function MapPageContent() {
   // Fetch all transit routes from OTP (source of truth)
   const { data: otpRoutesData } = useSWR<RoutesResponse>(
     "/api/routes",
-    fetcher,
+    routesFetcher,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -234,7 +249,7 @@ function MapPageContent() {
   // Fetch bike parks
   const { data: bikeParksData } = useSWR<BikeParksResponse>(
     "/api/bike-parks",
-    fetcher,
+    bikeParksFetcher,
     {
       refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
       revalidateOnFocus: false,
@@ -244,7 +259,7 @@ function MapPageContent() {
   // Fetch bike lanes
   const { data: bikeLanesData } = useSWR<BikeLanesResponse>(
     "/api/bike-lanes",
-    fetcher,
+    bikeLanesFetcher,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -252,6 +267,62 @@ function MapPageContent() {
       revalidateIfStale: false,
     }
   );
+
+  // Fetch active check-ins for map indicators (badges on bus/bike/metro markers)
+  const { data: activeCheckInsData, mutate: mutateActiveCheckIns } = useSWR<ActiveCheckInsResponse>(
+    showActivity ? "/api/checkin/active" : null,
+    (url: string) => fetch(url, { cache: "no-store" }).then(r => r.json()),
+    { refreshInterval: 30000, revalidateOnFocus: true }
+  );
+
+  // Immediately revalidate when the current user checks in or out
+  // Optimistically update the count for instant visual feedback
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const action = detail?.action || "add";
+
+      if (detail?.mode) {
+        mutateActiveCheckIns((prev) => {
+          const base = prev || { checkIns: [], total: 0, todayTotal: 0 };
+          const checkIns = [...base.checkIns];
+          const key = `${detail.mode}:${detail.targetId || ""}`;
+          const idx = checkIns.findIndex(ci => `${ci.mode}:${ci.targetId || ""}` === key);
+
+          if (action === "add") {
+            if (idx >= 0) {
+              checkIns[idx] = { ...checkIns[idx], count: checkIns[idx].count + 1 };
+            } else if (detail.lat != null && detail.lon != null) {
+              checkIns.push({ mode: detail.mode, targetId: detail.targetId || "", lat: detail.lat, lon: detail.lon, count: 1 });
+            }
+            return { ...base, checkIns, total: base.total + 1, todayTotal: base.todayTotal + 1 };
+          } else {
+            if (idx >= 0) {
+              if (checkIns[idx].count <= 1) {
+                checkIns.splice(idx, 1);
+              } else {
+                checkIns[idx] = { ...checkIns[idx], count: checkIns[idx].count - 1 };
+              }
+            }
+            return { ...base, checkIns, total: Math.max(0, base.total - 1) };
+          }
+        }, { revalidate: false }); // Don't revalidate — avoids race with the POST
+      } else {
+        mutateActiveCheckIns();
+      }
+    };
+
+    // checkin-changed: optimistic (before POST), don't revalidate
+    // checkin-confirmed: after POST succeeds, revalidate to get server truth
+    const confirmHandler = () => { mutateActiveCheckIns(); };
+
+    window.addEventListener("checkin-changed", handler);
+    window.addEventListener("checkin-confirmed", confirmHandler);
+    return () => {
+      window.removeEventListener("checkin-changed", handler);
+      window.removeEventListener("checkin-confirmed", confirmHandler);
+    };
+  }, [mutateActiveCheckIns]);
 
   // All routes from OTP (source of truth for the full list)
   const allRoutes: RouteInfo[] = otpRoutesData?.routes ?? [];
@@ -263,28 +334,6 @@ function MapPageContent() {
 
   // Flat list of route shortNames for backward-compatible usage (search, favorites, feedback)
   const availableRouteNames: string[] = allRoutes.map((r) => r.shortName);
-
-  // Track when bus data was last received
-  useEffect(() => {
-    if (data?.buses && data.buses.length > 0) {
-      setLastDataTime(Date.now());
-      setIsDataStale(!!data.stale);
-    }
-  }, [data]);
-
-  // Update "time since last update" every second
-  useEffect(() => {
-    if (!lastDataTime) return;
-    const updateLabel = () => {
-      const seconds = Math.floor((Date.now() - lastDataTime) / 1000);
-      if (seconds < 5) setTimeSinceUpdate("agora");
-      else if (seconds < 60) setTimeSinceUpdate(`${seconds}s`);
-      else setTimeSinceUpdate(`${Math.floor(seconds / 60)}m`);
-    };
-    updateLabel();
-    const interval = setInterval(updateLabel, 1000);
-    return () => clearInterval(interval);
-  }, [lastDataTime]);
 
   const handleLocateMe = () => {
     setIsLocating(true);
@@ -353,6 +402,8 @@ function MapPageContent() {
   useEffect(() => { localStorage.setItem("showBikeParks", JSON.stringify(showBikeParks)); }, [showBikeParks]);
   useEffect(() => { localStorage.setItem("showBikeLanes", JSON.stringify(showBikeLanes)); }, [showBikeLanes]);
   useEffect(() => { localStorage.setItem("selectedBikeLanes", JSON.stringify(selectedBikeLanes)); }, [selectedBikeLanes]);
+  useEffect(() => { localStorage.setItem("showActivity", JSON.stringify(showActivity)); }, [showActivity]);
+  useEffect(() => { localStorage.setItem("showAnimations", JSON.stringify(showAnimations)); }, [showAnimations]);
 
   const handleRateLine = useCallback((route: string) => {
     setFeedbackLineId(route);
@@ -369,9 +420,25 @@ function MapPageContent() {
     }
   }, [favoriteRoutes, availableRouteNames, favoritesAppliedOnLoad, selectedRoutes.length]);
 
-  const filteredBuses = data?.buses && selectedRoutes.length > 0
-    ? data.buses.filter(bus => selectedRoutes.includes(bus.routeShortName))
-    : data?.buses || [];
+  // Set of individual bus IDs (FIWARE entity IDs) with active check-ins
+  // Used to override route filters — buses with activity are always shown on the map
+  const activeBusIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (showActivity && activeCheckInsData?.checkIns) {
+      for (const ci of activeCheckInsData.checkIns) {
+        if (ci.mode === "BUS" && ci.targetId) {
+          ids.add(ci.targetId);
+        }
+      }
+    }
+    return ids;
+  }, [activeCheckInsData, showActivity]);
+
+  const filteredBuses = data?.buses
+    ? selectedRoutes.length > 0
+      ? data.buses.filter(bus => selectedRoutes.includes(bus.routeShortName) || activeBusIds.has(bus.id))
+      : data.buses
+    : [];
 
   const toggleRoute = (route: string) => {
     setSelectedRoutes(prev =>
@@ -439,16 +506,6 @@ function MapPageContent() {
                 <span className="sm:hidden">{t.map.appName}</span>
                 {isRefreshing && <span className="animate-spin text-base">🔄</span>}
               </h1>
-              <p className="text-xs text-content-secondary flex items-center gap-2">
-                {data ? (
-                  <>
-                    {t.map.busesCount(filteredBuses.length)}
-                    {selectedRoutes.length > 0 && <span className="text-content-muted"> / {data.buses.length}</span>}
-                    {timeSinceUpdate && <span className="text-content-muted">· {timeSinceUpdate}</span>}
-                    {isDataStale && <span className="text-amber-600 dark:text-amber-400 font-medium">· {t.map.cachedData}</span>}
-                  </>
-                ) : t.map.loading}
-              </p>
             </div>
             <div className="hidden sm:flex items-center gap-1">
               <Link
@@ -487,14 +544,14 @@ function MapPageContent() {
         <button
           onClick={handleLocateMe}
           disabled={isLocating}
-          className={`absolute bottom-24 right-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:cursor-not-allowed sm:bottom-6 ${
+          className={`absolute right-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:cursor-not-allowed ${
             isLocating
               ? "bg-blue-500 border-blue-600 animate-pulse"
               : userLocation
                 ? "bg-blue-500 hover:bg-blue-600 border-blue-600 text-white"
                 : "bg-surface-raised hover:bg-surface-sunken border-border"
           }`}
-          style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          style={{ bottom: 'calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px))' }}
           title={isLocating ? t.map.gettingLocation : userLocation ? t.map.updateLocation : t.map.getMyLocation}
         >
           {isLocating ? (
@@ -607,6 +664,9 @@ function MapPageContent() {
             showBikeLanes={showBikeLanes}
             selectedBikeLanes={selectedBikeLanes}
             mapStyle={mapStyle}
+            onMapReady={setLeafletMap}
+            activeCheckIns={activeCheckInsData?.checkIns}
+            showActivity={showActivity}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
@@ -620,7 +680,7 @@ function MapPageContent() {
           </div>
         )}
 
-        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowSettings(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} mapStyle={mapStyle} onMapStyleChange={setMapStyle} />}
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetOnboarding={() => { localStorage.removeItem('onboarding-completed'); setShowSettings(false); setShowOnboarding(true); setHasCompletedOnboarding(false); }} mapStyle={mapStyle} onMapStyleChange={setMapStyle} showActivity={showActivity} onToggleActivity={setShowActivity} showAnimations={showAnimations} onToggleAnimations={setShowAnimations} />}
 
         {/* Line Feedback Bottom Sheet */}
         <BottomSheet
@@ -787,6 +847,19 @@ function MapPageContent() {
             </div>
           )}
         </BottomSheet>
+
+        {/* Check-in FAB (#49) */}
+        <CheckInFAB
+          userLocation={userLocation}
+          buses={data?.buses}
+          stops={stopsData?.data?.stops}
+          bikeParks={bikeParksData?.parks}
+          bikeLanes={bikeLanesData?.lanes}
+          onLocationAcquired={setUserLocation}
+        />
+
+        {/* Activity Bubbles — map-embedded indicators for live check-ins */}
+        <ActivityBubbles map={leafletMap} show={showActivity} bikeLanes={bikeLanesData?.lanes} animate={showAnimations} activeCheckIns={activeCheckInsData} userLocation={userLocation} />
       </main>
     </div>
   );

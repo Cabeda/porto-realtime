@@ -34,11 +34,38 @@ export const storage = {
       
       localStorage.setItem(key, JSON.stringify(item));
     } catch (error) {
-      console.error(`Error writing to localStorage (${key}):`, error);
-      // Handle quota exceeded errors gracefully
       if (error instanceof DOMException && error.name === "QuotaExceededError") {
-        console.warn("localStorage quota exceeded, clearing old data");
-        // Could implement LRU cache eviction here
+        // Evict expired entries and largest cache keys, then retry once
+        try {
+          const keysToEvict: { key: string; size: number }[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k) continue;
+            const raw = localStorage.getItem(k);
+            if (!raw) continue;
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed.expiry && Date.now() > parsed.expiry) {
+                localStorage.removeItem(k);
+                continue;
+              }
+            } catch { /* not our format, skip */ }
+            keysToEvict.push({ key: k, size: raw.length });
+          }
+          // Remove the 3 largest entries to free space
+          keysToEvict.sort((a, b) => b.size - a.size);
+          for (const entry of keysToEvict.slice(0, 3)) {
+            localStorage.removeItem(entry.key);
+          }
+          // Retry
+          const item = {
+            value,
+            expiry: expiryDays ? Date.now() + expiryDays * 24 * 60 * 60 * 1000 : null,
+          };
+          localStorage.setItem(key, JSON.stringify(item));
+        } catch {
+          // Still failing — silently give up
+        }
       }
     }
   },

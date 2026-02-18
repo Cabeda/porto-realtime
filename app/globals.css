@@ -192,12 +192,23 @@ body {
   opacity: 0.8;
 }
 
-/* Ensure zoom controls sit above mobile bottom nav */
+/* Bottom nav height variable for consistent positioning */
+:root {
+  --bottom-nav-height: 3.5rem; /* matches BottomNav py-2 + content */
+  --bottom-nav-gap: 0.75rem;   /* spacing above the nav */
+}
+
+/* Ensure Leaflet bottom controls sit above mobile bottom nav */
 .leaflet-bottom.leaflet-left {
-  bottom: 4rem;
+  bottom: calc(var(--bottom-nav-height) + var(--bottom-nav-gap));
 }
 
 @media (min-width: 640px) {
+  :root {
+    --bottom-nav-height: 0px;
+    --bottom-nav-gap: 1.5rem;
+  }
+
   .leaflet-bottom.leaflet-left {
     bottom: 0;
   }

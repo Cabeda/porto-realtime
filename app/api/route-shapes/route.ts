@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 // @ts-ignore - No types available for @mapbox/polyline
 import polyline from "@mapbox/polyline";
 import { OTPRouteShapesResponseSchema } from "@/lib/schemas/otp";
+import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 
 interface PatternGeometry {
   patternId: string;
@@ -15,77 +16,69 @@ interface PatternGeometry {
   };
 }
 
-// In-memory cache for route shapes
-let routeShapesCache: PatternGeometry[] | null = null;
-let cacheTimestamp = 0;
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const staleCache = new StaleCache<PatternGeometry[]>(24 * 60 * 60 * 1000); // 24 hours
 
 export async function GET() {
   const startTime = Date.now();
 
-  try {
-    const now = Date.now();
-
-    // Return cached data if still valid
-    if (routeShapesCache && now - cacheTimestamp < CACHE_DURATION) {
-      const responseTime = Date.now() - startTime;
-      return NextResponse.json(
-        { patterns: routeShapesCache },
-        {
-          headers: {
-            "Cache-Control": "public, s-maxage=86400",
-            "X-Response-Time": `${responseTime}ms`,
-            "X-Cache-Status": "HIT",
-          },
-        }
-      );
-    }
-
-    console.log("Fetching route shapes from OTP...");
-
-    const response = await fetch(
-      "https://otp.portodigital.pt/otp/routers/default/index/graphql",
+  // Return fresh cached data immediately
+  const cached = staleCache.get();
+  if (cached?.fresh) {
+    const responseTime = Date.now() - startTime;
+    return NextResponse.json(
+      { patterns: cached.data },
       {
-        method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Origin: "https://explore.porto.pt",
+          "Cache-Control": "public, s-maxage=86400",
+          "X-Response-Time": `${responseTime}ms`,
+          "X-Cache-Status": "HIT",
         },
-        body: JSON.stringify({
-          query: `query {
-            routes {
-              gtfsId
-              shortName
-              longName
-              patterns {
-                id
-                headsign
-                directionId
-                patternGeometry {
-                  length
-                  points
-                }
-              }
-            }
-          }`,
-        }),
       }
     );
+  }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`OTP API error: ${response.status} - ${errorText}`);
-      throw new Error(`OTP API returned ${response.status}`);
-    }
+  try {
+    console.log("Fetching route shapes from OTP...");
+
+    const response = await fetchWithRetry(
+      "https://otp.portodigital.pt/otp/routers/default/index/graphql",
+      {
+        maxRetries: 3,
+        timeoutMs: 20000,
+        init: {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Origin: "https://explore.porto.pt",
+          },
+          body: JSON.stringify({
+            query: `query {
+              routes {
+                gtfsId
+                shortName
+                longName
+                patterns {
+                  id
+                  headsign
+                  directionId
+                  patternGeometry {
+                    length
+                    points
+                  }
+                }
+              }
+            }`,
+          }),
+        },
+      }
+    );
 
     const raw = await response.json();
     const parsed = OTPRouteShapesResponseSchema.safeParse(raw);
 
     if (!parsed.success) {
       console.warn("OTP route shapes validation failed:", parsed.error.message);
-      // Try to use raw data if structure is roughly correct
       if (!raw?.data?.routes) {
-        console.error("Invalid response structure:", raw);
         throw new Error("Invalid response from OTP API");
       }
     }
@@ -130,8 +123,7 @@ export async function GET() {
 
     console.log(`Fetched ${allPatterns.length} route patterns with geometry`);
 
-    routeShapesCache = allPatterns;
-    cacheTimestamp = now;
+    staleCache.set(allPatterns);
 
     const responseTime = Date.now() - startTime;
     return NextResponse.json(
@@ -147,10 +139,10 @@ export async function GET() {
   } catch (error) {
     console.error("Error fetching route shapes:", error);
 
-    if (routeShapesCache) {
+    if (cached) {
       console.log("Returning stale route shapes from cache");
       return NextResponse.json(
-        { patterns: routeShapesCache },
+        { patterns: cached.data },
         { headers: { "X-Cache-Status": "STALE" } }
       );
     }

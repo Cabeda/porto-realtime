@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 
 const CACHE_DURATION = 7 * 24 * 60 * 60; // 7 days in seconds
 
@@ -8,14 +9,14 @@ const BIKE_LANES_GEOJSON_URL = "https://opendata.porto.digital/dataset/d23a2bca-
 interface GeoJSONFeature {
   type: "Feature";
   properties: {
-    toponimo?: string;       // street name
-    denominacao?: string;    // bike lane name (e.g. "Ciclovia Parque Cidade - Fluvial")
-    pavimento?: string;      // pavement type
-    largura?: number;        // width in meters
-    estado?: string;         // status: "Executado" (built) or "Planeado" (planned)
+    toponimo?: string;
+    denominacao?: string;
+    pavimento?: string;
+    largura?: number;
+    estado?: string;
     objectid?: number;
     globalid?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   geometry: {
     type: "LineString";
@@ -27,6 +28,19 @@ interface GeoJSONCollection {
   type: "FeatureCollection";
   features: GeoJSONFeature[];
 }
+
+interface BikeLaneData {
+  lanes: Array<{
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    segments: [number, number][][];
+    length: number;
+  }>;
+}
+
+const staleCache = new StaleCache<BikeLaneData>(7 * 24 * 60 * 60 * 1000); // 7 days
 
 function haversineDistance(coords: [number, number][]): number {
   let length = 0;
@@ -48,28 +62,36 @@ function haversineDistance(coords: [number, number][]): number {
 }
 
 export async function GET() {
-  try {
-    const response = await fetch(BIKE_LANES_GEOJSON_URL, {
+  // Return fresh cached data immediately
+  const cached = staleCache.get();
+  if (cached?.fresh) {
+    return NextResponse.json(cached.data, {
       headers: {
-        "Accept": "application/geo+json",
-        "User-Agent": "PortoRealtime/1.0",
+        "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${24 * 60 * 60}`,
+        "X-Cache-Status": "HIT",
+      },
+    });
+  }
+
+  try {
+    const response = await fetchWithRetry(BIKE_LANES_GEOJSON_URL, {
+      maxRetries: 3,
+      timeoutMs: 15000,
+      init: {
+        headers: {
+          "Accept": "application/geo+json",
+          "User-Agent": "PortoRealtime/1.0",
+        },
       },
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch bike lanes: ${response.status}`);
-    }
-
     const geojson: GeoJSONCollection = await response.json();
     
-    // Group segments by denominacao + estado to keep executed and planned separate
-    // Only include features with estado "Executado" — planned lanes have no names/metadata
     const laneGroups = new Map<string, { features: GeoJSONFeature[]; estado: string }>();
     
     for (const feature of geojson.features) {
       if (feature.geometry?.type !== "LineString") continue;
       const estado = feature.properties.estado || "Planeado";
-      // Skip planned lanes — they have no denominacao/toponimo and are unnamed segments
       if (estado !== "Executado") continue;
       const name = feature.properties.denominacao || feature.properties.toponimo || `Segmento ${feature.properties.objectid || 'desconhecido'}`;
       const key = `${name}::${estado}`;
@@ -81,8 +103,6 @@ export async function GET() {
       }
     }
 
-    // Transform grouped features into BikeLane format
-    // Each segment keeps its own coordinate array to avoid straight lines between disconnected segments
     const lanes = Array.from(laneGroups.entries()).map(([key, group], index) => {
       const name = key.split("::")[0];
       const status = group.estado === "Executado" ? "executed" : "planned";
@@ -98,7 +118,6 @@ export async function GET() {
         }
       }
 
-      // Determine type from the name
       let type = "ciclovia";
       const lowerName = name.toLowerCase();
       if (lowerName.includes("ciclorrota")) type = "ciclorrota";
@@ -115,13 +134,24 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ lanes }, {
+    const data: BikeLaneData = { lanes };
+    staleCache.set(data);
+
+    return NextResponse.json(data, {
       headers: {
         "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${24 * 60 * 60}`,
+        "X-Cache-Status": "MISS",
       },
     });
   } catch (error) {
     console.error("Error fetching bike lanes:", error);
+
+    if (cached) {
+      return NextResponse.json(cached.data, {
+        headers: { "X-Cache-Status": "STALE" },
+      });
+    }
+
     return NextResponse.json(
       { lanes: [] },
       { status: 500, headers: { "Cache-Control": "no-cache" } }

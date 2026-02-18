@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "CheckIn" ALTER COLUMN "userId" DROP NOT NULL;
