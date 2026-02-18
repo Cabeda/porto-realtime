@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { OTPRoutesSimpleResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
+import { toTitleCase } from "@/lib/strings";
 import type { RouteInfo } from "@/lib/types";
 
 const staleCache = new StaleCache<RouteInfo[]>(24 * 60 * 60 * 1000); // 24 hours
@@ -54,7 +55,7 @@ export async function GET() {
     const routes: RouteInfo[] = validatedRoutes
       .map((r: { shortName: string; longName: string; mode: string; gtfsId: string }) => ({
         shortName: r.shortName,
-        longName: r.longName,
+        longName: toTitleCase(r.longName),
         mode: r.mode as RouteInfo["mode"],
         gtfsId: r.gtfsId,
       }))

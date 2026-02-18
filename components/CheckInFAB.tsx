@@ -14,11 +14,6 @@ const MODE_OPTIONS: { mode: TransitMode; emoji: string; key: keyof ReturnType<ty
   { mode: "SCOOTER", emoji: "🛴", key: "scooter" },
 ];
 
-/** Title-case a string (e.g., "BOAVISTA - CAMPANHÃ" → "Boavista - Campanhã") */
-function toTitleCase(s: string): string {
-  return s.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
-}
-
 /** Haversine distance in meters between two [lat, lon] points */
 function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
@@ -76,7 +71,7 @@ function findNearbyCandidates(
     for (const bus of buses) {
       const dist = haversineMeters(userLat, userLon, bus.lat, bus.lon);
       if (dist <= MAX_NEARBY_BUS_METRO) {
-        const destination = bus.routeLongName ? ` → ${toTitleCase(bus.routeLongName)}` : "";
+        const destination = bus.routeLongName ? ` → ${bus.routeLongName}` : "";
         const vehicleLabel = bus.vehicleNumber ? ` (#${bus.vehicleNumber})` : "";
         candidates.push({ targetId: bus.id, lat: bus.lat, lon: bus.lon, label: `${t.checkin.bus} ${bus.routeShortName}${vehicleLabel}${destination}`, emoji: "🚌", distance: dist, priority: 0 });
       }
