@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { OTPStopsResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
+import { readFallback } from "@/lib/fallback";
 
 const OTP_URL =
   "https://otp.portodigital.pt/otp/routers/default/index/graphql";
@@ -59,6 +60,15 @@ export async function GET() {
     if (cached) {
       return NextResponse.json(cached.data, {
         headers: { "X-Cache-Status": "STALE" },
+      });
+    }
+
+    // Layer 4: static fallback from public/fallback/stops.json
+    const fallback = await readFallback<{ data: { stops: unknown[] } }>("stops.json");
+    if (fallback?.data?.stops?.length) {
+      console.log("Returning static fallback for stations");
+      return NextResponse.json(fallback, {
+        headers: { "X-Cache-Status": "FALLBACK" },
       });
     }
 

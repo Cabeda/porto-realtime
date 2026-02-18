@@ -4,6 +4,7 @@ import polyline from "@mapbox/polyline";
 import { OTPRouteShapesResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 import { toTitleCase } from "@/lib/strings";
+import { readFallback } from "@/lib/fallback";
 
 interface PatternGeometry {
   patternId: string;
@@ -146,6 +147,15 @@ export async function GET() {
         { patterns: cached.data },
         { headers: { "X-Cache-Status": "STALE" } }
       );
+    }
+
+    // Layer 4: static fallback from public/fallback/route-shapes.json
+    const fallback = await readFallback<{ patterns: PatternGeometry[] }>("route-shapes.json");
+    if (fallback?.patterns?.length) {
+      console.log("Returning static fallback for route shapes");
+      return NextResponse.json(fallback, {
+        headers: { "X-Cache-Status": "FALLBACK" },
+      });
     }
 
     return NextResponse.json(
