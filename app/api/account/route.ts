@@ -1,12 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { validateOrigin, safeGetSession } from "@/lib/security";
 
 // DELETE /api/account — Delete user account and all associated data (GDPR Article 17 — Right to Erasure)
 // Cascading deletes handle: feedbacks, feedback votes, reports, check-ins
-export async function DELETE() {
-  const { data: session } = await auth.getSession();
-  const sessionUser = session?.user ?? null;
+export async function DELETE(request: NextRequest) {
+  const csrfError = validateOrigin(request);
+  if (csrfError) return csrfError;
+
+  const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
     return NextResponse.json(
@@ -44,8 +47,7 @@ export async function DELETE() {
 // GET /api/account — Export all user data (GDPR Article 20 — Right to Data Portability)
 // Returns all personal data in a structured JSON format
 export async function GET() {
-  const { data: session } = await auth.getSession();
-  const sessionUser = session?.user ?? null;
+  const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
     return NextResponse.json(

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { validateOrigin, safeGetSession } from "@/lib/security";
 
 const VALID_REASONS = ["SPAM", "OFFENSIVE", "MISLEADING", "OTHER"] as const;
 const REPORT_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -10,8 +11,10 @@ const AUTO_HIDE_THRESHOLD = 3; // hide after N reports
 // POST /api/feedback/report
 // Body: { feedbackId, reason }
 export async function POST(request: NextRequest) {
-  const { data: session } = await auth.getSession();
-  const sessionUser = session?.user ?? null;
+  const csrfError = validateOrigin(request);
+  if (csrfError) return csrfError;
+
+  const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
     return NextResponse.json(

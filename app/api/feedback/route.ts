@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkComment } from "@/lib/content-filter";
 import { auth } from "@/lib/auth";
+import { validateOrigin, safeGetSession } from "@/lib/security";
 
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE", "BIKE_PARK", "BIKE_LANE"] as const;
 const VALID_TAGS = ["OVERCROWDED", "LATE", "DIRTY", "ACCESSIBILITY", "SAFETY", "BROKEN_INFRASTRUCTURE", "FREQUENCY", "ROUTE_COVERAGE"] as const;
@@ -38,8 +39,7 @@ export async function GET(request: NextRequest) {
   const tag = searchParams.get("tag"); // optional tag filter
 
   // Resolve user identity from session
-  const { data: session } = await auth.getSession();
-  const sessionUser = session?.user ?? null;
+  const sessionUser = await safeGetSession(auth);
 
   if (!type || !targetId) {
     return NextResponse.json(
@@ -170,9 +170,12 @@ export async function GET(request: NextRequest) {
 // Auth: session cookie (authenticated) — requires sign-in
 // Body: { type, targetId, rating, comment?, metadata?, tags? }
 export async function POST(request: NextRequest) {
+  // CSRF protection
+  const csrfError = validateOrigin(request);
+  if (csrfError) return csrfError;
+
   // Resolve user identity from session
-  const { data: session } = await auth.getSession();
-  const sessionUser = session?.user ?? null;
+  const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
     return NextResponse.json(

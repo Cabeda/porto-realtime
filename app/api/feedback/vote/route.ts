@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { validateOrigin, safeGetSession } from "@/lib/security";
 
 // POST /api/feedback/vote — toggle upvote on a feedback review
 // Body: { feedbackId: string }
 // Auth: session cookie required
 export async function POST(request: NextRequest) {
-  const { data: session } = await auth.getSession();
-  const sessionUser = session?.user ?? null;
+  const csrfError = validateOrigin(request);
+  if (csrfError) return csrfError;
+
+  const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
     return NextResponse.json(

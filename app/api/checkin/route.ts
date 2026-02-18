@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { createHash } from "crypto";
+import { validateOrigin, safeGetSession } from "@/lib/security";
 
 const VALID_MODES = ["BUS", "METRO", "BIKE", "WALK", "SCOOTER"] as const;
 const AUTH_CHECKIN_DURATION_MS = 60 * 60 * 1000; // 1 hour for authenticated
 const ANON_CHECKIN_DURATION_MS = 30 * 60 * 1000; // 30 min for anonymous
-const ANON_RATE_LIMIT_MAX = 3; // max 3 active anonymous check-ins per IP hash per hour
+const ANON_RATE_LIMIT_PER_IP = 5; // max 5 anonymous check-ins per fingerprint per window
 const ANON_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const MAX_TARGET_ID_LENGTH = 100;
 
 /** Hash IP + User-Agent for anonymous rate limiting. Never stored — used in-memory only. */
 function anonFingerprint(request: NextRequest): string {
@@ -24,13 +26,11 @@ function anonFingerprint(request: NextRequest): string {
 // Body: { mode: "BUS", targetId?: "205", lat?: number, lon?: number }
 // lat/lon represent the TARGET infrastructure location (bus stop, bike park), NOT user GPS
 export async function POST(request: NextRequest) {
-  let sessionUser: { email: string } | null = null;
-  try {
-    const { data: session } = await auth.getSession();
-    sessionUser = session?.user ?? null;
-  } catch {
-    // No valid session (e.g. no cookies) — proceed as anonymous
-  }
+  // CSRF protection
+  const csrfError = validateOrigin(request);
+  if (csrfError) return csrfError;
+
+  const sessionUser = await safeGetSession(auth);
 
   let body: { mode?: string; targetId?: string; lat?: number; lon?: number };
   try {
@@ -44,6 +44,14 @@ export async function POST(request: NextRequest) {
   if (!mode || !VALID_MODES.includes(mode as (typeof VALID_MODES)[number])) {
     return NextResponse.json(
       { error: `Invalid mode. Must be one of: ${VALID_MODES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  // Validate optional targetId length
+  if (targetId && (typeof targetId !== "string" || targetId.length > MAX_TARGET_ID_LENGTH)) {
+    return NextResponse.json(
+      { error: `targetId must be a string (max ${MAX_TARGET_ID_LENGTH} chars)` },
       { status: 400 }
     );
   }
@@ -93,24 +101,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ checkIn }, { status: 200 });
     } else {
       // --- Anonymous check-in ---
-      // Rate limit by hashed fingerprint (IP + UA) — hash never stored in DB
+      // Rate limit by hashed fingerprint (IP + UA) — stored as truncated hash for counting only
       const fingerprint = anonFingerprint(request);
+      const fingerprintShort = fingerprint.slice(0, 16); // truncated — enough for rate limiting, less PII risk
       const windowStart = new Date(now.getTime() - ANON_RATE_LIMIT_WINDOW_MS);
 
-      // Count recent anonymous check-ins from similar fingerprint
-      // We use a simple approach: count all anonymous check-ins created recently
-      // and compare against a reasonable global limit per fingerprint
-      // Since we don't store the fingerprint, we use a generous global anon limit
-      // Count recent anonymous check-ins for simple anti-abuse
-      // We count all recent check-ins without userId as a global anon limit
-      const recentAnonCount = await prisma.$queryRaw<[{ count: bigint }]>`
+      // Count recent anonymous check-ins from this fingerprint
+      const recentCount = await prisma.$queryRaw<[{ count: bigint }]>`
         SELECT COUNT(*) as count FROM "CheckIn"
-        WHERE "userId" IS NULL AND "createdAt" >= ${windowStart}
+        WHERE "userId" IS NULL
+          AND "anonHash" = ${fingerprintShort}
+          AND "createdAt" >= ${windowStart}
       `.then(rows => Number(rows[0].count));
 
-      // If there are too many anonymous check-ins globally, apply stricter limits
-      // This is a simple anti-abuse measure without storing any personal data
-      if (recentAnonCount > 1000) {
+      if (recentCount >= ANON_RATE_LIMIT_PER_IP) {
         return NextResponse.json(
           { error: "Too many check-ins. Try again later." },
           { status: 429 }
@@ -123,8 +127,8 @@ export async function POST(request: NextRequest) {
       // Use raw SQL for anonymous check-ins — Prisma 7 requires the user relation
       // even when userId is optional, so we bypass it for null userId
       await prisma.$executeRaw`
-        INSERT INTO "CheckIn" ("id", "mode", "targetId", "lat", "lon", "expiresAt", "createdAt")
-        VALUES (${id}, ${transitMode}::"TransitMode", ${targetId || null}, ${checkinLat}, ${checkinLon}, ${expiresAt}, ${now})
+        INSERT INTO "CheckIn" ("id", "mode", "targetId", "lat", "lon", "expiresAt", "createdAt", "anonHash")
+        VALUES (${id}, ${transitMode}::"TransitMode", ${targetId || null}, ${checkinLat}, ${checkinLon}, ${expiresAt}, ${now}, ${fingerprintShort})
       `;
 
       const checkIn = { id, mode: transitMode, targetId: targetId || null, createdAt: now.toISOString(), expiresAt: expiresAt.toISOString() };
@@ -151,9 +155,11 @@ export async function POST(request: NextRequest) {
 }
 
 // DELETE /api/checkin — End check-in early (auth required)
-export async function DELETE() {
-  const { data: session } = await auth.getSession();
-  const sessionUser = session?.user ?? null;
+export async function DELETE(request: NextRequest) {
+  const csrfError = validateOrigin(request);
+  if (csrfError) return csrfError;
+
+  const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
     return NextResponse.json(
@@ -188,8 +194,7 @@ export async function DELETE() {
 
 // GET /api/checkin — Get current user's active check-in (auth required)
 export async function GET() {
-  const { data: session } = await auth.getSession();
-  const sessionUser = session?.user ?? null;
+  const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
     return NextResponse.json({ checkIn: null });

@@ -81,11 +81,13 @@ model CheckIn {
   targetId  String?     // optional: line shortName ("205"), metro line ("D")
   lat       Float?      // target location (infrastructure), not user GPS
   lon       Float?
+  anonHash  String?     // truncated hash of IP+UA for anonymous rate limiting (not PII)
   createdAt DateTime    @default(now())
   expiresAt DateTime    // createdAt + duration (30min anon, 1h auth)
 
   @@index([expiresAt])
   @@index([userId])
+  @@index([anonHash, createdAt]) // for anonymous rate limiting queries
 }
 
 enum UserRole {
