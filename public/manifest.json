@@ -1,7 +1,7 @@
 {
   "name": "PortoMove - Transportes em Tempo Real",
   "short_name": "PortoMove",
-  "description": "Autocarros em tempo real no Porto. Mapa ao vivo, horários, avaliações e feedback da comunidade.",
+  "description": "Dá voz a quem usa transportes públicos e micro-mobilidade no Porto. Mapa em tempo real, horários, avaliações e check-ins da comunidade.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

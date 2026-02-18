@@ -321,9 +321,34 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
             <h3 className="text-xs font-semibold text-content-muted uppercase tracking-wide mb-2">
               {t.settings.aboutProject}
             </h3>
-            <p className="text-sm text-content-secondary mb-3">
+            <p className="text-sm text-content-secondary mb-2">
               {t.settings.aboutDescription}
             </p>
+            <p className="text-sm text-accent font-medium mb-3">
+              {t.settings.missionStatement}
+            </p>
+            <div className="flex flex-col gap-2 mb-3">
+              <a
+                href="/reviews"
+                className="inline-flex items-center gap-2 text-sm bg-accent/10 text-accent hover:bg-accent/20 rounded-lg px-3 py-2 font-medium transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+                {t.settings.ctaFeedback}
+              </a>
+              <a
+                href="https://github.com/Cabeda/porto-realtime/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm bg-surface-secondary text-content-secondary hover:text-content-primary rounded-lg px-3 py-2 font-medium transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                {t.settings.ctaBugsFeatures}
+              </a>
+            </div>
             <p className="text-xs text-content-muted mb-3">
               {t.settings.developedBy}: José Cabeda
             </p>
