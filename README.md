@@ -1,108 +1,64 @@
-# Porto Bus - Mapa em Tempo Real
+# PortoMove
 
-Real-time public transit tracker for Porto, Portugal. View live bus positions on an interactive map, check departure times, and save favorite stations.
+**Giving a voice to those using public transportation and micro-mobility in Porto.**
+
+PortoMove is an open-source web app that provides real-time public transit information for Porto, Portugal. Track live bus positions, check departure times, review transit lines and stops, and explore bike infrastructure — all in one place.
+
+Your feedback helps improve mobility for everyone.
 
 ## Features
 
-- **🗺️ Live Bus Map**: Interactive map showing real-time bus positions across Porto
-- **🚌 Real-time Tracking**: Bus locations update every 10 seconds
-- **📍 Geolocation**: Automatically finds the 5 closest stations
-- **⭐ Favorites**: Save frequently used stations with persistent storage
-- **🔍 Station Search**: Filter and browse all available stations
-- **⏱️ Auto-refresh**: Station pages update every 30 seconds
-- **📱 PWA Support**: Install as an app, works offline with intelligent caching
-- **🚀 Reliable**: API retry logic and stale data fallback for graceful degradation
-
-## Prerequisites
-
-This project uses **pnpm** as the package manager. Install it if you haven't already:
-
-```bash
-npm install -g pnpm
-```
-
-Or use the standalone script:
-
-```bash
-curl -fsSL https://get.pnpm.io/install.sh | sh -
-```
+- **Live Bus Map** — Real-time bus positions on an interactive map, updated every 30 seconds
+- **Station Departures** — Live departure times with real-time vs scheduled indicators
+- **Route Visualization** — Bus and metro route paths with filtering and favorites
+- **Community Reviews** — Rate and review lines, stops, vehicles, bike parks, and bike lanes
+- **Activity Check-ins** — Share what you're doing (biking, walking, scooting) on the map
+- **Bike Infrastructure** — Bike parks and bike lanes from Porto open data
+- **Geolocation** — Find the 5 closest stations automatically
+- **Favorites** — Save frequently used stations and routes
+- **Dark Mode** — Full dark mode support
+- **PWA** — Install as an app with offline support and static fallback data
+- **Resilient** — API retry logic, stale data fallback, and degraded-state UI
 
 ## Getting Started
 
-Install dependencies:
+This project uses **pnpm** as the package manager.
 
 ```bash
 pnpm install
-```
-
-Run the development server:
-
-```bash
 pnpm dev
-```
-
-Build for production:
-
-```bash
-pnpm build
-```
-
-Start production server:
-
-```bash
-pnpm start
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
 
 ## Tech Stack
 
-- **Next.js 16** - React framework with App Router and Turbopack
-- **React 18.3.1** - UI library
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Utility-first styling
-- **Leaflet** - Interactive maps
-- **SWR** - Data fetching with auto-revalidation
-- **GraphQL** - Porto OTP API integration
-- **PWA** - Progressive Web App with service worker
-- **pnpm** - Fast, disk space efficient package manager
-
-## Pages
-
-- `/` - Live bus map (homepage)
-- `/stations` - Station list with search and favorites
-- `/station?gtfsId={id}` - Real-time departures for a specific station
-
-## API Routes
-
-- `/api/buses` - Fetches real-time bus positions from FIWARE Urban Platform
-- `/api/stations` - Fetches all transit stops (30-day cache)
-- `/api/station?gtfsId={id}` - Fetches real-time departures for a specific station (30s refresh)
+- **Next.js 16** with App Router
+- **TypeScript** + **React 18**
+- **Tailwind CSS** for styling
+- **Leaflet** for interactive maps
+- **SWR** for data fetching with auto-revalidation
+- **Prisma 7** + **Neon PostgreSQL** for database
+- **Neon Auth** (Better Auth) for authentication
+- **Zod 4** for API validation
+- **Vitest** + **Playwright** for testing
+- **pnpm** as package manager
 
 ## Data Sources
 
-- **Transit Data**: Porto's OpenTripPlanner instance at `https://otp.services.porto.digital`
-- **Real-time Bus Positions**: FIWARE Urban Platform at `https://opendata.porto.digital`
+- **Transit Data**: [Porto OpenTripPlanner](https://otp.portodigital.pt) (GraphQL)
+- **Bus Positions**: [FIWARE Urban Platform](https://broker.fiware.urbanplatform.portodigital.pt) (NGSI v2)
+- **Bike Infrastructure**: [Explore Porto](https://portal.api.portodigital.pt) open data
 - **Map Tiles**: OpenStreetMap
-
-## Development
-
-This project enforces pnpm usage via the `preinstall` script. If you try to use npm or yarn, you'll get an error.
-
-To bypass this (not recommended):
-
-```bash
-# Temporarily disable preinstall check
-pnpm install --ignore-scripts
-```
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+We'd love your help making Porto's transit better. Here's how:
+
+1. **Rate transit** — Use the app to review lines, stops, and vehicles at [portomove.pt/reviews](https://portomove.pt/reviews)
+2. **Report bugs** — [Open an issue](https://github.com/Cabeda/porto-realtime/issues) with what went wrong
+3. **Suggest features** — [Open an issue](https://github.com/Cabeda/porto-realtime/issues) describing what you'd like to see
+4. **Contribute code** — Fork, create a feature branch, and open a PR
 
 ## License
 

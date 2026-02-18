@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "PortoMove - Transportes em Tempo Real",
-  description: "Autocarros em tempo real no Porto. Mapa ao vivo, horários, avaliações e feedback da comunidade.",
+  description: "Dá voz a quem usa transportes públicos e micro-mobilidade no Porto. Mapa em tempo real, horários, avaliações e check-ins da comunidade.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
