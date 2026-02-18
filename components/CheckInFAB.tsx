@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { AuthModal } from "@/components/AuthModal";
 import type { TransitMode, CheckInItem } from "@/lib/types";
 
 const MODE_OPTIONS: { mode: TransitMode; emoji: string; key: keyof ReturnType<typeof import("@/lib/hooks/useTranslations").useTranslations>["checkin"] }[] = [
@@ -15,28 +14,15 @@ const MODE_OPTIONS: { mode: TransitMode; emoji: string; key: keyof ReturnType<ty
   { mode: "SCOOTER", emoji: "🛴", key: "scooter" },
 ];
 
-/** Get current position as a promise (best-effort, short timeout) */
-function getPosition(): Promise<{ lat: number; lon: number } | null> {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-      () => resolve(null),
-      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
-    );
-  });
-}
-
 export function CheckInFAB() {
   const t = useTranslations();
   const { isAuthenticated } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [activeCheckIn, setActiveCheckIn] = useState<CheckInItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Fetch current check-in on mount
+  // Fetch current check-in on mount (auth users only — anonymous can't retrieve theirs)
   const fetchCurrent = useCallback(async () => {
     try {
       const res = await fetch("/api/checkin");
@@ -70,23 +56,26 @@ export function CheckInFAB() {
     if (activeCheckIn && minutesLeft <= 0) setActiveCheckIn(null);
   }, [activeCheckIn, minutesLeft]);
 
-  const handleCheckIn = useCallback(async (mode: TransitMode, targetId?: string, fallbackLat?: number, fallbackLon?: number) => {
+  // Check-in handler — works for both anonymous and authenticated users
+  // lat/lon are target infrastructure coordinates (bus stop, bike park), NOT user GPS
+  const handleCheckIn = useCallback(async (mode: TransitMode, targetId?: string, targetLat?: number, targetLon?: number) => {
     setIsLoading(true);
     try {
-      const pos = await getPosition();
-      const lat = pos?.lat ?? fallbackLat;
-      const lon = pos?.lon ?? fallbackLon;
       const res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, targetId, lat, lon }),
+        body: JSON.stringify({ mode, targetId, lat: targetLat, lon: targetLon }),
       });
       if (res.ok) {
         const data = await res.json();
-        setActiveCheckIn(data.checkIn);
+        // Only track active check-in state for authenticated users (they can end it)
+        if (isAuthenticated) {
+          setActiveCheckIn(data.checkIn);
+        }
         setToast(t.checkin.checkInSuccess);
       } else {
-        setToast(t.checkin.checkInError);
+        const data = await res.json().catch(() => ({}));
+        setToast(data.error || t.checkin.checkInError);
       }
     } catch {
       setToast(t.checkin.checkInError);
@@ -94,7 +83,7 @@ export function CheckInFAB() {
       setIsLoading(false);
       setShowPicker(false);
     }
-  }, [t]);
+  }, [t, isAuthenticated]);
 
   const handleEndCheckIn = async () => {
     setIsLoading(true);
@@ -109,41 +98,29 @@ export function CheckInFAB() {
   };
 
   const handleFABClick = () => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
-    if (activeCheckIn) {
+    if (activeCheckIn && isAuthenticated) {
       handleEndCheckIn();
     } else {
       setShowPicker(true);
     }
   };
 
-  // Listen for check-in requests from bus popups
+  // Listen for check-in requests from bus popups (no auth required)
   useEffect(() => {
     const handleBusCheckIn = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-        return;
-      }
       if (detail?.routeShortName) {
         handleCheckIn("BUS", detail.routeShortName);
       }
     };
     window.addEventListener("open-bus-checkin", handleBusCheckIn);
     return () => window.removeEventListener("open-bus-checkin", handleBusCheckIn);
-  }, [isAuthenticated, handleCheckIn]);
+  }, [handleCheckIn]);
 
-  // Listen for check-in requests from bike lane popups
+  // Listen for check-in requests from bike lane popups (no auth required)
   useEffect(() => {
     const handleBikeCheckIn = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-        return;
-      }
       if (detail?.laneName) {
         const lat = detail.lat ? parseFloat(detail.lat) : undefined;
         const lon = detail.lon ? parseFloat(detail.lon) : undefined;
@@ -152,16 +129,12 @@ export function CheckInFAB() {
     };
     window.addEventListener("open-bike-checkin", handleBikeCheckIn);
     return () => window.removeEventListener("open-bike-checkin", handleBikeCheckIn);
-  }, [isAuthenticated, handleCheckIn]);
+  }, [handleCheckIn]);
 
-  // Listen for check-in requests from bike park popups
+  // Listen for check-in requests from bike park popups (no auth required)
   useEffect(() => {
     const handleBikeParkCheckIn = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-        return;
-      }
       if (detail?.parkName) {
         const lat = detail.lat ? parseFloat(detail.lat) : undefined;
         const lon = detail.lon ? parseFloat(detail.lon) : undefined;
@@ -170,7 +143,7 @@ export function CheckInFAB() {
     };
     window.addEventListener("open-bike-park-checkin", handleBikeParkCheckIn);
     return () => window.removeEventListener("open-bike-park-checkin", handleBikeParkCheckIn);
-  }, [isAuthenticated, handleCheckIn]);
+  }, [handleCheckIn]);
 
   const modeEmoji = activeCheckIn
     ? MODE_OPTIONS.find((m) => m.mode === activeCheckIn.mode)?.emoji ?? "🚏"
@@ -203,8 +176,8 @@ export function CheckInFAB() {
         )}
       </button>
 
-      {/* Active check-in badge */}
-      {activeCheckIn && minutesLeft > 0 && (
+      {/* Active check-in badge (auth users only — they can end it) */}
+      {activeCheckIn && isAuthenticated && minutesLeft > 0 && (
         <div
           className="absolute right-[3.75rem] z-[1001] bg-green-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow whitespace-nowrap"
           style={{ bottom: "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 4.375rem)" }}
@@ -244,15 +217,6 @@ export function CheckInFAB() {
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[3000] bg-surface-raised text-content text-sm font-medium px-4 py-2 rounded-xl shadow-lg border border-border animate-fade-in">
           {toast}
         </div>,
-        document.body
-      )}
-
-      {/* Auth modal */}
-      {showAuthModal && createPortal(
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={() => { setShowAuthModal(false); fetchCurrent(); }}
-        />,
         document.body
       )}
     </>

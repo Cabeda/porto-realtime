@@ -71,16 +71,18 @@ model Report {
 }
 
 // Transit check-in — users check in to a transit mode
+// userId is optional to support anonymous check-ins (GDPR-friendly)
+// lat/lon represent the target infrastructure location (bus stop, bike park), NOT user GPS
 model CheckIn {
   id        String      @id @default(cuid())
-  userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   mode      TransitMode
   targetId  String?     // optional: line shortName ("205"), metro line ("D")
-  lat       Float?      // user location at check-in time
+  lat       Float?      // target location (infrastructure), not user GPS
   lon       Float?
   createdAt DateTime    @default(now())
-  expiresAt DateTime    // createdAt + 1 hour
+  expiresAt DateTime    // createdAt + duration (30min anon, 1h auth)
 
   @@index([expiresAt])
   @@index([userId])
