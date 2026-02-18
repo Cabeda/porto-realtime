@@ -21,7 +21,7 @@ import { useFeedbackList } from "@/lib/hooks/useFeedback";
 import { CheckInFAB } from "@/components/CheckInFAB";
 import { ActivityBubbles } from "@/components/ActivityBubbles";
 import type { Map as LMap } from "leaflet";
-import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem, BikeParksResponse, BikeLanesResponse } from "@/lib/types";
+import type { BusesResponse, StopsResponse, RoutePatternsResponse, RoutesResponse, RouteInfo, FeedbackItem, BikeParksResponse, BikeLanesResponse, ActiveCheckInsResponse } from "@/lib/types";
 
 function MapPageContent() {
   const t = useTranslations();
@@ -270,6 +270,62 @@ function MapPageContent() {
       revalidateIfStale: false,
     }
   );
+
+  // Fetch active check-ins for map indicators (badges on bus/bike/metro markers)
+  const { data: activeCheckInsData, mutate: mutateActiveCheckIns } = useSWR<ActiveCheckInsResponse>(
+    showActivity ? "/api/checkin/active" : null,
+    (url: string) => fetch(url).then(r => r.json()),
+    { refreshInterval: 30000, revalidateOnFocus: true }
+  );
+
+  // Immediately revalidate when the current user checks in or out
+  // Optimistically update the count for instant visual feedback
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const action = detail?.action || "add";
+
+      if (detail?.mode) {
+        mutateActiveCheckIns((prev) => {
+          const base = prev || { checkIns: [], total: 0, todayTotal: 0 };
+          const checkIns = [...base.checkIns];
+          const key = `${detail.mode}:${detail.targetId || ""}`;
+          const idx = checkIns.findIndex(ci => `${ci.mode}:${ci.targetId || ""}` === key);
+
+          if (action === "add") {
+            if (idx >= 0) {
+              checkIns[idx] = { ...checkIns[idx], count: checkIns[idx].count + 1 };
+            } else if (detail.lat != null && detail.lon != null) {
+              checkIns.push({ mode: detail.mode, targetId: detail.targetId || "", lat: detail.lat, lon: detail.lon, count: 1 });
+            }
+            return { ...base, checkIns, total: base.total + 1, todayTotal: base.todayTotal + 1 };
+          } else {
+            if (idx >= 0) {
+              if (checkIns[idx].count <= 1) {
+                checkIns.splice(idx, 1);
+              } else {
+                checkIns[idx] = { ...checkIns[idx], count: checkIns[idx].count - 1 };
+              }
+            }
+            return { ...base, checkIns, total: Math.max(0, base.total - 1) };
+          }
+        }, { revalidate: false }); // Don't revalidate — avoids race with the POST
+      } else {
+        mutateActiveCheckIns();
+      }
+    };
+
+    // checkin-changed: optimistic (before POST), don't revalidate
+    // checkin-confirmed: after POST succeeds, revalidate to get server truth
+    const confirmHandler = () => { mutateActiveCheckIns(); };
+
+    window.addEventListener("checkin-changed", handler);
+    window.addEventListener("checkin-confirmed", confirmHandler);
+    return () => {
+      window.removeEventListener("checkin-changed", handler);
+      window.removeEventListener("checkin-confirmed", confirmHandler);
+    };
+  }, [mutateActiveCheckIns]);
 
   // All routes from OTP (source of truth for the full list)
   const allRoutes: RouteInfo[] = otpRoutesData?.routes ?? [];
@@ -628,6 +684,7 @@ function MapPageContent() {
             selectedBikeLanes={selectedBikeLanes}
             mapStyle={mapStyle}
             onMapReady={setLeafletMap}
+            activeCheckIns={activeCheckInsData?.checkIns}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
@@ -813,7 +870,7 @@ function MapPageContent() {
         <CheckInFAB />
 
         {/* Activity Bubbles — map-embedded indicators for live check-ins */}
-        <ActivityBubbles map={leafletMap} show={showActivity} bikeLanes={bikeLanesData?.lanes} animate={showAnimations} />
+        <ActivityBubbles map={leafletMap} show={showActivity} bikeLanes={bikeLanesData?.lanes} animate={showAnimations} activeCheckIns={activeCheckInsData} />
       </main>
     </div>
   );

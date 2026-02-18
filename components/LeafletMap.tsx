@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import type { Map as LMap, Marker, LatLngBounds, Polyline, TileLayer as LTileLayer } from "leaflet";
 import { logger } from "@/lib/logger";
 import { escapeHtml } from "@/lib/sanitize";
-import type { Bus, Stop, PatternGeometry, BikePark, BikeLane } from "@/lib/types";
+import type { Bus, Stop, PatternGeometry, BikePark, BikeLane, ActiveCheckIn } from "@/lib/types";
 
 // Color palette for routes (vibrant colors that work in light and dark mode)
 export const ROUTE_COLORS = [
@@ -135,6 +135,7 @@ interface LeafletMapProps {
   selectedBikeLanes?: string[];
   mapStyle?: string;
   onMapReady?: (map: LMap) => void;
+  activeCheckIns?: ActiveCheckIn[];
 }
 
 export function LeafletMap({
@@ -155,6 +156,7 @@ export function LeafletMap({
   selectedBikeLanes = [],
   mapStyle = "standard",
   onMapReady,
+  activeCheckIns = [],
 }: LeafletMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<LMap | null>(null);
@@ -169,6 +171,7 @@ export function LeafletMap({
   const routeLayersRef = useRef<Polyline[]>([]);
   const animFramesRef = useRef<Map<string, number>>(new Map());
   const busSegmentRef = useRef<Map<string, { pIdx: number; sIdx: number }>>(new Map());
+  const prevRiderCountsRef = useRef<Map<string, number>>(new Map());
   const [isMapReady, setIsMapReady] = useState(false);
 
   // Pre-group route patterns by routeShortName for efficient lookup
@@ -184,6 +187,18 @@ export function LeafletMap({
     }
     return map;
   }, [routePatterns]);
+
+  // Build a lookup: mode:targetId → rider count from active check-ins
+  const checkInCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const ci of activeCheckIns) {
+      if (ci.targetId) {
+        const key = `${ci.mode}:${ci.targetId}`;
+        counts.set(key, (counts.get(key) || 0) + ci.count);
+      }
+    }
+    return counts;
+  }, [activeCheckIns]);
 
   useEffect(() => {
     if (mapInstanceRef.current) return;
@@ -227,6 +242,26 @@ export function LeafletMap({
       setIsMapReady(true);
       onMapReady?.(map);
       logger.log("Map initialized and ready");
+
+      // Inject rider badge styles
+      if (!document.getElementById("rider-badge-styles")) {
+        const style = document.createElement("style");
+        style.id = "rider-badge-styles";
+        style.textContent = `
+          .rider-badge {
+            transition: transform 0.2s ease;
+          }
+          .rider-badge-pop {
+            animation: rider-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+          }
+          @keyframes rider-pop {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.3); }
+            100% { transform: scale(1); opacity: 1; }
+          }
+        `;
+        document.head.appendChild(style);
+      }
 
       // Event delegation on map container for bus popup rate buttons.
       // This is more reliable than attaching listeners on popupopen because
@@ -286,10 +321,12 @@ export function LeafletMap({
         const checkinTarget = (e.target as HTMLElement).closest("[data-checkin-line]");
         if (checkinTarget) {
           const routeShortName = checkinTarget.getAttribute("data-checkin-line");
+          const lat = checkinTarget.getAttribute("data-checkin-lat");
+          const lon = checkinTarget.getAttribute("data-checkin-lon");
           if (routeShortName) {
             window.dispatchEvent(
               new CustomEvent("open-bus-checkin", {
-                detail: { routeShortName },
+                detail: { routeShortName, lat: lat || undefined, lon: lon || undefined },
               })
             );
           }
@@ -410,11 +447,18 @@ export function LeafletMap({
           ? destinationText.substring(0, 17) + '...'
           : destinationText;
         const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
+        const riderCount = checkInCounts.get(`BUS:${bus.routeShortName}`) || 0;
+        const prevCount = prevRiderCountsRef.current.get(bus.routeShortName) || 0;
+        const isNew = riderCount > 0 && riderCount > prevCount;
+        const animClass = isNew ? "rider-badge rider-badge-pop" : "rider-badge";
+        const riderBadge = riderCount > 0
+          ? `<div class="${animClass}" style="position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;background:#10b981;border:2px solid white;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;font-family:system-ui,sans-serif;padding:0 3px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">${riderCount}</div>`
+          : "";
 
         const iconHtml = `
           <div style="display:flex;align-items:center;gap:4px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
-            <div style="min-width:44px;height:32px;background:${routeColor};border:2px solid white;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;font-family:system-ui,sans-serif;cursor:pointer;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">
-              ${escapeHtml(bus.routeShortName)}
+            <div style="position:relative;min-width:44px;height:32px;background:${routeColor};border:2px solid white;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;font-family:system-ui,sans-serif;cursor:pointer;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">
+              ${escapeHtml(bus.routeShortName)}${riderBadge}
             </div>
             <div style="background:rgba(255,255,255,0.98);border:1px solid #cbd5e1;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:600;color:#1e40af;font-family:system-ui,sans-serif;white-space:nowrap;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.2);max-width:150px;overflow:hidden;text-overflow:ellipsis;">
               ${escapeHtml(truncatedDestination)}
@@ -432,7 +476,7 @@ export function LeafletMap({
               <button data-rate-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="flex:1;padding:6px 12px;background:#eab308;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Linha ${escapeHtml(bus.routeShortName)}</button>
               ${bus.vehicleNumber ? `<button data-rate-vehicle="${escapeHtml(bus.vehicleNumber)}" data-vehicle-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="flex:1;padding:6px 12px;background:#6366f1;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">★ Bus ${escapeHtml(bus.vehicleNumber)}</button>` : ''}
             </div>
-            <button data-checkin-line="${escapeHtml(bus.routeShortName)}" class="bus-popup-rate-btn" style="width:100%;padding:6px 12px;margin-top:6px;background:#10b981;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">📍 Check-in</button>
+            <button data-checkin-line="${escapeHtml(bus.routeShortName)}" data-checkin-lat="${bus.lat}" data-checkin-lon="${bus.lon}" class="bus-popup-rate-btn" style="width:100%;padding:6px 12px;margin-top:6px;background:#10b981;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">📍 Check-in</button>
           </div>`;
 
         const busIcon = L.divIcon({
@@ -487,8 +531,16 @@ export function LeafletMap({
           busMarkersMapRef.current.set(bus.id, marker);
         }
       });
+
+      // Snapshot current rider counts so pop animation only fires once per increase
+      const next = new Map<string, number>();
+      buses.forEach((b) => {
+        const c = checkInCounts.get(`BUS:${b.routeShortName}`) || 0;
+        if (c > 0) next.set(b.routeShortName, c);
+      });
+      prevRiderCountsRef.current = next;
     });
-  }, [buses, isMapReady, selectedRoutes, routePatterns]);
+  }, [buses, isMapReady, selectedRoutes, routePatterns, checkInCounts]);
 
   // Viewport-based stop rendering
   useEffect(() => {
@@ -778,11 +830,16 @@ export function LeafletMap({
         const occupancyPercent = park.capacity > 0 ? Math.round((park.occupied / park.capacity) * 100) : 0;
         const occupancyColor = occupancyPercent >= 90 ? '#ef4444' : occupancyPercent >= 70 ? '#f59e0b' : '#22c55e';
         const availabilityText = park.available > 0 ? `${park.available} vagas` : 'Lotado';
+        const parkRiders = checkInCounts.get(`BIKE:${park.name}`) || 0;
+        const parkRiderBadge = parkRiders > 0
+          ? `<div style="position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;background:#3b82f6;border:2px solid white;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;font-family:system-ui,sans-serif;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">${parkRiders}</div>`
+          : "";
 
         const iconHtml = `
           <div style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:#10b981;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3);cursor:pointer;position:relative;">
             <span style="font-size:18px;">🚲</span>
             <div style="position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;background:${occupancyColor};border:2px solid white;border-radius:50%;"></div>
+            ${parkRiderBadge}
           </div>`;
 
         const popupHtml = `
@@ -837,7 +894,7 @@ export function LeafletMap({
 
       logger.log(`Rendered ${bikeParkMarkersRef.current.length} bike park markers`);
     });
-  }, [bikeParks, showBikeParks, isMapReady]);
+  }, [bikeParks, showBikeParks, isMapReady, checkInCounts]);
 
   // Bike lanes polylines
   useEffect(() => {
@@ -873,6 +930,7 @@ export function LeafletMap({
 
         const baseColor = typeColors[lane.type] || '#10b981';
         const color = isPlanned ? '#9ca3af' : baseColor;
+        const laneRiders = checkInCounts.get(`BIKE:${lane.name}`) || 0;
 
         // Compute a midpoint from the lane's first segment for fallback check-in location
         let midLat = '';
@@ -899,6 +957,7 @@ export function LeafletMap({
             <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">
               Comprimento: ${(lane.length / 1000).toFixed(2)} km
             </div>
+            ${laneRiders > 0 ? `<div style="font-size:12px;color:#10b981;font-weight:600;margin-bottom:8px;">🚲 ${laneRiders} ciclista${laneRiders > 1 ? 's' : ''} agora</div>` : ''}
             <button data-rate-bike-lane="${escapeHtml(lane.id)}" data-lane-name="${escapeHtml(lane.name)}" class="bike-lane-rate-btn" style="width:100%;padding:8px 12px;background:${color};color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
               ★ Avaliar esta ciclovia
             </button>
@@ -923,9 +982,9 @@ export function LeafletMap({
 
           try {
             const polyline = L.polyline(latLngs, {
-              color,
-              weight: isPlanned ? 3 : 5,
-              opacity: isPlanned ? 0.5 : 0.8,
+              color: laneRiders > 0 ? '#10b981' : color,
+              weight: isPlanned ? 3 : laneRiders > 0 ? 7 : 5,
+              opacity: isPlanned ? 0.5 : laneRiders > 0 ? 1 : 0.8,
               smoothFactor: 1,
               dashArray: isPlanned ? '8, 8' : (lane.type === 'ciclorrota' ? '10, 10' : undefined),
             })
@@ -942,7 +1001,7 @@ export function LeafletMap({
 
       logger.log(`Rendered ${bikeLaneLayersRef.current.length} bike lane polylines`);
     });
-  }, [bikeLanes, showBikeLanes, selectedBikeLanes, isMapReady]);
+  }, [bikeLanes, showBikeLanes, selectedBikeLanes, isMapReady, checkInCounts]);
 
   return <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />;
 }

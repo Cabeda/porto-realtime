@@ -60,6 +60,10 @@ export function CheckInFAB() {
   // lat/lon are target infrastructure coordinates (bus stop, bike park), NOT user GPS
   const handleCheckIn = useCallback(async (mode: TransitMode, targetId?: string, targetLat?: number, targetLon?: number) => {
     setIsLoading(true);
+    // Dispatch optimistic event immediately so the map updates before the API responds
+    window.dispatchEvent(new CustomEvent("checkin-changed", {
+      detail: { mode, targetId, lat: targetLat, lon: targetLon, action: "add" },
+    }));
     try {
       const res = await fetch("/api/checkin", {
         method: "POST",
@@ -73,12 +77,22 @@ export function CheckInFAB() {
           setActiveCheckIn(data.checkIn);
         }
         setToast(t.checkin.checkInSuccess);
+        // Confirm: revalidate SWR with server truth
+        window.dispatchEvent(new CustomEvent("checkin-confirmed"));
       } else {
         const data = await res.json().catch(() => ({}));
         setToast(data.error || t.checkin.checkInError);
+        // Revert optimistic update on failure
+        window.dispatchEvent(new CustomEvent("checkin-changed", {
+          detail: { mode, targetId, action: "remove" },
+        }));
       }
     } catch {
       setToast(t.checkin.checkInError);
+      // Revert optimistic update on failure
+      window.dispatchEvent(new CustomEvent("checkin-changed", {
+        detail: { mode, targetId, action: "remove" },
+      }));
     } finally {
       setIsLoading(false);
       setShowPicker(false);
@@ -89,7 +103,13 @@ export function CheckInFAB() {
     setIsLoading(true);
     try {
       await fetch("/api/checkin", { method: "DELETE" });
+      const endedMode = activeCheckIn?.mode;
+      const endedTarget = activeCheckIn?.targetId;
       setActiveCheckIn(null);
+      window.dispatchEvent(new CustomEvent("checkin-changed", {
+        detail: { mode: endedMode, targetId: endedTarget, action: "remove" },
+      }));
+      window.dispatchEvent(new CustomEvent("checkin-confirmed"));
     } catch {
       // ignore
     } finally {
@@ -110,7 +130,9 @@ export function CheckInFAB() {
     const handleBusCheckIn = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.routeShortName) {
-        handleCheckIn("BUS", detail.routeShortName);
+        const lat = detail.lat ? parseFloat(detail.lat) : undefined;
+        const lon = detail.lon ? parseFloat(detail.lon) : undefined;
+        handleCheckIn("BUS", detail.routeShortName, lat, lon);
       }
     };
     window.addEventListener("open-bus-checkin", handleBusCheckIn);
