@@ -16,7 +16,7 @@ export default function NewProposalPage() {
 
   const handleSuccess = () => {
     // Navigate back to proposals list after short delay
-    setTimeout(() => router.push("/proposals"), 1500);
+    setTimeout(() => router.push("/community?section=proposals"), 1500);
   };
 
   return (
@@ -25,7 +25,7 @@ export default function NewProposalPage() {
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <Link
-              href="/proposals"
+              href="/community?section=proposals"
               className="inline-flex items-center text-accent hover:text-accent-hover font-medium text-sm transition-colors"
             >
               <span className="mr-2">&larr;</span>

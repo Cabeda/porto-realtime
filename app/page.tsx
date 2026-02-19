@@ -516,10 +516,10 @@ function MapPageContent() {
                 🚏 {t.nav.stations}
               </Link>
               <Link
-                href="/reviews"
+                href="/community"
                 className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
               >
-                ⭐ {t.nav.reviews}
+                ⭐ {t.nav.community}
               </Link>
             </div>
             <div className="hidden sm:block flex-1 max-w-xs">
