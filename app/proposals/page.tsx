@@ -47,7 +47,7 @@ function ProposalsContent() {
     { revalidateOnFocus: false, dedupingInterval: 30000 }
   );
 
-  const totalPages = data ? Math.ceil(data.total / 20) : 0;
+  const totalPages = data?.total ? Math.ceil(data.total / 20) : 0;
 
   const typeLabels: Record<ProposalType | "ALL", string> = {
     ALL: tp.allTypes,
@@ -143,7 +143,7 @@ function ProposalsContent() {
         {/* Sort + stats */}
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-content-muted">
-            {data && tp.totalProposals(data.total)}
+            {data?.total != null && tp.totalProposals(data.total)}
           </div>
           <div className="flex gap-1 bg-surface-sunken rounded-lg p-0.5">
             <button
@@ -176,7 +176,7 @@ function ProposalsContent() {
               <div key={i} className="bg-surface-raised rounded-lg shadow p-4 h-32 animate-pulse" />
             ))}
           </div>
-        ) : data && data.proposals.length > 0 ? (
+        ) : data?.proposals && data.proposals.length > 0 ? (
           <div className="space-y-3">
             {data.proposals.map((p) => (
               <ProposalCard
