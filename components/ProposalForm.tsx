@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -8,9 +8,14 @@ import { AuthModal } from "@/components/AuthModal";
 import { EntityPicker } from "@/components/EntityPicker";
 import { GeoFileUpload } from "@/components/GeoFileUpload";
 import type { ProposalType, ProposalGeoJSON } from "@/lib/types";
+import type { RouteStop } from "@/components/RouteEditor";
 
 const ProposalMapPreview = lazy(() =>
   import("@/components/ProposalMapPreview").then((m) => ({ default: m.ProposalMapPreview }))
+);
+
+const RouteEditor = lazy(() =>
+  import("@/components/RouteEditor").then((m) => ({ default: m.RouteEditor }))
 );
 
 interface ProposalFormProps {
@@ -37,6 +42,7 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
   const [targetId, setTargetId] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [geometry, setGeometry] = useState<ProposalGeoJSON | null>(null);
+  const [lineDetail, setLineDetail] = useState<{ stops: RouteStop[]; routeCoordinates: [number, number][] } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -93,6 +99,7 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
       setTargetId("");
       setLinkUrl("");
       setGeometry(null);
+      setLineDetail(null);
       onSuccess?.(result.proposal?.id);
     } catch {
       setMessage({ text: tp.error, type: "error" });
@@ -124,6 +131,11 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
     }
   }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Stable callback for RouteEditor geometry changes
+  const handleRouteEditorChange = useCallback((geo: ProposalGeoJSON) => {
+    setGeometry(geo);
+  }, []);
+
   return (
     <div className="space-y-5">
       {/* Type selector */}
@@ -136,7 +148,13 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
             <button
               key={t.key}
               type="button"
-              onClick={() => setType(t.key)}
+              onClick={() => {
+                setType(t.key);
+                // Reset target and geometry when type changes
+                setTargetId("");
+                setGeometry(null);
+                setLineDetail(null);
+              }}
               className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors text-center ${
                 type === t.key
                   ? "border-accent bg-accent/5 text-accent"
@@ -206,9 +224,30 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
           selectedTargetId={targetId}
           onSelect={(id, geo) => {
             setTargetId(id);
-            setGeometry(geo);
+            // For BIKE_LANE, use the geometry from EntityPicker directly
+            // For LINE, RouteEditor will manage geometry
+            if (type === "BIKE_LANE") {
+              setGeometry(geo);
+            }
+          }}
+          onLineDetail={(detail) => {
+            setLineDetail(detail);
+            // Clear file-uploaded geometry when line detail loads
+            if (detail) setGeometry(null);
           }}
         />
+      )}
+
+      {/* Route stop editor for LINE type */}
+      {type === "LINE" && targetId && lineDetail && (
+        <Suspense fallback={<div className="h-[350px] rounded-lg bg-surface-sunken animate-pulse" />}>
+          <RouteEditor
+            routeCoordinates={lineDetail.routeCoordinates}
+            initialStops={lineDetail.stops}
+            onGeometryChange={handleRouteEditorChange}
+            height="350px"
+          />
+        </Suspense>
       )}
 
       {/* Geo file upload */}
@@ -217,14 +256,18 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
           <p className="text-xs text-content-muted mb-2">{tp.orUploadFile}</p>
         )}
         <GeoFileUpload
-          hasGeometry={!!geometry}
-          onParsed={(geo) => setGeometry(geo)}
+          hasGeometry={!!geometry && !(type === "LINE" && lineDetail)}
+          onParsed={(geo) => {
+            setGeometry(geo);
+            // Clear line detail so file upload takes precedence
+            if (type === "LINE") setLineDetail(null);
+          }}
           onClear={() => setGeometry(null)}
         />
       </div>
 
-      {/* Map preview */}
-      {geometry && (
+      {/* Static map preview for BIKE_LANE or file uploads (not LINE with editor) */}
+      {geometry && !(type === "LINE" && lineDetail) && (
         <div>
           <label className="block text-sm font-medium text-content-secondary mb-1">
             {tp.mapPreview}

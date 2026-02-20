@@ -280,6 +280,16 @@ const pt = {
     showingFirst50: "A mostrar os primeiros 50 resultados. Refine a pesquisa.",
     orUploadFile: "Ou carregue um ficheiro de mapa",
     mapPreview: "Pré-visualização do mapa",
+    // Route stop editor
+    editStops: "Editar paragens",
+    editStopsHelp: "Arraste paragens para as mover. Clique no mapa para adicionar uma nova. Clique numa paragem para a remover.",
+    addedStop: "Nova paragem",
+    existingStop: "Paragem existente",
+    stopCount: (count: number) => `${count} ${count === 1 ? "paragem" : "paragens"}`,
+    resetStops: "Repor originais",
+    undoLastChange: "Desfazer",
+    loadingLineData: "A carregar dados da linha...",
+    lineDataError: "Não foi possível carregar dados da linha",
   },
   search: {
     placeholder: "Pesquisar linhas ou paragens...",
@@ -731,6 +741,16 @@ const en: typeof pt = {
     showingFirst50: "Showing first 50 results. Refine your search.",
     orUploadFile: "Or upload a map file",
     mapPreview: "Map preview",
+    // Route stop editor
+    editStops: "Edit stops",
+    editStopsHelp: "Drag stops to move them. Click the map to add a new stop. Click a stop to remove it.",
+    addedStop: "New stop",
+    existingStop: "Existing stop",
+    stopCount: (count: number) => `${count} ${count === 1 ? "stop" : "stops"}`,
+    resetStops: "Reset to original",
+    undoLastChange: "Undo",
+    loadingLineData: "Loading line data...",
+    lineDataError: "Could not load line data",
   },
   search: {
     placeholder: "Search lines or stops...",

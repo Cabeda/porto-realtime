@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import useSWR from "swr";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import type {
@@ -11,16 +11,26 @@ import type {
   RouteInfo,
   RoutesResponse,
 } from "@/lib/types";
+import type { RouteStop } from "@/components/RouteEditor";
+
+/** Line detail data from /api/line?id=X */
+export interface LineDetail {
+  stops: RouteStop[];
+  /** First pattern's decoded polyline coordinates [lon, lat][] */
+  routeCoordinates: [number, number][];
+}
 
 interface EntityPickerProps {
   type: ProposalType;
   onSelect: (targetId: string, geometry: ProposalGeoJSON | null) => void;
+  /** Called when line detail (stops + polyline) is loaded for LINE type */
+  onLineDetail?: (detail: LineDetail | null) => void;
   selectedTargetId: string;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-export function EntityPicker({ type, onSelect, selectedTargetId }: EntityPickerProps) {
+export function EntityPicker({ type, onSelect, onLineDetail, selectedTargetId }: EntityPickerProps) {
   const t = useTranslations();
   const tp = t.proposals;
   const [search, setSearch] = useState("");
@@ -45,6 +55,49 @@ export function EntityPicker({ type, onSelect, selectedTargetId }: EntityPickerP
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
+
+  // Fetch line detail (stops + polyline) when a LINE is selected
+  const { data: lineDetailData, isLoading: lineDetailLoading } = useSWR(
+    type === "LINE" && selectedTargetId
+      ? `/api/line?id=${encodeURIComponent(selectedTargetId)}`
+      : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  );
+
+  // Pass line detail to parent when it loads
+  useEffect(() => {
+    if (!onLineDetail) return;
+    if (type !== "LINE" || !selectedTargetId) {
+      onLineDetail(null);
+      return;
+    }
+    if (lineDetailLoading || !lineDetailData) return;
+
+    const patterns = lineDetailData.patterns || [];
+    // Use first pattern's coordinates as the route polyline
+    const firstPattern = patterns[0];
+    const routeCoordinates: [number, number][] = firstPattern?.coordinates || [];
+
+    // Collect unique stops across all patterns
+    const seenIds = new Set<string>();
+    const stops: RouteStop[] = [];
+    for (const p of patterns) {
+      for (const s of p.stops || []) {
+        if (!seenIds.has(s.gtfsId)) {
+          seenIds.add(s.gtfsId);
+          stops.push({
+            id: s.gtfsId,
+            name: s.name,
+            lat: s.lat,
+            lon: s.lon,
+          });
+        }
+      }
+    }
+
+    onLineDetail({ stops, routeCoordinates });
+  }, [type, selectedTargetId, lineDetailData, lineDetailLoading, onLineDetail]);
 
   // Build items list based on type
   const items = useMemo(() => {
