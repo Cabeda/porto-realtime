@@ -13,10 +13,35 @@ export default function NewProposalPage() {
   const tp = t.proposals;
   const router = useRouter();
   const [showSettings, setShowSettings] = useState(false);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [showCopied, setShowCopied] = useState(false);
 
-  const handleSuccess = () => {
-    // Navigate back to proposals list after short delay
-    setTimeout(() => router.push("/community?section=proposals"), 1500);
+  const handleSuccess = (proposalId?: string) => {
+    if (proposalId) {
+      setCreatedId(proposalId);
+    } else {
+      // Fallback: redirect after delay if no ID returned
+      setTimeout(() => router.push("/community?section=proposals"), 1500);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/community?section=proposals${createdId ? `&id=${createdId}` : ""}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: tp.createProposal, url });
+        return;
+      } catch {
+        // fallback to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -52,9 +77,39 @@ export default function NewProposalPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 pb-20 sm:pb-6">
-        <div className="bg-surface-raised rounded-lg shadow-md p-5">
-          <ProposalForm onSuccess={handleSuccess} />
-        </div>
+        {createdId ? (
+          /* Success state (#3) — clear confirmation with share CTA */
+          <div className="bg-surface-raised rounded-lg shadow-md p-6 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-content mb-2">{tp.success}</h2>
+            <p className="text-sm text-content-muted mb-6">{tp.proposalCreated}</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={handleShare}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-accent text-content-inverse rounded-lg hover:bg-accent-hover transition-colors text-sm font-medium"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                {showCopied ? tp.linkCopied : tp.shareProposal}
+              </button>
+              <Link
+                href="/community?section=proposals"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-sunken text-content-secondary rounded-lg hover:bg-border transition-colors text-sm font-medium"
+              >
+                {tp.backToProposals}
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-surface-raised rounded-lg shadow-md p-5">
+            <ProposalForm onSuccess={handleSuccess} />
+          </div>
+        )}
       </main>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}

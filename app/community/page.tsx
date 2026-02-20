@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
 import { useTranslations } from "@/lib/hooks/useTranslations";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { SettingsModal } from "@/components/SettingsModal";
 import { UserMenu } from "@/components/UserMenu";
 import { ProposalCard } from "@/components/ProposalCard";
@@ -296,12 +297,15 @@ const PROPOSAL_TYPE_TABS: { key: ProposalType | "ALL"; icon: string }[] = [
 function ProposalsTab() {
   const t = useTranslations();
   const tp = t.proposals;
+  const { isAuthenticated } = useAuth();
   const [proposalType, setProposalType] = useState<ProposalType | "ALL">(
     "ALL"
   );
   const [proposalSort, setProposalSort] = useState<"votes" | "recent">(
     "votes"
   );
+  const [showMyProposals, setShowMyProposals] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [page, setPage] = useState(0);
 
   const typeFilter =
@@ -321,8 +325,27 @@ function ProposalsTab() {
     LINE: tp.lines,
   };
 
+  // Filter to show only user's own proposals (#4)
+  const displayedProposals = showMyProposals
+    ? (data?.proposals ?? []).filter((p) => p.isOwner)
+    : (data?.proposals ?? []);
+
   return (
     <>
+      {/* How voting works explainer (#5) */}
+      <button
+        onClick={() => setShowHowItWorks(!showHowItWorks)}
+        className="w-full mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+      >
+        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span className="flex-1 text-left">{tp.howVotingWorks}</span>
+        <svg className={`w-3.5 h-3.5 transition-transform ${showHowItWorks ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
       {/* Proposal type tabs */}
       <div className="flex gap-1 bg-surface-sunken rounded-lg p-1 mb-4">
         {PROPOSAL_TYPE_TABS.map((tab) => (
@@ -330,10 +353,11 @@ function ProposalsTab() {
             key={tab.key}
             onClick={() => {
               setProposalType(tab.key);
+              setShowMyProposals(false);
               setPage(0);
             }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-              proposalType === tab.key
+              proposalType === tab.key && !showMyProposals
                 ? "bg-white dark:bg-gray-600 text-content shadow-sm"
                 : "text-content-secondary hover:text-gray-900 dark:hover:text-gray-200"
             }`}
@@ -342,12 +366,31 @@ function ProposalsTab() {
             <span className="hidden sm:inline">{typeLabels[tab.key]}</span>
           </button>
         ))}
+        {/* My Proposals filter (#4) */}
+        {isAuthenticated && (
+          <button
+            onClick={() => {
+              setShowMyProposals(!showMyProposals);
+              setPage(0);
+            }}
+            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+              showMyProposals
+                ? "bg-white dark:bg-gray-600 text-content shadow-sm"
+                : "text-content-secondary hover:text-gray-900 dark:hover:text-gray-200"
+            }`}
+          >
+            <span>👤</span>
+            <span className="hidden sm:inline">{tp.myProposals}</span>
+          </button>
+        )}
       </div>
 
       {/* Sort + stats */}
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm text-content-muted">
-          {data?.total != null && tp.totalProposals(data.total)}
+          {showMyProposals
+            ? tp.totalProposals(displayedProposals.length)
+            : data?.total != null && tp.totalProposals(data.total)}
         </div>
         <div className="flex gap-1 bg-surface-sunken rounded-lg p-0.5">
           <button
@@ -389,9 +432,9 @@ function ProposalsTab() {
             />
           ))}
         </div>
-      ) : data?.proposals && data.proposals.length > 0 ? (
+      ) : displayedProposals.length > 0 ? (
         <div className="space-y-3">
-          {data.proposals.map((p) => (
+          {displayedProposals.map((p) => (
             <ProposalCard
               key={p.id}
               proposal={p}
@@ -399,7 +442,7 @@ function ProposalsTab() {
             />
           ))}
 
-          {totalPages > 1 && (
+          {!showMyProposals && totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-4">
               <button
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
@@ -457,6 +500,14 @@ function CommunityContent() {
   const sectionParam = searchParams?.get("section") || "reviews";
   const activeSection: Section =
     sectionParam === "proposals" ? "proposals" : "reviews";
+
+  // Fetch proposal count for badge (#8)
+  const { data: proposalData } = useSWR<ProposalListResponse>(
+    "/api/proposals?status=OPEN&limit=1",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  );
+  const proposalCount = proposalData?.total ?? 0;
 
   const setSection = (section: Section) => {
     router.replace(
@@ -579,6 +630,11 @@ function CommunityContent() {
             >
               <span>💡</span>
               {t.community.proposals}
+              {proposalCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-accent/15 text-accent min-w-[1.25rem] text-center">
+                  {proposalCount}
+                </span>
+              )}
             </button>
           </div>
         </div>

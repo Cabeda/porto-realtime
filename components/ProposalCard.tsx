@@ -26,6 +26,7 @@ const STATUS_COLORS: Record<ProposalStatus, string> = {
 };
 
 const REPORT_REASONS: ReportReason[] = ["SPAM", "OFFENSIVE", "MISLEADING", "OTHER"];
+const VOTE_THRESHOLD = 25;
 
 export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
   const t = useTranslations();
@@ -40,6 +41,9 @@ export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
   const [reported, setReported] = useState(p.userReported);
   const [isReporting, setIsReporting] = useState(false);
   const [reportMessage, setReportMessage] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [justVoted, setJustVoted] = useState(false);
+  const [showCopied, setShowCopied] = useState(false);
 
   const statusLabel: Record<ProposalStatus, string> = {
     OPEN: tp.statusOpen,
@@ -71,6 +75,12 @@ export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
     const prevCount = voteCount;
     setVoted(!voted);
     setVoteCount(voted ? voteCount - 1 : voteCount + 1);
+
+    // Bounce animation on upvote
+    if (!voted) {
+      setJustVoted(true);
+      setTimeout(() => setJustVoted(false), 600);
+    }
 
     setIsVoting(true);
     try {
@@ -143,6 +153,30 @@ export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
     setShowReportModal(true);
   };
 
+  const handleShare = async () => {
+    const url = `${window.location.origin}/community?section=proposals&id=${p.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: p.title, url });
+        return;
+      } catch {
+        // fallback to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  // Progress toward UNDER_REVIEW threshold
+  const progress = Math.min(voteCount / VOTE_THRESHOLD, 1);
+  const showProgress = p.status === "OPEN";
+  const isDescriptionLong = p.description.length > 180;
+
   return (
     <>
       <div className="bg-surface-raised rounded-lg shadow-md p-4">
@@ -171,15 +205,57 @@ export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
         {/* Title */}
         <h3 className="text-base font-semibold text-content mb-1">{p.title}</h3>
 
-        {/* Description (truncated) */}
-        <p className="text-sm text-content-secondary mb-3 line-clamp-3">
-          {p.description}
-        </p>
+        {/* Description (expandable) */}
+        <div className="mb-3">
+          <p
+            className={`text-sm text-content-secondary ${
+              !expanded && isDescriptionLong ? "line-clamp-3" : ""
+            }`}
+          >
+            {p.description}
+          </p>
+          {isDescriptionLong && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-accent hover:text-accent-hover font-medium mt-1 transition-colors"
+            >
+              {expanded ? tp.showLess : tp.showMore}
+            </button>
+          )}
+        </div>
 
-        {/* Under review banner */}
+        {/* Under review banner (improved) */}
         {p.status === "UNDER_REVIEW" && (
-          <div className="mb-3 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs font-medium">
+          <div className="mb-3 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-medium flex items-center gap-2">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {tp.underReviewBanner}
+          </div>
+        )}
+
+        {/* Vote progress bar (#1) */}
+        {showProgress && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-content-muted">
+                {progress >= 1
+                  ? tp.progressComplete
+                  : tp.progressLabel(voteCount, VOTE_THRESHOLD)}
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-surface-sunken rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ease-out ${
+                  progress >= 1
+                    ? "bg-green-500"
+                    : progress >= 0.6
+                      ? "bg-amber-400"
+                      : "bg-accent"
+                }`}
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
           </div>
         )}
 
@@ -198,13 +274,14 @@ export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
           </a>
         )}
 
-        {/* Footer: vote + report */}
+        {/* Footer: vote + share + report */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {/* Vote button with bounce animation (#9) */}
             <button
               onClick={handleVote}
               disabled={isVoting}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 voted
                   ? "bg-accent/10 text-accent"
                   : "bg-surface-sunken text-content-muted hover:text-accent hover:bg-accent/10"
@@ -212,7 +289,7 @@ export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
               aria-label={`${tp.voteCount(voteCount)}`}
             >
               <svg
-                className={`w-4 h-4 transition-transform ${voted ? "scale-110" : ""}`}
+                className={`w-4 h-4 transition-transform ${voted ? "scale-110" : ""} ${justVoted ? "animate-bounce" : ""}`}
                 viewBox="0 0 24 24"
                 fill={voted ? "currentColor" : "none"}
                 stroke="currentColor"
@@ -228,18 +305,38 @@ export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
               </span>
             )}
           </div>
-          <button
-            onClick={handleReportClick}
-            disabled={reported}
-            className={`text-xs transition-colors ${
-              reported
-                ? "text-content-muted cursor-default"
-                : "text-content-muted hover:text-red-500"
-            }`}
-            title={reported ? tp.reported : tp.report}
-          >
-            {reported ? "🚩 " + tp.reported : "🚩"}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Share button (#6) */}
+            <button
+              onClick={handleShare}
+              className="text-xs text-content-muted hover:text-accent transition-colors inline-flex items-center gap-1"
+              title={tp.shareProposal}
+            >
+              {showCopied ? (
+                <span className="text-green-600 dark:text-green-400">{tp.linkCopied}</span>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  <span className="hidden sm:inline">{tp.shareProposal}</span>
+                </>
+              )}
+            </button>
+            {/* Report button */}
+            <button
+              onClick={handleReportClick}
+              disabled={reported}
+              className={`text-xs transition-colors ${
+                reported
+                  ? "text-content-muted cursor-default"
+                  : "text-content-muted hover:text-red-500"
+              }`}
+              title={reported ? tp.reported : tp.report}
+            >
+              {reported ? "🚩 " + tp.reported : "🚩"}
+            </button>
+          </div>
         </div>
       </div>
 

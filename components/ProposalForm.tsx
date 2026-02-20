@@ -8,7 +8,7 @@ import { AuthModal } from "@/components/AuthModal";
 import type { ProposalType } from "@/lib/types";
 
 interface ProposalFormProps {
-  onSuccess?: () => void;
+  onSuccess?: (proposalId?: string) => void;
 }
 
 const MAX_TITLE = 120;
@@ -78,12 +78,13 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
         return;
       }
 
+      const result = await res.json();
       setMessage({ text: tp.success, type: "success" });
       setTitle("");
       setDescription("");
       setTargetId("");
       setLinkUrl("");
-      onSuccess?.();
+      onSuccess?.(result.proposal?.id);
     } catch {
       setMessage({ text: tp.error, type: "error" });
     } finally {
