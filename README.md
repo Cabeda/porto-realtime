@@ -46,8 +46,10 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 
 ## Data Sources
 
-- **Transit Data**: [Porto OpenTripPlanner](https://otp.portodigital.pt) (GraphQL)
-- **Bus Positions**: [FIWARE Urban Platform](https://broker.fiware.urbanplatform.portodigital.pt) (NGSI v2)
+All transit data originates from **STCP (Sociedade de Transportes Colectivos do Porto)**, officially published on the [Porto Open Data portal](https://opendata.porto.digital/organization/sociedade-de-transportes-colectivos-do-porto-stcp).
+
+- **Transit Data**: [Porto OpenTripPlanner](https://otp.portodigital.pt) (GraphQL) — schedules, stops, routes, and real-time departures from STCP GTFS feeds
+- **Bus Positions**: [FIWARE Urban Platform](https://broker.fiware.urbanplatform.portodigital.pt) (NGSI v2) — real-time GPS positions from STCP's AVL system
 - **Bike Infrastructure**: [Explore Porto](https://portal.api.portodigital.pt) open data
 - **Map Tiles**: OpenStreetMap
 
