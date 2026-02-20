@@ -136,6 +136,12 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
     setGeometry(geo);
   }, []);
 
+  // Stable callback for EntityPicker line detail
+  const handleLineDetail = useCallback((detail: { stops: RouteStop[]; routeCoordinates: [number, number][] } | null) => {
+    setLineDetail(detail);
+    if (detail) setGeometry(null);
+  }, []);
+
   return (
     <div className="space-y-5">
       {/* Type selector */}
@@ -230,11 +236,7 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
               setGeometry(geo);
             }
           }}
-          onLineDetail={(detail) => {
-            setLineDetail(detail);
-            // Clear file-uploaded geometry when line detail loads
-            if (detail) setGeometry(null);
-          }}
+          onLineDetail={handleLineDetail}
         />
       )}
 

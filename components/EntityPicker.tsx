@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import type {
@@ -56,6 +56,10 @@ export function EntityPicker({ type, onSelect, onLineDetail, selectedTargetId }:
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
+  // Use ref for onLineDetail to avoid it triggering the effect
+  const onLineDetailRef = useRef(onLineDetail);
+  onLineDetailRef.current = onLineDetail;
+
   // Fetch line detail (stops + polyline) when a LINE is selected
   const { data: lineDetailData, isLoading: lineDetailLoading } = useSWR(
     type === "LINE" && selectedTargetId
@@ -67,9 +71,10 @@ export function EntityPicker({ type, onSelect, onLineDetail, selectedTargetId }:
 
   // Pass line detail to parent when it loads
   useEffect(() => {
-    if (!onLineDetail) return;
+    const cb = onLineDetailRef.current;
+    if (!cb) return;
     if (type !== "LINE" || !selectedTargetId) {
-      onLineDetail(null);
+      cb(null);
       return;
     }
     if (lineDetailLoading || !lineDetailData) return;
@@ -96,8 +101,8 @@ export function EntityPicker({ type, onSelect, onLineDetail, selectedTargetId }:
       }
     }
 
-    onLineDetail({ stops, routeCoordinates });
-  }, [type, selectedTargetId, lineDetailData, lineDetailLoading, onLineDetail]);
+    cb({ stops, routeCoordinates });
+  }, [type, selectedTargetId, lineDetailData, lineDetailLoading]);
 
   // Build items list based on type
   const items = useMemo(() => {
