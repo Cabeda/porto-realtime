@@ -1,11 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { AuthModal } from "@/components/AuthModal";
-import type { ProposalType } from "@/lib/types";
+import { EntityPicker } from "@/components/EntityPicker";
+import { GeoFileUpload } from "@/components/GeoFileUpload";
+import type { ProposalType, ProposalGeoJSON } from "@/lib/types";
+
+const ProposalMapPreview = lazy(() =>
+  import("@/components/ProposalMapPreview").then((m) => ({ default: m.ProposalMapPreview }))
+);
 
 interface ProposalFormProps {
   onSuccess?: (proposalId?: string) => void;
@@ -30,6 +36,7 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
   const [description, setDescription] = useState("");
   const [targetId, setTargetId] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [geometry, setGeometry] = useState<ProposalGeoJSON | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -64,6 +71,7 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
           description: description.trim(),
           targetId: targetId.trim() || undefined,
           linkUrl: linkUrl.trim() || undefined,
+          geometry: geometry || undefined,
         }),
       });
 
@@ -84,6 +92,7 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
       setDescription("");
       setTargetId("");
       setLinkUrl("");
+      setGeometry(null);
       onSuccess?.(result.proposal?.id);
     } catch {
       setMessage({ text: tp.error, type: "error" });
@@ -177,19 +186,54 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
         </div>
       </div>
 
-      {/* Target (optional) */}
+      {/* Target: entity picker for LINE/BIKE_LANE, free text for STOP */}
+      {type === "STOP" ? (
+        <div>
+          <label className="block text-sm font-medium text-content-secondary mb-1">
+            {tp.targetLabel}
+          </label>
+          <input
+            type="text"
+            value={targetId}
+            onChange={(e) => setTargetId(e.target.value.slice(0, 100))}
+            placeholder={tp.targetPlaceholder}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-content placeholder-content-muted focus:outline-none focus:ring-2 focus:ring-accent text-sm"
+          />
+        </div>
+      ) : (
+        <EntityPicker
+          type={type}
+          selectedTargetId={targetId}
+          onSelect={(id, geo) => {
+            setTargetId(id);
+            setGeometry(geo);
+          }}
+        />
+      )}
+
+      {/* Geo file upload */}
       <div>
-        <label className="block text-sm font-medium text-content-secondary mb-1">
-          {tp.targetLabel}
-        </label>
-        <input
-          type="text"
-          value={targetId}
-          onChange={(e) => setTargetId(e.target.value.slice(0, 100))}
-          placeholder={tp.targetPlaceholder}
-          className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-content placeholder-content-muted focus:outline-none focus:ring-2 focus:ring-accent text-sm"
+        {type !== "STOP" && targetId && (
+          <p className="text-xs text-content-muted mb-2">{tp.orUploadFile}</p>
+        )}
+        <GeoFileUpload
+          hasGeometry={!!geometry}
+          onParsed={(geo) => setGeometry(geo)}
+          onClear={() => setGeometry(null)}
         />
       </div>
+
+      {/* Map preview */}
+      {geometry && (
+        <div>
+          <label className="block text-sm font-medium text-content-secondary mb-1">
+            {tp.mapPreview}
+          </label>
+          <Suspense fallback={<div className="h-[200px] rounded-lg bg-surface-sunken animate-pulse" />}>
+            <ProposalMapPreview geometry={geometry} height="200px" />
+          </Suspense>
+        </div>
+      )}
 
       {/* Link (optional) */}
       <div>

@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { AuthModal } from "@/components/AuthModal";
 import type { ProposalItem, ProposalStatus, ReportReason } from "@/lib/types";
+
+const ProposalMapPreview = lazy(() =>
+  import("@/components/ProposalMapPreview").then((m) => ({ default: m.ProposalMapPreview }))
+);
 
 interface ProposalCardProps {
   proposal: ProposalItem;
@@ -223,6 +227,15 @@ export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
             </button>
           )}
         </div>
+
+        {/* Map preview when geometry exists */}
+        {p.geometry && p.geometry.features?.length > 0 && (
+          <div className="mb-3">
+            <Suspense fallback={<div className="h-[160px] rounded-lg bg-surface-sunken animate-pulse" />}>
+              <ProposalMapPreview geometry={p.geometry} height="160px" />
+            </Suspense>
+          </div>
+        )}
 
         {/* Under review banner (improved) */}
         {p.status === "UNDER_REVIEW" && (

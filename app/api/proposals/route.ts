@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/prisma/generated/prisma/client";
 import { checkComment } from "@/lib/content-filter";
 import { auth } from "@/lib/auth";
 import { validateOrigin, safeGetSession } from "@/lib/security";
@@ -10,6 +11,7 @@ const MAX_TITLE_LENGTH = 120;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MAX_TARGET_ID_LENGTH = 100;
 const MAX_LINK_LENGTH = 500;
+const MAX_GEOMETRY_SIZE = 200000; // 200KB max for GeoJSON geometry
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_MAX = 10; // max 10 proposals per hour
 
@@ -100,6 +102,7 @@ export async function GET(request: NextRequest) {
           description: true,
           targetId: true,
           linkUrl: true,
+          geometry: true,
           status: true,
           userId: true,
           createdAt: true,
@@ -130,6 +133,7 @@ export async function GET(request: NextRequest) {
       description: p.description,
       targetId: p.targetId,
       linkUrl: p.linkUrl,
+      geometry: p.geometry ?? null,
       status: p.status,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
@@ -194,6 +198,7 @@ export async function POST(request: NextRequest) {
     description?: string;
     targetId?: string;
     linkUrl?: string;
+    geometry?: unknown;
   };
   try {
     body = await request.json();
@@ -201,7 +206,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { type, title, description, targetId, linkUrl } = body;
+  const { type, title, description, targetId, linkUrl, geometry } = body;
 
   // Validate type
   if (!type || !VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
@@ -292,6 +297,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: descFilter.reason }, { status: 400 });
   }
 
+  // Validate geometry if provided
+  let validatedGeometry: object | null = null;
+  if (geometry !== undefined && geometry !== null) {
+    const geoStr = JSON.stringify(geometry);
+    if (geoStr.length > MAX_GEOMETRY_SIZE) {
+      return NextResponse.json(
+        { error: `Geometry data too large (max ${Math.round(MAX_GEOMETRY_SIZE / 1000)}KB)` },
+        { status: 400 }
+      );
+    }
+    // Basic GeoJSON FeatureCollection validation
+    const geo = geometry as { type?: string; features?: Array<{ type?: string; geometry?: { type?: string } }> };
+    if (
+      geo.type !== "FeatureCollection" ||
+      !Array.isArray(geo.features) ||
+      geo.features.length === 0
+    ) {
+      return NextResponse.json(
+        { error: "Geometry must be a GeoJSON FeatureCollection with at least one feature" },
+        { status: 400 }
+      );
+    }
+    const VALID_GEO_TYPES = ["Point", "LineString", "MultiLineString", "Polygon"];
+    for (const feature of geo.features) {
+      if (feature.type !== "Feature" || !feature.geometry?.type || !VALID_GEO_TYPES.includes(feature.geometry.type)) {
+        return NextResponse.json(
+          { error: `Invalid geometry type. Supported: ${VALID_GEO_TYPES.join(", ")}` },
+          { status: 400 }
+        );
+      }
+    }
+    validatedGeometry = geometry as object;
+  }
+
   try {
     const allowed = await checkRateLimit(userId);
     if (!allowed) {
@@ -311,6 +350,7 @@ export async function POST(request: NextRequest) {
         description: sanitizedDescription,
         targetId: targetId?.trim() || null,
         linkUrl: linkUrl?.trim() || null,
+        geometry: validatedGeometry ?? Prisma.JsonNull,
       },
       select: {
         id: true,
@@ -319,6 +359,7 @@ export async function POST(request: NextRequest) {
         description: true,
         targetId: true,
         linkUrl: true,
+        geometry: true,
         status: true,
         createdAt: true,
         updatedAt: true,

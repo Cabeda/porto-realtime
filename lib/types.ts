@@ -238,6 +238,19 @@ export interface ActiveCheckInsResponse {
 export type ProposalType = "BIKE_LANE" | "STOP" | "LINE";
 export type ProposalStatus = "OPEN" | "UNDER_REVIEW" | "CLOSED" | "ARCHIVED";
 
+// GeoJSON geometry stored with proposals (LineString, MultiLineString, or Point)
+export interface ProposalGeoJSON {
+  type: "FeatureCollection";
+  features: Array<{
+    type: "Feature";
+    geometry: {
+      type: "LineString" | "MultiLineString" | "Point" | "Polygon";
+      coordinates: number[] | number[][] | number[][][];
+    };
+    properties: Record<string, unknown>;
+  }>;
+}
+
 export interface ProposalItem {
   id: string;
   type: ProposalType;
@@ -245,6 +258,7 @@ export interface ProposalItem {
   description: string;
   targetId: string | null;
   linkUrl: string | null;
+  geometry: ProposalGeoJSON | null;
   status: ProposalStatus;
   createdAt: string;
   updatedAt: string;
@@ -265,4 +279,5 @@ export interface ProposalCreateRequest {
   description: string;
   targetId?: string;
   linkUrl?: string;
+  geometry?: ProposalGeoJSON;
 }

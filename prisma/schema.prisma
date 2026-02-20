@@ -148,6 +148,7 @@ model Proposal {
   description String           // detailed justification, max 2000 chars
   targetId    String?          // optional: line shortName, stop gtfsId, bike lane id
   linkUrl     String?          // optional reference URL for more details
+  geometry    Json?            // optional GeoJSON geometry (LineString/MultiLineString/Point)
   status      ProposalStatus   @default(OPEN)
   hidden      Boolean          @default(false) // auto-hidden after N reports
   votes       ProposalVote[]
