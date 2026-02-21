@@ -188,3 +188,25 @@ model ProposalReport {
   @@unique([proposalId, userId]) // one report per user per proposal
   @@index([proposalId])
 }
+
+// --- Analytics: bus position collection ---
+
+// Raw GPS snapshots from FIWARE, collected every 30s by the Fly.io worker.
+// Retained for 1 day in Postgres; permanently archived as Parquet on Hetzner.
+model BusPositionLog {
+  id          BigInt   @id @default(autoincrement())
+  recordedAt  DateTime @default(now())
+  vehicleId   String   // FIWARE entity id (e.g. "urn:ngsi-ld:Vehicle:porto:stcp:205:3245")
+  vehicleNum  String?  // clean vehicle number (e.g. "3245")
+  route       String?  // routeShortName (e.g. "205")
+  tripId      String?  // STCP trip number from annotations
+  directionId Int?     @db.SmallInt
+  lat         Float
+  lon         Float
+  speed       Float?   @db.Real  // km/h from FIWARE
+  heading     Float?   @db.Real  // degrees, 0-360
+
+  @@index([recordedAt])
+  @@index([route, recordedAt])
+  @@index([vehicleId, recordedAt])
+}
