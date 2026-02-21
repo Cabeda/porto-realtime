@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { SettingsModal } from "@/components/SettingsModal";
+import { DesktopNav } from "@/components/DesktopNav";
 import { UserMenu } from "@/components/UserMenu";
 import { ProposalCard } from "@/components/ProposalCard";
 import type {
@@ -529,20 +530,7 @@ function CommunityContent() {
               <span className="mr-2">&larr;</span>
               {t.nav.map}
             </Link>
-            <div className="hidden sm:flex items-center gap-1">
-              <Link
-                href="/"
-                className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
-              >
-                🗺️ {t.nav.map}
-              </Link>
-              <Link
-                href="/stations"
-                className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
-              >
-                🚏 {t.nav.stations}
-              </Link>
-            </div>
+            <DesktopNav />
             <div className="flex items-center gap-2">
               <UserMenu />
               <button

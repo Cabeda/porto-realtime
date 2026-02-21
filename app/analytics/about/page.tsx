@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { DesktopNav } from "@/components/DesktopNav";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
       <h2 className="text-lg font-semibold mb-3">{title}</h2>
-      <div className="text-sm text-[var(--color-text-secondary)] space-y-2 leading-relaxed">
+      <div className="text-sm text-[var(--color-content-secondary)] space-y-2 leading-relaxed">
         {children}
       </div>
     </section>
@@ -15,14 +16,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">&larr;</Link>
+            <h1 className="text-xl font-bold text-content">Methodology</h1>
+          </div>
+          <DesktopNav />
+        </div>
+      </header>
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <Link href="/analytics" className="text-sm text-[var(--color-primary)] hover:underline">
-          &larr; Analytics
-        </Link>
-
-        <h1 className="text-2xl font-bold mt-2 mb-2">Methodology</h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mb-8">
+        <p className="text-sm text-[var(--color-content-secondary)] mb-8">
           How PortoMove collects, processes, and presents transit performance data for Porto&apos;s STCP network.
         </p>
 
@@ -212,7 +217,7 @@ export default function AboutPage() {
         <Section title="Open Data">
           <p>
             All aggregated data is available for download on the{" "}
-            <Link href="/analytics/data" className="text-[var(--color-primary)] hover:underline">
+            <Link href="/analytics/data" className="text-[var(--color-accent)] hover:underline">
               data page
             </Link>
             . Formats include JSON, CSV, and GeoJSON. We encourage researchers, journalists, and
@@ -222,7 +227,7 @@ export default function AboutPage() {
             If you find errors or have suggestions, please open an issue on our{" "}
             <a
               href="https://github.com/anomalyco/opencode"
-              className="text-[var(--color-primary)] hover:underline"
+              className="text-[var(--color-accent)] hover:underline"
               target="_blank"
               rel="noopener noreferrer"
             >

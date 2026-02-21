@@ -15,6 +15,8 @@ import {
 } from "recharts";
 import Link from "next/link";
 
+import { DesktopNav } from "@/components/DesktopNav";
+
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function KpiCard({
@@ -32,7 +34,7 @@ function KpiCard({
 }) {
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <div className="text-xs text-[var(--color-text-secondary)] uppercase tracking-wide">
+      <div className="text-xs text-[var(--color-content-secondary)] uppercase tracking-wide">
         {label}
       </div>
       <div className="mt-1 flex items-baseline gap-1">
@@ -43,13 +45,13 @@ function KpiCard({
           {value ?? "—"}
         </span>
         {unit && (
-          <span className="text-sm text-[var(--color-text-secondary)]">
+          <span className="text-sm text-[var(--color-content-secondary)]">
             {unit}
           </span>
         )}
       </div>
       {subtitle && (
-        <div className="mt-1 text-xs text-[var(--color-text-secondary)]">
+        <div className="mt-1 text-xs text-[var(--color-content-secondary)]">
           {subtitle}
         </div>
       )}
@@ -78,16 +80,19 @@ export default function AnalyticsDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold text-content flex-shrink-0">Transit Analytics</h1>
+          <DesktopNav />
+        </div>
+      </header>
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Header */}
+        {/* Period selector */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">Transit Analytics</h1>
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              STCP network performance — Porto
-            </p>
-          </div>
+          <p className="text-sm text-[var(--color-content-secondary)]">
+            STCP network performance — Porto
+          </p>
           <div className="flex gap-2">
             {(["today", "7d", "30d"] as const).map((p) => (
               <button
@@ -95,8 +100,8 @@ export default function AnalyticsDashboard() {
                 onClick={() => setPeriod(p)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   period === p
-                    ? "bg-[var(--color-primary)] text-white"
-                    : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)]"
+                    ? "bg-[var(--color-accent)] text-white"
+                    : "bg-[var(--color-surface)] text-[var(--color-content-secondary)] hover:bg-[var(--color-border)]"
                 }`}
               >
                 {p === "today" ? "Today" : p === "7d" ? "7 Days" : "30 Days"}
@@ -109,7 +114,13 @@ export default function AnalyticsDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <KpiCard
             label="Active Buses"
-            value={summary?.activeVehicles ?? summary?.days ? `${summary.days}d` : null}
+            value={
+              summary?.activeVehicles != null
+                ? summary.activeVehicles
+                : summary?.days != null
+                ? `${summary.days} days`
+                : null
+            }
             subtitle={period === "today" ? "right now" : `over ${period}`}
           />
           <KpiCard
@@ -193,11 +204,11 @@ export default function AnalyticsDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 12, fill: "var(--color-text-secondary)" }}
+                  tick={{ fontSize: 12, fill: "var(--color-content-secondary)" }}
                   interval={2}
                 />
                 <YAxis
-                  tick={{ fontSize: 12, fill: "var(--color-text-secondary)" }}
+                  tick={{ fontSize: 12, fill: "var(--color-content-secondary)" }}
                   domain={[0, "auto"]}
                   unit=" km/h"
                 />
@@ -211,7 +222,7 @@ export default function AnalyticsDashboard() {
                 <Line
                   type="monotone"
                   dataKey="avgSpeed"
-                  stroke="var(--color-primary)"
+                  stroke="var(--color-accent)"
                   strokeWidth={2}
                   dot={false}
                   name="Avg Speed"
@@ -219,7 +230,7 @@ export default function AnalyticsDashboard() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-[var(--color-text-secondary)]">
+            <div className="h-[300px] flex items-center justify-center text-[var(--color-content-secondary)]">
               {speedTs === undefined ? "Loading..." : "No data available yet. Data will appear after the first day of collection."}
             </div>
           )}
@@ -236,11 +247,11 @@ export default function AnalyticsDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 12, fill: "var(--color-text-secondary)" }}
+                  tick={{ fontSize: 12, fill: "var(--color-content-secondary)" }}
                   interval={2}
                 />
                 <YAxis
-                  tick={{ fontSize: 12, fill: "var(--color-text-secondary)" }}
+                  tick={{ fontSize: 12, fill: "var(--color-content-secondary)" }}
                 />
                 <Tooltip
                   contentStyle={{
@@ -252,15 +263,15 @@ export default function AnalyticsDashboard() {
                 <Area
                   type="monotone"
                   dataKey="totalVehicles"
-                  stroke="var(--color-primary)"
-                  fill="var(--color-primary)"
+                  stroke="var(--color-accent)"
+                  fill="var(--color-accent)"
                   fillOpacity={0.2}
                   name="Active Buses"
                 />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-[var(--color-text-secondary)]">
+            <div className="h-[300px] flex items-center justify-center text-[var(--color-content-secondary)]">
               {fleet === undefined ? "Loading..." : "No data available yet."}
             </div>
           )}

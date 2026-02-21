@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { DesktopNav } from "@/components/DesktopNav";
 
 type ExportType = "positions" | "route-performance" | "segments";
 type ExportFormat = "json" | "csv" | "geojson";
@@ -93,17 +94,21 @@ export default function DataPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">&larr;</Link>
+            <h1 className="text-xl font-bold text-content">Download Data</h1>
+          </div>
+          <DesktopNav />
+        </div>
+      </header>
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <Link href="/analytics" className="text-sm text-[var(--color-primary)] hover:underline">
-          &larr; Analytics
-        </Link>
-
-        <h1 className="text-2xl font-bold mt-2 mb-2">Download Data</h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mb-6">
+        <p className="text-sm text-[var(--color-content-secondary)] mb-6">
           All transit analytics data is open and available for download. Use it for research,
           journalism, civic projects, or peer review. See the{" "}
-          <Link href="/analytics/about" className="text-[var(--color-primary)] hover:underline">
+          <Link href="/analytics/about" className="text-[var(--color-accent)] hover:underline">
             methodology page
           </Link>{" "}
           for details on how metrics are computed.
@@ -117,12 +122,12 @@ export default function DataPage() {
               onClick={() => handleTypeChange(t.value)}
               className={`w-full text-left rounded-xl border p-4 transition-colors ${
                 type === t.value
-                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5"
-                  : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-text-secondary)]"
+                  ? "border-[var(--color-accent)] bg-[var(--color-accent)]/5"
+                  : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-content-secondary)]"
               }`}
             >
               <div className="font-semibold">{t.label}</div>
-              <div className="text-sm text-[var(--color-text-secondary)] mt-1">
+              <div className="text-sm text-[var(--color-content-secondary)] mt-1">
                 {t.description}
               </div>
             </button>
@@ -141,8 +146,8 @@ export default function DataPage() {
                   onClick={() => setFormat(f)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     format === f
-                      ? "bg-[var(--color-primary)] text-white"
-                      : "bg-[var(--color-bg)] text-[var(--color-text-secondary)]"
+                      ? "bg-[var(--color-accent)] text-white"
+                      : "bg-[var(--color-surface-sunken)] text-[var(--color-content-secondary)]"
                   }`}
                 >
                   {f.toUpperCase()}
@@ -159,7 +164,7 @@ export default function DataPage() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-sm"
+                className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-sm"
               />
             </div>
           )}
@@ -172,7 +177,7 @@ export default function DataPage() {
                   type="date"
                   value={from}
                   onChange={(e) => setFrom(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-sm"
+                  className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-sm"
                 />
               </div>
               <div>
@@ -181,7 +186,7 @@ export default function DataPage() {
                   type="date"
                   value={to}
                   onChange={(e) => setTo(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-sm"
+                  className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-sm"
                 />
               </div>
             </div>
@@ -198,7 +203,7 @@ export default function DataPage() {
                 value={route}
                 onChange={(e) => setRoute(e.target.value)}
                 placeholder="e.g. 200, 502, M1"
-                className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-sm w-40"
+                className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-sm w-40"
               />
             </div>
           )}
@@ -208,7 +213,7 @@ export default function DataPage() {
         <button
           onClick={handleDownload}
           disabled={downloading}
-          className="w-full py-3 rounded-xl bg-[var(--color-primary)] text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full py-3 rounded-xl bg-[var(--color-accent)] text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {downloading ? "Downloading..." : "Download"}
         </button>
@@ -216,10 +221,10 @@ export default function DataPage() {
         {/* API hint */}
         <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <div className="text-sm font-medium mb-2">API Access</div>
-          <p className="text-sm text-[var(--color-text-secondary)] mb-2">
+          <p className="text-sm text-[var(--color-content-secondary)] mb-2">
             You can also access the data programmatically:
           </p>
-          <code className="block text-xs bg-[var(--color-bg)] p-3 rounded-lg overflow-x-auto break-all">
+          <code className="block text-xs bg-[var(--color-surface-sunken)] p-3 rounded-lg overflow-x-auto break-all">
             {`GET ${buildUrl()}`}
           </code>
         </div>

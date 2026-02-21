@@ -16,6 +16,8 @@ import {
   Line,
 } from "recharts";
 
+import { DesktopNav } from "@/components/DesktopNav";
+
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function GradeBadge({ grade }: { grade: string }) {
@@ -32,7 +34,7 @@ function GradeBadge({ grade }: { grade: string }) {
 
 export default function LineAnalyticsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center text-[var(--color-text-secondary)]">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--color-surface-sunken)] flex items-center justify-center text-[var(--color-content-secondary)]">Loading...</div>}>
       <LineAnalyticsContent />
     </Suspense>
   );
@@ -62,14 +64,19 @@ function LineAnalyticsContent() {
   const { data: routes } = useSWR("/api/routes", fetcher);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">&larr;</Link>
+            <h1 className="text-xl font-bold text-content">Line Analytics</h1>
+          </div>
+          <DesktopNav />
+        </div>
+      </header>
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <Link href="/analytics" className="text-sm text-[var(--color-primary)] hover:underline">
-          &larr; Analytics
-        </Link>
-
         {/* Route selector */}
-        <div className="flex items-center gap-4 mt-2 mb-6">
+        <div className="flex items-center gap-4 mb-6">
           <h1 className="text-2xl font-bold">Line</h1>
           <select
             value={route}
@@ -90,8 +97,8 @@ function LineAnalyticsContent() {
                 onClick={() => setPeriod(p)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   period === p
-                    ? "bg-[var(--color-primary)] text-white"
-                    : "bg-[var(--color-surface)] text-[var(--color-text-secondary)]"
+                    ? "bg-[var(--color-accent)] text-white"
+                    : "bg-[var(--color-surface)] text-[var(--color-content-secondary)]"
                 }`}
               >
                 {p === "7d" ? "7 Days" : "30 Days"}
@@ -101,7 +108,7 @@ function LineAnalyticsContent() {
         </div>
 
         {!route && (
-          <div className="text-center py-20 text-[var(--color-text-secondary)]">
+          <div className="text-center py-20 text-[var(--color-content-secondary)]">
             Select a route above to see its performance analytics.
           </div>
         )}
@@ -113,28 +120,28 @@ function LineAnalyticsContent() {
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 flex items-center gap-3">
                 <GradeBadge grade={summary.grade} />
                 <div>
-                  <div className="text-xs text-[var(--color-text-secondary)]">Grade</div>
+                  <div className="text-xs text-[var(--color-content-secondary)]">Grade</div>
                   <div className="font-semibold">{summary.grade}</div>
                 </div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-text-secondary)]">Trips</div>
+                <div className="text-xs text-[var(--color-content-secondary)]">Trips</div>
                 <div className="text-xl font-bold">{summary.totalTrips}</div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-text-secondary)]">EWT</div>
+                <div className="text-xs text-[var(--color-content-secondary)]">EWT</div>
                 <div className="text-xl font-bold">
                   {summary.avgEwt !== null ? `${Math.floor(summary.avgEwt / 60)}m ${summary.avgEwt % 60}s` : "—"}
                 </div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-text-secondary)]">Adherence</div>
+                <div className="text-xs text-[var(--color-content-secondary)]">Adherence</div>
                 <div className="text-xl font-bold">
                   {summary.avgHeadwayAdherence !== null ? `${summary.avgHeadwayAdherence}%` : "—"}
                 </div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-text-secondary)]">Speed</div>
+                <div className="text-xs text-[var(--color-content-secondary)]">Speed</div>
                 <div className="text-xl font-bold">
                   {summary.avgCommercialSpeed !== null ? `${summary.avgCommercialSpeed} km/h` : "—"}
                 </div>
@@ -151,10 +158,10 @@ function LineAnalyticsContent() {
                     <XAxis dataKey="minutes" tick={{ fontSize: 12 }} unit=" min" />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="var(--color-primary)" radius={[4, 4, 0, 0]} name="Trips" />
+                    <Bar dataKey="count" fill="var(--color-accent)" radius={[4, 4, 0, 0]} name="Trips" />
                   </BarChart>
                 </ResponsiveContainer>
-                <div className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                <div className="mt-2 text-sm text-[var(--color-content-secondary)]">
                   Average headway: {headways.avgHeadwayMins ?? "—"} min | Total observations: {headways.totalHeadways}
                 </div>
               </div>
@@ -173,7 +180,7 @@ function LineAnalyticsContent() {
                     <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Trips" />
                   </BarChart>
                 </ResponsiveContainer>
-                <div className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                <div className="mt-2 text-sm text-[var(--color-content-secondary)]">
                   Average: {runtimes.avgRuntimeMins ?? "—"} min | Median: {runtimes.medianRuntimeMins ?? "—"} min
                 </div>
               </div>
@@ -189,7 +196,7 @@ function LineAnalyticsContent() {
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
-                    <Line type="monotone" dataKey="speed" stroke="var(--color-primary)" strokeWidth={2} dot={false} name="Speed (km/h)" />
+                    <Line type="monotone" dataKey="speed" stroke="var(--color-accent)" strokeWidth={2} dot={false} name="Speed (km/h)" />
                     <Line type="monotone" dataKey="adherence" stroke="#22c55e" strokeWidth={2} dot={false} name="Adherence (%)" />
                   </LineChart>
                 </ResponsiveContainer>
@@ -198,7 +205,7 @@ function LineAnalyticsContent() {
 
             {/* No data state */}
             {!summary.totalTrips && (
-              <div className="text-center py-12 text-[var(--color-text-secondary)]">
+              <div className="text-center py-12 text-[var(--color-content-secondary)]">
                 No trip data available for route {route} in this period. Data will appear after the aggregation pipeline runs.
               </div>
             )}

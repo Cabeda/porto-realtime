@@ -5,6 +5,8 @@ import useSWR from "swr";
 import Link from "next/link";
 import { computeGrade } from "@/lib/analytics/metrics";
 
+import { DesktopNav } from "@/components/DesktopNav";
+
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function GradeBadge({ grade }: { grade: string }) {
@@ -34,21 +36,21 @@ export default function ReliabilityPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">&larr;</Link>
+            <h1 className="text-xl font-bold text-content">Service Reliability</h1>
+          </div>
+          <DesktopNav />
+        </div>
+      </header>
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <Link
-              href="/analytics"
-              className="text-sm text-[var(--color-primary)] hover:underline"
-            >
-              &larr; Analytics
-            </Link>
-            <h1 className="text-2xl font-bold mt-1">Service Reliability</h1>
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              Route rankings by headway adherence and excess wait time
-            </p>
-          </div>
+          <p className="text-sm text-[var(--color-content-secondary)]">
+            Route rankings by headway adherence and excess wait time
+          </p>
           <div className="flex gap-2">
             {(["7d", "30d"] as const).map((p) => (
               <button
@@ -56,8 +58,8 @@ export default function ReliabilityPage() {
                 onClick={() => setPeriod(p)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   period === p
-                    ? "bg-[var(--color-primary)] text-white"
-                    : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)]"
+                    ? "bg-[var(--color-accent)] text-white"
+                    : "bg-[var(--color-surface)] text-[var(--color-content-secondary)] hover:bg-[var(--color-border)]"
                 }`}
               >
                 {p === "7d" ? "7 Days" : "30 Days"}
@@ -70,7 +72,7 @@ export default function ReliabilityPage() {
         {data && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-text-secondary)] uppercase">
+              <div className="text-xs text-[var(--color-content-secondary)] uppercase">
                 Network EWT
               </div>
               <div className="text-2xl font-bold mt-1">
@@ -80,7 +82,7 @@ export default function ReliabilityPage() {
               </div>
             </div>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-text-secondary)] uppercase">
+              <div className="text-xs text-[var(--color-content-secondary)] uppercase">
                 Headway Adherence
               </div>
               <div className="text-2xl font-bold mt-1">
@@ -90,7 +92,7 @@ export default function ReliabilityPage() {
               </div>
             </div>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-text-secondary)] uppercase">
+              <div className="text-xs text-[var(--color-content-secondary)] uppercase">
                 Bunching Rate
               </div>
               <div className="text-2xl font-bold mt-1">
@@ -100,7 +102,7 @@ export default function ReliabilityPage() {
               </div>
             </div>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-text-secondary)] uppercase">
+              <div className="text-xs text-[var(--color-content-secondary)] uppercase">
                 Routes Tracked
               </div>
               <div className="text-2xl font-bold mt-1">
@@ -115,7 +117,7 @@ export default function ReliabilityPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg)]">
+                <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-sunken)]">
                   <th className="text-left px-4 py-3 font-medium">Route</th>
                   <th className="text-left px-4 py-3 font-medium">Grade</th>
                   <th className="text-right px-4 py-3 font-medium">EWT</th>
@@ -140,12 +142,12 @@ export default function ReliabilityPage() {
                   }) => (
                     <tr
                       key={r.route}
-                      className="border-b border-[var(--color-border)] hover:bg-[var(--color-bg)] transition-colors cursor-pointer"
+                      className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
                     >
                       <td className="px-4 py-3">
                         <Link
                           href={`/analytics/line?route=${r.route}`}
-                          className="font-semibold text-[var(--color-primary)] hover:underline"
+                          className="font-semibold text-[var(--color-accent)] hover:underline"
                         >
                           {r.route}
                         </Link>
@@ -178,14 +180,14 @@ export default function ReliabilityPage() {
                 )}
                 {!data && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-text-secondary)]">
+                    <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-content-secondary)]">
                       Loading...
                     </td>
                   </tr>
                 )}
                 {data?.rankings?.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-text-secondary)]">
+                    <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-content-secondary)]">
                       No data available yet. Reliability metrics will appear after the first day of aggregation.
                     </td>
                   </tr>

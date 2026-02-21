@@ -18,6 +18,7 @@ import { FeedbackForm } from "@/components/FeedbackForm";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { busesFetcher, stationsFetcher, routesFetcher, routeShapesFetcher, bikeParksFetcher, bikeLanesFetcher } from "@/lib/fetchers";
 import { useFeedbackList } from "@/lib/hooks/useFeedback";
+import { DesktopNav } from "@/components/DesktopNav";
 import { CheckInFAB } from "@/components/CheckInFAB";
 import { ActivityBubbles } from "@/components/ActivityBubbles";
 import type { Map as LMap } from "leaflet";
@@ -508,20 +509,7 @@ function MapPageContent() {
                 {isRefreshing && <span className="animate-spin text-base">🔄</span>}
               </h1>
             </div>
-            <div className="hidden sm:flex items-center gap-1">
-              <Link
-                href="/stations"
-                className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
-              >
-                🚏 {t.nav.stations}
-              </Link>
-              <Link
-                href="/community"
-                className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
-              >
-                ⭐ {t.nav.community}
-              </Link>
-            </div>
+            <DesktopNav />
             <div className="hidden sm:block flex-1 max-w-xs">
               <GlobalSearch availableRoutes={allRoutes} />
             </div>
