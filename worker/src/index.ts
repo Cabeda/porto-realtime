@@ -1,14 +1,18 @@
 /**
- * PortoMove Position Collector
+ * PortoMove Worker
  *
- * A lightweight worker that runs on Fly.io and collects real-time bus
- * positions from the FIWARE Urban Platform every 30 seconds, storing
- * them in Neon Postgres for analytics.
- *
- * This is the foundation for all transit analytics (see GitHub issue #65).
+ * A long-running process on Fly.io that:
+ * 1. Collects real-time bus positions from FIWARE every 30 seconds
+ * 2. Runs scheduled cron jobs:
+ *    - aggregate-daily at 03:00 UTC
+ *    - cleanup-positions at 04:00 UTC
+ *    - refresh-segments at 05:00 UTC on Mondays
  */
 
 import { neon } from "@neondatabase/serverless";
+import { runAggregateDaily } from "./cron-aggregate.js";
+import { runCleanupPositions } from "./cron-cleanup.js";
+import { runRefreshSegments } from "./cron-segments.js";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -22,15 +26,13 @@ if (!DATABASE_URL) {
 
 const FIWARE_URL =
   "https://broker.fiware.urbanplatform.portodigital.pt/v2/entities?q=vehicleType==bus&limit=1000";
-const INTERVAL_MS = 30_000; // 30 seconds
-const BATCH_SIZE = 100; // rows per INSERT statement
+const INTERVAL_MS = 30_000;
+const BATCH_SIZE = 100;
 
 const sql = neon(DATABASE_URL);
 
 // ---------------------------------------------------------------------------
 // FIWARE entity parsing helpers
-// (Extracted from lib/schemas/fiware.ts — kept standalone to avoid
-//  importing the full Next.js app into the worker.)
 // ---------------------------------------------------------------------------
 
 interface FiwareEntity {
@@ -61,7 +63,6 @@ interface FiwareLocation {
   coordinates?: [number, number];
 }
 
-/** Extract the actual value from a FIWARE field that may be wrapped in { value: T }. */
 function unwrap<T>(val: FiwareValue<T>): T | undefined {
   if (val === undefined || val === null) return undefined;
   if (typeof val === "object" && val !== null && "value" in val) {
@@ -70,7 +71,6 @@ function unwrap<T>(val: FiwareValue<T>): T | undefined {
   return val as T;
 }
 
-/** Extract [lon, lat] coordinates from a FIWARE location field. */
 function unwrapLocation(loc: FiwareLocation): [number, number] | null {
   try {
     if (loc.value?.coordinates) return loc.value.coordinates;
@@ -81,7 +81,6 @@ function unwrapLocation(loc: FiwareLocation): [number, number] | null {
   return null;
 }
 
-/** Extract annotations array from a FIWARE entity. */
 function unwrapAnnotations(
   val: FiwareValue<string[]>
 ): string[] | undefined {
@@ -111,16 +110,13 @@ interface PositionRow {
 }
 
 // ---------------------------------------------------------------------------
-// FIWARE → PositionRow parsing
-// (Logic mirrors app/api/buses/route.ts but simplified — we don't need
-//  route destinations or long names for analytics storage.)
+// FIWARE -> PositionRow parsing
 // ---------------------------------------------------------------------------
 
 function parseEntity(entity: FiwareEntity): PositionRow | null {
   const coords = unwrapLocation(entity.location!);
   if (!coords) return null;
 
-  // Extract route short name (same priority chain as /api/buses)
   let route: string | null = null;
   const rsn = unwrap(entity.routeShortName);
   const rte = unwrap(entity.route);
@@ -136,7 +132,6 @@ function parseEntity(entity: FiwareEntity): PositionRow | null {
   } else if (lin) {
     route = lin;
   } else {
-    // Try to extract from vehicle ID or entity ID
     const vehicleId =
       unwrap(entity.vehiclePlateIdentifier) ||
       unwrap(entity.vehicleNumber) ||
@@ -173,7 +168,6 @@ function parseEntity(entity: FiwareEntity): PositionRow | null {
     }
   }
 
-  // Extract direction and trip from annotations
   let directionId: number | null = null;
   let tripId: string | null = null;
   const annotations = unwrapAnnotations(entity.annotations);
@@ -189,7 +183,6 @@ function parseEntity(entity: FiwareEntity): PositionRow | null {
     }
   }
 
-  // Clean vehicle number
   let vehicleNum: string | null = null;
   const rawVehicleNum =
     unwrap(entity.vehiclePlateIdentifier) ||
@@ -202,7 +195,8 @@ function parseEntity(entity: FiwareEntity): PositionRow | null {
   if (rawVehicleNum) {
     const parts = String(rawVehicleNum).trim().split(/\s+/);
     const lastPart = parts[parts.length - 1];
-    vehicleNum = lastPart && /^\d+$/.test(lastPart) ? lastPart : String(rawVehicleNum);
+    vehicleNum =
+      lastPart && /^\d+$/.test(lastPart) ? lastPart : String(rawVehicleNum);
   }
 
   const speed = unwrap(entity.speed);
@@ -214,7 +208,7 @@ function parseEntity(entity: FiwareEntity): PositionRow | null {
     route,
     tripId,
     directionId,
-    lat: coords[1], // FIWARE returns [lon, lat]
+    lat: coords[1],
     lon: coords[0],
     speed: speed !== undefined ? Number(speed) : null,
     heading: heading !== undefined ? Number(heading) : null,
@@ -222,7 +216,7 @@ function parseEntity(entity: FiwareEntity): PositionRow | null {
 }
 
 // ---------------------------------------------------------------------------
-// Database insertion
+// Database insertion (raw SQL for speed)
 // ---------------------------------------------------------------------------
 
 async function insertRow(r: PositionRow): Promise<void> {
@@ -236,8 +230,6 @@ async function insertRow(r: PositionRow): Promise<void> {
 
 async function insertBatch(rows: PositionRow[]): Promise<void> {
   if (rows.length === 0) return;
-  // Use Promise.all for concurrent inserts within a batch
-  // The neon serverless driver uses HTTP, so parallel requests are efficient
   await Promise.all(rows.map((r) => insertRow(r)));
 }
 
@@ -245,7 +237,6 @@ async function insertBatch(rows: PositionRow[]): Promise<void> {
 // Collection cycle
 // ---------------------------------------------------------------------------
 
-/** Stats for monitoring */
 let totalCollected = 0;
 let totalCycles = 0;
 let totalErrors = 0;
@@ -260,11 +251,11 @@ async function collectPositions(): Promise<void> {
         Accept: "application/json",
         "Cache-Control": "no-cache",
       },
-      signal: AbortSignal.timeout(15_000), // 15s timeout
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!response.ok) {
-      console.error(`FIWARE HTTP ${response.status} ${response.statusText}`);
+      console.error("FIWARE HTTP " + response.status + " " + response.statusText);
       totalErrors++;
       return;
     }
@@ -277,7 +268,6 @@ async function collectPositions(): Promise<void> {
       return;
     }
 
-    // Parse all entities
     const rows: PositionRow[] = [];
     for (const entity of entities) {
       if (!entity?.id || !entity?.location) continue;
@@ -290,7 +280,6 @@ async function collectPositions(): Promise<void> {
       return;
     }
 
-    // Insert in batches
     for (let i = 0; i < rows.length; i += BATCH_SIZE) {
       const batch = rows.slice(i, i + BATCH_SIZE);
       await insertBatch(batch);
@@ -300,18 +289,63 @@ async function collectPositions(): Promise<void> {
     totalCycles++;
     const elapsed = Date.now() - start;
 
-    // Log every cycle, with periodic summary
     if (totalCycles % 10 === 0) {
       console.log(
-        `[cycle ${totalCycles}] ${rows.length} positions in ${elapsed}ms | total: ${totalCollected} positions, ${totalErrors} errors`
+        "[collect] cycle " + totalCycles + ": " + rows.length +
+        " positions in " + elapsed + "ms | total: " + totalCollected +
+        ", errors: " + totalErrors
       );
     } else {
-      console.log(`${rows.length} positions in ${elapsed}ms`);
+      console.log("[collect] " + rows.length + " positions in " + elapsed + "ms");
     }
   } catch (error) {
     totalErrors++;
     const elapsed = Date.now() - start;
-    console.error(`Collection failed after ${elapsed}ms:`, error);
+    console.error("[collect] Failed after " + elapsed + "ms:", error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler
+// ---------------------------------------------------------------------------
+
+interface ScheduledJob {
+  name: string;
+  hour: number;
+  dayOfWeek: number | null;
+  fn: () => Promise<void>;
+}
+
+const SCHEDULED_JOBS: ScheduledJob[] = [
+  { name: "aggregate-daily", hour: 3, dayOfWeek: null, fn: runAggregateDaily },
+  { name: "cleanup-positions", hour: 4, dayOfWeek: null, fn: runCleanupPositions },
+  { name: "refresh-segments", hour: 5, dayOfWeek: 1, fn: runRefreshSegments },
+];
+
+const jobLastRun = new Map<string, string>();
+
+async function checkScheduledJobs(): Promise<void> {
+  const now = new Date();
+  const utcHour = now.getUTCHours();
+  const utcDay = now.getUTCDay();
+  const todayKey = now.toISOString().slice(0, 10);
+
+  for (const job of SCHEDULED_JOBS) {
+    if (utcHour !== job.hour) continue;
+    if (job.dayOfWeek !== null && utcDay !== job.dayOfWeek) continue;
+
+    const runKey = todayKey + ":" + job.name;
+    if (jobLastRun.get(job.name) === runKey) continue;
+
+    jobLastRun.set(job.name, runKey);
+
+    console.log("[scheduler] Starting " + job.name + "...");
+    try {
+      await job.fn();
+      console.log("[scheduler] " + job.name + " completed successfully");
+    } catch (error) {
+      console.error("[scheduler] " + job.name + " failed:", error);
+    }
   }
 }
 
@@ -320,17 +354,22 @@ async function collectPositions(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log("=== PortoMove Position Collector ===");
-  console.log(`Interval: ${INTERVAL_MS / 1000}s`);
-  console.log(`Database: ${DATABASE_URL!.replace(/:[^:@]+@/, ":***@")}`); // mask password
-  console.log(`FIWARE:   ${FIWARE_URL}`);
+  console.log("=== PortoMove Worker ===");
+  console.log("Collection interval: " + (INTERVAL_MS / 1000) + "s");
+  console.log("Database: " + DATABASE_URL!.replace(/:[^:@]+@/, ":***@"));
+  console.log("FIWARE:   " + FIWARE_URL);
+  console.log("Scheduled jobs:");
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  for (const job of SCHEDULED_JOBS) {
+    const dayStr = job.dayOfWeek !== null ? dayNames[job.dayOfWeek] : "daily";
+    const hourStr = String(job.hour).padStart(2, "0");
+    console.log("  - " + job.name + ": " + hourStr + ":00 UTC (" + dayStr + ")");
+  }
   console.log("");
 
-  // Verify database connectivity
   try {
     await sql`SELECT 1 as ok`;
     console.log("Database connection: OK");
-    // Verify the table exists
     await sql`SELECT COUNT(*) FROM "BusPositionLog" LIMIT 1`;
     console.log("BusPositionLog table: OK");
   } catch (error) {
@@ -338,13 +377,15 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log("\nStarting collection loop...\n");
+  console.log("");
+  console.log("Starting main loop...");
+  console.log("");
 
-  // Graceful shutdown
   let running = true;
   const shutdown = () => {
     console.log(
-      `\nShutting down. Total: ${totalCollected} positions in ${totalCycles} cycles, ${totalErrors} errors.`
+      "Shutting down. Total: " + totalCollected + " positions in " +
+      totalCycles + " cycles, " + totalErrors + " errors."
     );
     running = false;
   };
@@ -354,6 +395,7 @@ async function main(): Promise<void> {
   while (running) {
     const cycleStart = Date.now();
     await collectPositions();
+    await checkScheduledJobs();
     const elapsed = Date.now() - cycleStart;
     const sleepMs = Math.max(0, INTERVAL_MS - elapsed);
     if (running && sleepMs > 0) {
