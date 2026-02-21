@@ -35,6 +35,8 @@ The Porto Urban Platform architecture includes:
 
 The bus vehicle data comes from **STCP's AVL (Automatic Vehicle Location)** system, which feeds GPS positions into the Context Broker in near real-time.
 
+> **Official Data Source:** STCP real-time data is officially published on the [Porto Open Data portal — STCP](https://opendata.porto.digital/organization/sociedade-de-transportes-colectivos-do-porto-stcp). The FIWARE Context Broker is one of the distribution channels for this data.
+
 ---
 
 ## How We Use It

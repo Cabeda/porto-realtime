@@ -5,7 +5,7 @@ import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { Providers } from "@/components/Providers";
 import { BottomNav } from "@/components/BottomNav";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], display: "swap", preload: true });
 
 export const metadata: Metadata = {
   title: "PortoMove - Transportes em Tempo Real",

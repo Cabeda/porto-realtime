@@ -36,6 +36,8 @@ OpenTripPlanner is an open-source multimodal trip planning engine. It ingests GT
 
 **Porto Digital** — the innovation agency for the city of Porto, Portugal — hosts and maintains the OTP instance at `otp.portodigital.pt`. It is part of Porto's Urban Platform smart city infrastructure. The GTFS data is sourced from STCP (Sociedade de Transportes Colectivos do Porto) and potentially other operators in the AMP (Área Metropolitana do Porto) region.
 
+> **Official Data Source:** STCP transit data (GTFS feeds, real-time positions, schedules) is officially published on the [Porto Open Data portal — STCP](https://opendata.porto.digital/organization/sociedade-de-transportes-colectivos-do-porto-stcp).
+
 ---
 
 ## How We Use It

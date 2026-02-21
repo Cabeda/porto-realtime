@@ -329,7 +329,7 @@ export function SettingsModal({ onClose, onResetOnboarding, mapStyle, onMapStyle
             </p>
             <div className="flex flex-col gap-2 mb-3">
               <a
-                href="/reviews"
+                href="/community"
                 className="inline-flex items-center gap-2 text-sm bg-accent/10 text-accent hover:bg-accent/20 rounded-lg px-3 py-2 font-medium transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>

@@ -1,5 +1,6 @@
 packages:
   - '.'
+  - 'worker'
 
 onlyBuiltDependencies:
   - sharp

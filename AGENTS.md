@@ -89,6 +89,8 @@ Key interfaces: `Bus`, `Stop` (with `vehicleMode`), `RouteInfo`, `PatternGeometr
 
 ## External APIs
 
+All transit data originates from **STCP (Sociedade de Transportes Colectivos do Porto)**, officially published on the [Porto Open Data portal](https://opendata.porto.digital/organization/sociedade-de-transportes-colectivos-do-porto-stcp).
+
 ### Porto OpenTripPlanner
 - **URL**: `https://otp.portodigital.pt/otp/routers/default/index/graphql`
 - **Protocol**: GraphQL over HTTP POST

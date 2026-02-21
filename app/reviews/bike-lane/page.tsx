@@ -62,7 +62,7 @@ function BikeLaneReviewsContent() {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <Link
-              href="/reviews"
+              href="/community"
               className="inline-flex items-center text-accent hover:text-accent-hover font-medium text-sm transition-colors"
             >
               <span className="mr-2">←</span>
