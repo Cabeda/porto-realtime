@@ -488,9 +488,297 @@ function ProposalsTab() {
   );
 }
 
+// ─── Trending Tab (#37, #38) ───
+
+interface TrendingTarget {
+  type: string;
+  targetId: string;
+  avg: number;
+  count: number;
+  recentComment: {
+    rating: number;
+    comment: string;
+    tags: string[];
+    createdAt: string;
+  } | null;
+}
+
+interface TrendingReview {
+  id: string;
+  type: string;
+  targetId: string;
+  rating: number;
+  comment: string | null;
+  tags: string[];
+  metadata: FeedbackMetadata | null;
+  createdAt: string;
+  voteCount: number;
+}
+
+interface TrendingResponse {
+  period: string;
+  since: string;
+  stats: { totalReviews: number; totalVotes: number; activeReviewers: number };
+  topTags: { tag: string; count: number }[];
+  topIssues: TrendingTarget[];
+  highlights: TrendingTarget[];
+  trending: TrendingReview[];
+}
+
+const TAG_LABELS: Record<string, Record<string, string>> = {
+  OVERCROWDED: { pt: "Sobrelotado", en: "Overcrowded" },
+  LATE: { pt: "Atrasado", en: "Late" },
+  DIRTY: { pt: "Sujo", en: "Dirty" },
+  ACCESSIBILITY: { pt: "Acessibilidade", en: "Accessibility" },
+  SAFETY: { pt: "Segurança", en: "Safety" },
+  BROKEN_INFRASTRUCTURE: { pt: "Infraestrutura danificada", en: "Broken infrastructure" },
+  FREQUENCY: { pt: "Frequência", en: "Frequency" },
+  ROUTE_COVERAGE: { pt: "Cobertura", en: "Route coverage" },
+};
+
+function TrendingTargetCard({
+  item,
+  rank,
+  variant,
+}: {
+  item: TrendingTarget;
+  rank: number;
+  variant: "issue" | "highlight";
+}) {
+  const t = useTranslations();
+  const type = item.type as FeedbackType;
+  const detailHref =
+    type === "LINE"
+      ? `/reviews/line?id=${encodeURIComponent(item.targetId)}`
+      : type === "VEHICLE"
+        ? `/reviews/vehicle?id=${encodeURIComponent(item.targetId)}`
+        : type === "STOP"
+          ? `/reviews/stop?id=${encodeURIComponent(item.targetId)}`
+          : type === "BIKE_LANE"
+            ? `/reviews/bike-lane?id=${encodeURIComponent(item.targetId)}`
+            : type === "BIKE_PARK"
+              ? `/reviews/bike-park?id=${encodeURIComponent(item.targetId)}`
+              : null;
+
+  const typeIcon =
+    type === "LINE" ? "🚌" : type === "STOP" ? "🚏" : type === "VEHICLE" ? "🚍" : type === "BIKE_PARK" ? "🚲" : "🛤️";
+
+  const label =
+    type === "LINE"
+      ? `${t.reviews.line} ${item.targetId}`
+      : type === "VEHICLE"
+        ? `${t.reviews.vehicle} ${item.targetId}`
+        : item.targetId;
+
+  const borderColor =
+    variant === "highlight"
+      ? "border-l-green-500"
+      : item.avg <= 2
+        ? "border-l-red-500"
+        : "border-l-orange-400";
+
+  const content = (
+    <div className={`bg-[var(--color-surface)] rounded-lg shadow-sm hover:shadow-md transition-all p-3 border-l-4 ${borderColor}`}>
+      <div className="flex items-center gap-2.5">
+        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--color-surface-sunken)] flex items-center justify-center text-xs font-bold text-[var(--color-content-secondary)]">
+          {rank}
+        </div>
+        <span className="text-sm">{typeIcon}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-sm text-[var(--color-content)] truncate">{label}</span>
+            <span className="flex-shrink-0 text-xs font-bold text-[var(--color-content-secondary)]">
+              {item.avg.toFixed(1)}
+            </span>
+            <StarRating rating={item.avg} />
+          </div>
+          <p className="text-xs text-[var(--color-content-muted)]">
+            {t.feedback.ratings(item.count)}
+          </p>
+        </div>
+        {detailHref && <span className="text-[var(--color-content-muted)] text-sm">→</span>}
+      </div>
+      {item.recentComment && (
+        <div className="mt-2 pt-2 border-t border-[var(--color-border)]">
+          <p className="text-xs text-[var(--color-content-secondary)] line-clamp-2 italic">
+            &ldquo;{item.recentComment.comment}&rdquo;
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  return detailHref ? <Link href={detailHref}>{content}</Link> : content;
+}
+
+function TrendingTab() {
+  const t = useTranslations();
+  const tt = t.trending;
+  const [period, setPeriod] = useState<"week" | "month" | "all">("week");
+
+  const { data, isLoading } = useSWR<TrendingResponse>(
+    `/api/feedback/trending?period=${period}&limit=10`,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 30000 }
+  );
+
+  const lang = t.nav.map === "Mapa" ? "pt" : "en";
+
+  const hasData = data && (data.topIssues.length > 0 || data.highlights.length > 0 || data.trending.length > 0);
+
+  return (
+    <>
+      {/* Period selector */}
+      <div className="flex gap-1 bg-[var(--color-surface-sunken)] rounded-lg p-1 mb-4">
+        {(["week", "month", "all"] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+              period === p
+                ? "bg-white dark:bg-gray-600 text-[var(--color-content)] shadow-sm"
+                : "text-[var(--color-content-secondary)] hover:text-[var(--color-content)]"
+            }`}
+          >
+            {p === "week" ? tt.thisWeek : p === "month" ? tt.thisMonth : tt.allTime}
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-[var(--color-surface)] rounded-lg shadow p-4 h-20 animate-pulse" />
+          ))}
+        </div>
+      ) : !hasData ? (
+        <div className="bg-[var(--color-surface)] rounded-lg shadow-md p-8 text-center">
+          <div className="text-5xl mb-4">📊</div>
+          <h3 className="text-lg font-semibold text-[var(--color-content)] mb-2">{tt.noData}</h3>
+          <p className="text-[var(--color-content-muted)] text-sm mb-4">{tt.noDataDesc}</p>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
+            >
+              🗺️ {t.reviews.viewMap}
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Stats row */}
+          {data.stats && (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-[var(--color-surface)] rounded-lg p-3 text-center shadow-sm">
+                <div className="text-xl font-bold text-[var(--color-content)]">{data.stats.totalReviews}</div>
+                <div className="text-xs text-[var(--color-content-muted)]">{tt.stats === "Resumo" ? "Avaliações" : "Reviews"}</div>
+              </div>
+              <div className="bg-[var(--color-surface)] rounded-lg p-3 text-center shadow-sm">
+                <div className="text-xl font-bold text-[var(--color-content)]">{data.stats.totalVotes}</div>
+                <div className="text-xs text-[var(--color-content-muted)]">{tt.stats === "Resumo" ? "Votos" : "Votes"}</div>
+              </div>
+              <div className="bg-[var(--color-surface)] rounded-lg p-3 text-center shadow-sm">
+                <div className="text-xl font-bold text-[var(--color-content)]">{data.stats.activeReviewers}</div>
+                <div className="text-xs text-[var(--color-content-muted)]">{tt.stats === "Resumo" ? "Avaliadores" : "Reviewers"}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Top tags */}
+          {data.topTags.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--color-content)] mb-2">{tt.topTags}</h3>
+              <div className="flex flex-wrap gap-2">
+                {data.topTags.map((t) => (
+                  <span
+                    key={t.tag}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-content-secondary)]"
+                  >
+                    {TAG_LABELS[t.tag]?.[lang] || t.tag}
+                    <span className="text-[var(--color-content-muted)]">({t.count})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Top Issues (#38) */}
+          {data.topIssues.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--color-content)] mb-1">{tt.topIssues}</h3>
+              <p className="text-xs text-[var(--color-content-muted)] mb-3">{tt.topIssuesDesc}</p>
+              <div className="space-y-2">
+                {data.topIssues.map((item, i) => (
+                  <TrendingTargetCard key={`${item.type}:${item.targetId}`} item={item} rank={i + 1} variant="issue" />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Highlights (#37) */}
+          {data.highlights.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--color-content)] mb-1">{tt.highlights}</h3>
+              <p className="text-xs text-[var(--color-content-muted)] mb-3">{tt.highlightsDesc}</p>
+              <div className="space-y-2">
+                {data.highlights.map((item, i) => (
+                  <TrendingTargetCard key={`${item.type}:${item.targetId}`} item={item} rank={i + 1} variant="highlight" />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Trending reviews */}
+          {data.trending.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--color-content)] mb-1">{tt.trendingReviews}</h3>
+              <p className="text-xs text-[var(--color-content-muted)] mb-3">{tt.trendingReviewsDesc}</p>
+              <div className="space-y-2">
+                {data.trending.map((r) => {
+                  const typeIcon =
+                    r.type === "LINE" ? "🚌" : r.type === "STOP" ? "🚏" : r.type === "VEHICLE" ? "🚍" : r.type === "BIKE_PARK" ? "🚲" : "🛤️";
+                  return (
+                    <div key={r.id} className="bg-[var(--color-surface)] rounded-lg shadow-sm p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="text-sm">{typeIcon}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-[var(--color-content-secondary)]">{r.targetId}</span>
+                            <StarRating rating={r.rating} />
+                            <span className="ml-auto text-xs text-[var(--color-accent)] font-medium">
+                              ▲ {tt.votes(r.voteCount)}
+                            </span>
+                          </div>
+                          {r.comment && (
+                            <p className="text-sm text-[var(--color-content)] line-clamp-3">{r.comment}</p>
+                          )}
+                          {r.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {r.tags.map((tag) => (
+                                <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-surface-sunken)] text-[var(--color-content-muted)]">
+                                  {TAG_LABELS[tag]?.[lang] || tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── Main Community Page ───
 
-type Section = "reviews" | "proposals";
+type Section = "reviews" | "proposals" | "trending";
 
 function CommunityContent() {
   const t = useTranslations();
@@ -498,9 +786,9 @@ function CommunityContent() {
   const searchParams = useSearchParams();
   const [showSettings, setShowSettings] = useState(false);
 
-  const sectionParam = searchParams?.get("section") || "reviews";
+  const sectionParam = searchParams?.get("section") || "trending";
   const activeSection: Section =
-    sectionParam === "proposals" ? "proposals" : "reviews";
+    sectionParam === "proposals" ? "proposals" : sectionParam === "reviews" ? "reviews" : "trending";
 
   // Fetch proposal count for badge (#8)
   const { data: proposalData } = useSWR<ProposalListResponse>(
@@ -512,7 +800,7 @@ function CommunityContent() {
 
   const setSection = (section: Section) => {
     router.replace(
-      `/community${section === "proposals" ? "?section=proposals" : ""}`,
+      `/community${section === "trending" ? "" : `?section=${section}`}`,
       { scroll: false }
     );
   };
@@ -595,8 +883,19 @@ function CommunityContent() {
             )}
           </div>
 
-          {/* Section toggle: Reviews | Proposals */}
+          {/* Section toggle: Trending | Reviews | Proposals */}
           <div className="flex gap-1 mt-4 bg-surface-sunken rounded-lg p-1">
+            <button
+              onClick={() => setSection("trending")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium transition-colors ${
+                activeSection === "trending"
+                  ? "bg-white dark:bg-gray-600 text-content shadow-sm"
+                  : "text-content-secondary hover:text-gray-900 dark:hover:text-gray-200"
+              }`}
+            >
+              <span>📊</span>
+              {t.community.trending}
+            </button>
             <button
               onClick={() => setSection("reviews")}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium transition-colors ${
@@ -629,7 +928,7 @@ function CommunityContent() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6 pb-20 sm:pb-6">
-        {activeSection === "reviews" ? <ReviewsTab /> : <ProposalsTab />}
+        {activeSection === "trending" ? <TrendingTab /> : activeSection === "reviews" ? <ReviewsTab /> : <ProposalsTab />}
       </main>
 
       {showSettings && (
