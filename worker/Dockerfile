@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 COPY tsconfig.json ./
+COPY prisma/ ./prisma/
 COPY src/ ./src/
 RUN npm run build
 
@@ -11,4 +12,4 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev
 COPY --from=builder /app/dist/ ./dist/
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/index.js"]

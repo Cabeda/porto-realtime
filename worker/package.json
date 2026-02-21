@@ -1,17 +1,21 @@
 {
   "name": "portomove-collector",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx src/index.ts"
+    "build": "prisma generate && tsc",
+    "start": "node dist/src/index.js",
+    "dev": "prisma generate && tsx src/index.ts"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2"
+    "@mapbox/polyline": "^1.2.1",
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-neon": "^7.4.0",
+    "@prisma/client": "^7.4.0"
   },
   "devDependencies": {
+    "prisma": "^7.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   },

@@ -1,7 +1,4 @@
-# fly.toml app configuration file generated for portomove-collector on 2026-02-21T19:51:18Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
+# fly.toml — PortoMove Worker (position collector + scheduled jobs)
 
 app = 'portomove-collector'
 primary_region = 'cdg'
@@ -11,16 +8,12 @@ primary_region = 'cdg'
 [env]
   NODE_ENV = 'production'
 
-[http_service]
-  internal_port = 3000
-  force_https = true
-  auto_stop_machines = 'stop'
-  auto_start_machines = true
-  min_machines_running = 0
-  processes = ['app']
+# No http_service — this is a background worker, not a web server
+[processes]
+  worker = "node dist/src/index.js"
 
 [[vm]]
   size = 'shared-cpu-1x'
-  memory = '256mb'
+  memory = '512mb'
   cpus = 1
-  memory_mb = 256
+  memory_mb = 512

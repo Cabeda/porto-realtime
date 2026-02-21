@@ -7,6 +7,7 @@ import { useTranslations } from "@/lib/hooks/useTranslations";
 import { logger } from "@/lib/logger";
 import { StationsSkeleton } from "@/components/LoadingSkeletons";
 import { SettingsModal } from "@/components/SettingsModal";
+import { DesktopNav } from "@/components/DesktopNav";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { FeedbackSummary } from "@/components/FeedbackSummary";
 import { stationsFetcher } from "@/lib/fetchers";
@@ -152,20 +153,7 @@ export default function StationsPage() {
       <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <h1 className="text-xl font-bold text-content flex-shrink-0">{t.stations.stopsLabel}</h1>
-          <div className="hidden sm:flex items-center gap-1">
-            <Link
-              href="/"
-              className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
-            >
-              🗺️ {t.nav.map}
-            </Link>
-            <Link
-              href="/community"
-              className="px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-accent hover:bg-surface-sunken rounded-lg transition-colors"
-            >
-              ⭐ {t.nav.community}
-            </Link>
-          </div>
+          <DesktopNav />
           <button
             onClick={() => setShowSettings(true)}
             className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"

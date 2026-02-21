@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const startTime = Date.now();
 
   try {
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    const cutoff = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000); // 5 days
 
     const result = await prisma.busPositionLog.deleteMany({
       where: {
