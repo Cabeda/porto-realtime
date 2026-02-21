@@ -19,7 +19,7 @@ import {
 } from "@/lib/analytics/metrics";
 import { snapToSegment, type SegmentDef } from "@/lib/analytics/segments";
 
-export const maxDuration = 300; // 5 min max for Vercel Pro, 60s for free
+export const maxDuration = 60; // Cron jobs run on Fly.io; this route is a manual trigger only
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
