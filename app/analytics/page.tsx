@@ -1,0 +1,271 @@
+"use client";
+
+import { useState } from "react";
+import useSWR from "swr";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from "recharts";
+import Link from "next/link";
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+function KpiCard({
+  label,
+  value,
+  unit,
+  subtitle,
+  color,
+}: {
+  label: string;
+  value: string | number | null;
+  unit?: string;
+  subtitle?: string;
+  color?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <div className="text-xs text-[var(--color-text-secondary)] uppercase tracking-wide">
+        {label}
+      </div>
+      <div className="mt-1 flex items-baseline gap-1">
+        <span
+          className="text-2xl font-bold"
+          style={color ? { color } : undefined}
+        >
+          {value ?? "—"}
+        </span>
+        {unit && (
+          <span className="text-sm text-[var(--color-text-secondary)]">
+            {unit}
+          </span>
+        )}
+      </div>
+      {subtitle && (
+        <div className="mt-1 text-xs text-[var(--color-text-secondary)]">
+          {subtitle}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AnalyticsDashboard() {
+  const [period, setPeriod] = useState<"today" | "7d" | "30d">("today");
+
+  const { data: summary } = useSWR(
+    `/api/analytics/network-summary?period=${period}`,
+    fetcher,
+    { refreshInterval: period === "today" ? 300000 : 0 }
+  );
+
+  const { data: speedTs } = useSWR(
+    `/api/analytics/speed-timeseries?period=${period}`,
+    fetcher
+  );
+
+  const { data: fleet } = useSWR(
+    "/api/analytics/fleet-activity",
+    fetcher,
+    { refreshInterval: 300000 }
+  );
+
+  return (
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Transit Analytics</h1>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              STCP network performance — Porto
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {(["today", "7d", "30d"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  period === p
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)]"
+                }`}
+              >
+                {p === "today" ? "Today" : p === "7d" ? "7 Days" : "30 Days"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <KpiCard
+            label="Active Buses"
+            value={summary?.activeVehicles ?? summary?.days ? `${summary.days}d` : null}
+            subtitle={period === "today" ? "right now" : `over ${period}`}
+          />
+          <KpiCard
+            label="Network Speed"
+            value={summary?.avgSpeed}
+            unit="km/h"
+            color={
+              summary?.avgSpeed
+                ? summary.avgSpeed > 15
+                  ? "#22c55e"
+                  : summary.avgSpeed > 10
+                  ? "#eab308"
+                  : "#ef4444"
+                : undefined
+            }
+          />
+          <KpiCard
+            label="Excess Wait Time"
+            value={
+              summary?.ewt !== null && summary?.ewt !== undefined
+                ? `${Math.floor(summary.ewt / 60)}m ${summary.ewt % 60}s`
+                : null
+            }
+            color={
+              summary?.ewt
+                ? summary.ewt < 120
+                  ? "#22c55e"
+                  : summary.ewt < 240
+                  ? "#eab308"
+                  : "#ef4444"
+                : undefined
+            }
+          />
+          <KpiCard
+            label="Worst Line"
+            value={summary?.worstRoute}
+            subtitle={
+              summary?.worstRouteEwt
+                ? `EWT: ${Math.round(summary.worstRouteEwt / 60)}min`
+                : undefined
+            }
+          />
+        </div>
+
+        {/* Navigation links */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <Link
+            href="/analytics/heatmap"
+            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+          >
+            Velocity Heatmap
+          </Link>
+          <Link
+            href="/analytics/reliability"
+            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+          >
+            Reliability Rankings
+          </Link>
+          <Link
+            href="/analytics/data"
+            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+          >
+            Download Data
+          </Link>
+          <Link
+            href="/analytics/about"
+            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+          >
+            Methodology
+          </Link>
+        </div>
+
+        {/* Speed Over Time Chart */}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
+          <h2 className="text-lg font-semibold mb-4">
+            Average Speed by Hour
+          </h2>
+          {speedTs?.timeseries ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={speedTs.timeseries}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 12, fill: "var(--color-text-secondary)" }}
+                  interval={2}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: "var(--color-text-secondary)" }}
+                  domain={[0, "auto"]}
+                  unit=" km/h"
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="avgSpeed"
+                  stroke="var(--color-primary)"
+                  strokeWidth={2}
+                  dot={false}
+                  name="Avg Speed"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-[var(--color-text-secondary)]">
+              {speedTs === undefined ? "Loading..." : "No data available yet. Data will appear after the first day of collection."}
+            </div>
+          )}
+        </div>
+
+        {/* Fleet Activity Chart */}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+          <h2 className="text-lg font-semibold mb-4">
+            Active Buses by Hour
+          </h2>
+          {fleet?.timeseries ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={fleet.timeseries}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 12, fill: "var(--color-text-secondary)" }}
+                  interval={2}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: "var(--color-text-secondary)" }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="totalVehicles"
+                  stroke="var(--color-primary)"
+                  fill="var(--color-primary)"
+                  fillOpacity={0.2}
+                  name="Active Buses"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-[var(--color-text-secondary)]">
+              {fleet === undefined ? "Loading..." : "No data available yet."}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

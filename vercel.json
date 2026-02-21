@@ -4,8 +4,16 @@
   "framework": "nextjs",
   "crons": [
     {
+      "path": "/api/cron/aggregate-daily",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/cron/cleanup-positions",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-segments",
+      "schedule": "0 5 * * 1"
     }
   ]
 }

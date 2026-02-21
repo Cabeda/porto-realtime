@@ -210,3 +210,102 @@ model BusPositionLog {
   @@index([route, recordedAt])
   @@index([vehicleId, recordedAt])
 }
+
+// --- Analytics: route segments (#66) ---
+
+// Route segments (~200m each) derived from OTP pattern geometries.
+// Used to map GPS positions to road segments for speed analysis.
+model RouteSegment {
+  id           String  @id  // "route:direction:index" e.g. "205:0:14"
+  route        String
+  directionId  Int     @db.SmallInt
+  segmentIndex Int
+  startLat     Float
+  startLon     Float
+  endLat       Float
+  endLon       Float
+  midLat       Float   // midpoint for fast GPS snapping
+  midLon       Float
+  lengthM      Float   @db.Real
+  geometry     Json    // GeoJSON LineString
+
+  @@index([route, directionId])
+}
+
+// --- Analytics: aggregated tables (#67) ---
+
+// Reconstructed trips from GPS breadcrumbs
+model TripLog {
+  id                   BigInt   @id @default(autoincrement())
+  date                 DateTime @db.Date
+  vehicleId            String
+  vehicleNum           String?
+  route                String
+  tripId               String?
+  directionId          Int?     @db.SmallInt
+  startedAt            DateTime?
+  endedAt              DateTime?
+  runtimeSecs          Int?
+  scheduledRuntimeSecs Int?
+  positions            Int      // number of GPS points in this trip
+  avgSpeed             Float?   @db.Real
+  commercialSpeed      Float?   @db.Real  // route distance / total time
+
+  @@index([date, route])
+  @@index([vehicleId, date])
+}
+
+// Hourly speed statistics per route segment
+model SegmentSpeedHourly {
+  id          BigInt   @id @default(autoincrement())
+  segmentId   String   // references RouteSegment.id
+  route       String
+  directionId Int?     @db.SmallInt
+  hourStart   DateTime
+  avgSpeed    Float?   @db.Real
+  medianSpeed Float?   @db.Real
+  p10Speed    Float?   @db.Real  // 10th percentile (worst)
+  p90Speed    Float?   @db.Real  // 90th percentile (best)
+  sampleCount Int
+
+  @@unique([segmentId, hourStart])
+  @@index([route, hourStart])
+  @@index([hourStart])
+}
+
+// Daily route performance summary
+model RoutePerformanceDaily {
+  id                    BigInt   @id @default(autoincrement())
+  date                  DateTime @db.Date
+  route                 String
+  directionId           Int?     @db.SmallInt
+  tripsObserved         Int
+  tripsScheduled        Int?
+  avgHeadwaySecs        Float?   @db.Real
+  scheduledHeadwaySecs  Float?   @db.Real
+  headwayAdherencePct   Float?   @db.Real
+  excessWaitTimeSecs    Float?   @db.Real
+  avgRuntimeSecs        Float?   @db.Real
+  avgCommercialSpeed    Float?   @db.Real
+  bunchingPct           Float?   @db.Real
+  gappingPct            Float?   @db.Real
+
+  @@unique([date, route, directionId])
+  @@index([date])
+  @@index([route])
+}
+
+// Network-wide daily summary
+model NetworkSummaryDaily {
+  id                  BigInt   @id @default(autoincrement())
+  date                DateTime @db.Date @unique
+  activeVehicles      Int
+  totalTrips          Int
+  avgCommercialSpeed  Float?   @db.Real
+  avgExcessWaitTime   Float?   @db.Real
+  worstRoute          String?
+  worstRouteEwt       Float?   @db.Real
+  positionsCollected  BigInt
+
+  @@index([date])
+}
