@@ -1,10 +1,15 @@
 /**
  * API: Data export endpoints (#72)
- * Supports JSON and CSV formats for positions, speeds, and route performance.
+ *
+ * - positions: today from Neon, historical from R2 Parquet (presigned URL redirect)
+ * - route-performance: from Neon (aggregated, small)
+ * - segments: from Neon (reference data)
+ * - archives: list available R2 archive dates
  */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { listArchiveDates, getArchiveUrl, isR2Configured } from "@/lib/r2";
 
 function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
@@ -35,6 +40,17 @@ export async function GET(request: NextRequest) {
   const to = request.nextUrl.searchParams.get("to");
 
   try {
+    // List available R2 archive dates
+    if (type === "archives") {
+      const dates = await listArchiveDates();
+      return NextResponse.json({
+        dates,
+        r2Configured: isR2Configured(),
+        format: "parquet",
+        note: "Use type=positions&date=YYYY-MM-DD&format=parquet to download",
+      });
+    }
+
     if (type === "positions") {
       if (!date) {
         return NextResponse.json(
@@ -43,6 +59,86 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // Check if requesting Parquet format — redirect to R2
+      if (format === "parquet") {
+        const url = await getArchiveUrl(date);
+        if (url) {
+          return NextResponse.redirect(url);
+        }
+        return NextResponse.json(
+          { error: `No Parquet archive found for ${date}. Archives are created daily for previous days.` },
+          { status: 404 }
+        );
+      }
+
+      // Check if date is today — serve from Neon
+      const today = new Date().toISOString().slice(0, 10);
+      if (date === today) {
+        const dayStart = new Date(date + "T00:00:00Z");
+        const dayEnd = new Date(date + "T23:59:59Z");
+
+        const positions = await prisma.busPositionLog.findMany({
+          where: {
+            recordedAt: { gte: dayStart, lte: dayEnd },
+            ...(route ? { route } : {}),
+          },
+          orderBy: { recordedAt: "asc" },
+          take: 500000,
+        });
+
+        const data = positions.map((p) => ({
+          recorded_at: p.recordedAt.toISOString(),
+          vehicle_id: p.vehicleId,
+          vehicle_num: p.vehicleNum,
+          route: p.route,
+          trip_id: p.tripId,
+          direction_id: p.directionId,
+          lat: p.lat,
+          lon: p.lon,
+          speed: p.speed,
+          heading: p.heading,
+        }));
+
+        if (format === "csv") {
+          return new NextResponse(toCsv(data), {
+            headers: {
+              "Content-Type": "text/csv",
+              "Content-Disposition": `attachment; filename="positions-${date}.csv"`,
+            },
+          });
+        }
+
+        return NextResponse.json({
+          data,
+          meta: {
+            type: "positions",
+            date,
+            source: "live",
+            route: route || "all",
+            count: data.length,
+            methodology: "/analytics/about",
+          },
+        });
+      }
+
+      // Historical date — try R2 first, then fall back to Neon (if data still exists)
+      const archiveUrl = await getArchiveUrl(date);
+      if (archiveUrl) {
+        return NextResponse.json({
+          data: [],
+          meta: {
+            type: "positions",
+            date,
+            source: "r2",
+            archiveUrl,
+            format: "parquet",
+            note: "Historical data is archived as Parquet. Use the archiveUrl to download, or add format=parquet to redirect directly.",
+            methodology: "/analytics/about",
+          },
+        });
+      }
+
+      // Fall back to Neon (data might still be within retention window)
       const dayStart = new Date(date + "T00:00:00Z");
       const dayEnd = new Date(date + "T23:59:59Z");
 
@@ -54,6 +150,13 @@ export async function GET(request: NextRequest) {
         orderBy: { recordedAt: "asc" },
         take: 500000,
       });
+
+      if (positions.length === 0) {
+        return NextResponse.json(
+          { error: `No position data available for ${date}. Data older than 1 day is archived to R2 as Parquet.` },
+          { status: 404 }
+        );
+      }
 
       const data = positions.map((p) => ({
         recorded_at: p.recordedAt.toISOString(),
@@ -82,6 +185,7 @@ export async function GET(request: NextRequest) {
         meta: {
           type: "positions",
           date,
+          source: "neon",
           route: route || "all",
           count: data.length,
           methodology: "/analytics/about",
@@ -171,7 +275,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ error: "Invalid type. Use: positions, route-performance, segments" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid type. Use: positions, route-performance, segments, archives" }, { status: 400 });
   } catch (error) {
     console.error("Export error:", error);
     return NextResponse.json({ error: "Export failed" }, { status: 500 });

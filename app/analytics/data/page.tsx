@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { DesktopNav } from "@/components/DesktopNav";
 
 type ExportType = "positions" | "route-performance" | "segments";
-type ExportFormat = "json" | "csv" | "geojson";
+type ExportFormat = "json" | "csv" | "geojson" | "parquet";
 
 const EXPORT_TYPES: { value: ExportType; label: string; description: string; formats: ExportFormat[] }[] = [
   {
     value: "positions",
     label: "Bus Positions",
-    description: "Raw GPS positions collected every 30 seconds from FIWARE. Requires a specific date (only today's data is available in the database; older data is archived).",
-    formats: ["json", "csv"],
+    description: "Raw GPS positions collected every 30 seconds from FIWARE. Today's data from the database (JSON/CSV); older days archived as Parquet on R2.",
+    formats: ["json", "csv", "parquet"],
   },
   {
     value: "route-performance",
@@ -28,6 +29,13 @@ const EXPORT_TYPES: { value: ExportType; label: string; description: string; for
   },
 ];
 
+interface ArchivesResponse {
+  dates: string[];
+  r2Configured: boolean;
+}
+
+const archivesFetcher = (url: string) => fetch(url).then((r) => r.json());
+
 export default function DataPage() {
   const [type, setType] = useState<ExportType>("route-performance");
   const [format, setFormat] = useState<ExportFormat>("csv");
@@ -38,6 +46,13 @@ export default function DataPage() {
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [route, setRoute] = useState("");
   const [downloading, setDownloading] = useState(false);
+
+  // Fetch available R2 archive dates
+  const { data: archives } = useSWR<ArchivesResponse>(
+    "/api/analytics/export?type=archives",
+    archivesFetcher,
+    { revalidateOnFocus: false }
+  );
 
   const selectedType = EXPORT_TYPES.find((t) => t.value === type)!;
 
@@ -71,6 +86,13 @@ export default function DataPage() {
     setDownloading(true);
     try {
       const url = buildUrl();
+
+      // Parquet downloads redirect to R2 presigned URL
+      if (format === "parquet") {
+        window.open(url, "_blank");
+        return;
+      }
+
       const res = await fetch(url);
 
       if (!res.ok) {
@@ -217,6 +239,29 @@ export default function DataPage() {
         >
           {downloading ? "Downloading..." : "Download"}
         </button>
+
+        {/* R2 Archives */}
+        {archives && archives.dates && archives.dates.length > 0 && (
+          <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+            <div className="text-sm font-medium mb-1">Position Archives</div>
+            <p className="text-sm text-[var(--color-content-secondary)] mb-3">
+              Historical bus positions archived as Parquet files. Zero egress cost via Cloudflare R2.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {archives.dates.map((d) => (
+                <a
+                  key={d}
+                  href={`/api/analytics/export?type=positions&date=${d}&format=parquet`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-content-secondary)] hover:text-[var(--color-accent)] transition-colors"
+                >
+                  {d}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* API hint */}
         <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">

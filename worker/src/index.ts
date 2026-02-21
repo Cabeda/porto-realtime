@@ -11,6 +11,7 @@
 
 import { neon } from "@neondatabase/serverless";
 import { runAggregateDaily } from "./cron-aggregate.js";
+import { runArchivePositions } from "./cron-archive.js";
 import { runCleanupPositions } from "./cron-cleanup.js";
 import { runRefreshSegments } from "./cron-segments.js";
 
@@ -318,6 +319,7 @@ interface ScheduledJob {
 
 const SCHEDULED_JOBS: ScheduledJob[] = [
   { name: "aggregate-daily", hour: 3, dayOfWeek: null, fn: runAggregateDaily },
+  { name: "archive-positions", hour: 3, dayOfWeek: null, fn: runArchivePositions },
   { name: "cleanup-positions", hour: 4, dayOfWeek: null, fn: runCleanupPositions },
   { name: "refresh-segments", hour: 5, dayOfWeek: 1, fn: runRefreshSegments },
 ];

@@ -192,7 +192,8 @@ model ProposalReport {
 // --- Analytics: bus position collection ---
 
 // Raw GPS snapshots from FIWARE, collected every 30s by the Fly.io worker.
-// Retained for 1 day in Postgres; permanently archived as Parquet on Hetzner.
+// Retained for 1 day in Neon Postgres; older data archived as Parquet to Cloudflare R2.
+// Archive path: positions/YYYY/MM/DD.parquet (presigned URLs via /api/analytics/export)
 model BusPositionLog {
   id          BigInt   @id @default(autoincrement())
   recordedAt  DateTime @default(now())

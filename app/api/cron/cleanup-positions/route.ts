@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Cron job: Delete raw bus positions older than 24 hours.
+ * Cron job: Delete raw bus positions older than 1 day.
  *
- * Runs daily at 04:00 UTC (after aggregation at 03:00).
- * Raw data is archived to Hetzner Object Storage before deletion (see #74).
+ * Runs daily at 04:00 UTC (after aggregation at 03:00 and R2 archive at 03:00).
+ * Raw data is archived to Cloudflare R2 as Parquet before deletion (#74).
  *
  * Authenticated via CRON_SECRET to prevent unauthorized access.
  */
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const startTime = Date.now();
 
   try {
-    const cutoff = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000); // 5 days
+    const cutoff = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000); // 1 day
 
     const result = await prisma.busPositionLog.deleteMany({
       where: {
