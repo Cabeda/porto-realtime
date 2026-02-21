@@ -10,7 +10,7 @@ primary_region = 'cdg'
 
 # No http_service — this is a background worker, not a web server
 [processes]
-  worker = "node dist/src/index.js"
+  worker = "npx tsx src/index.ts"
 
 [[vm]]
   size = 'shared-cpu-1x'

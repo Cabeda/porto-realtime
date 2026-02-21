@@ -5,18 +5,18 @@
   "type": "module",
   "scripts": {
     "build": "prisma generate && tsc",
-    "start": "node dist/src/index.js",
+    "start": "npx tsx src/index.ts",
     "dev": "prisma generate && tsx src/index.ts"
   },
   "dependencies": {
     "@mapbox/polyline": "^1.2.1",
     "@neondatabase/serverless": "^1.0.2",
     "@prisma/adapter-neon": "^7.4.0",
-    "@prisma/client": "^7.4.0"
+    "@prisma/client": "^7.4.0",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
     "prisma": "^7.4.0",
-    "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   },
   "engines": {
