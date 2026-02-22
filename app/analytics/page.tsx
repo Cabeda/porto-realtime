@@ -16,8 +16,21 @@ import {
 import Link from "next/link";
 
 import { DesktopNav } from "@/components/DesktopNav";
+import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
+import { MetricTooltip, METRIC_TIPS } from "@/components/analytics/MetricTooltip";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+function isDateStr(v: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(v);
+}
+
+function buildApiUrl(base: string, period: PeriodValue): string {
+  if (isDateStr(period)) {
+    return `${base}?date=${period}`;
+  }
+  return `${base}?period=${period}`;
+}
 
 function KpiCard({
   label,
@@ -25,17 +38,20 @@ function KpiCard({
   unit,
   subtitle,
   color,
+  tooltip,
 }: {
   label: string;
   value: string | number | null;
   unit?: string;
   subtitle?: string;
   color?: string;
+  tooltip?: string;
 }) {
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <div className="text-xs text-[var(--color-content-secondary)] uppercase tracking-wide">
+      <div className="text-xs text-[var(--color-content-secondary)] uppercase tracking-wide flex items-center">
         {label}
+        {tooltip && <MetricTooltip text={tooltip} />}
       </div>
       <div className="mt-1 flex items-baseline gap-1">
         <span
@@ -60,24 +76,26 @@ function KpiCard({
 }
 
 export default function AnalyticsDashboard() {
-  const [period, setPeriod] = useState<"today" | "7d" | "30d">("today");
+  const [period, setPeriod] = useState<PeriodValue>("today");
 
   const { data: summary } = useSWR(
-    `/api/analytics/network-summary?period=${period}`,
+    buildApiUrl("/api/analytics/network-summary", period),
     fetcher,
     { refreshInterval: period === "today" ? 300000 : 0 }
   );
 
   const { data: speedTs } = useSWR(
-    `/api/analytics/speed-timeseries?period=${period}`,
+    buildApiUrl("/api/analytics/speed-timeseries", period),
     fetcher
   );
 
   const { data: fleet } = useSWR(
-    "/api/analytics/fleet-activity",
+    buildApiUrl("/api/analytics/fleet-activity", period),
     fetcher,
-    { refreshInterval: 300000 }
+    { refreshInterval: period === "today" ? 300000 : 0 }
   );
+
+  const periodLabel = isDateStr(period) ? period : period === "today" ? "right now" : `over ${period}`;
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
@@ -89,25 +107,11 @@ export default function AnalyticsDashboard() {
       </header>
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Period selector */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
           <p className="text-sm text-[var(--color-content-secondary)]">
             STCP network performance — Porto
           </p>
-          <div className="flex gap-2">
-            {(["today", "7d", "30d"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  period === p
-                    ? "bg-[var(--color-accent)] text-white"
-                    : "bg-[var(--color-surface)] text-[var(--color-content-secondary)] hover:bg-[var(--color-border)]"
-                }`}
-              >
-                {p === "today" ? "Today" : p === "7d" ? "7 Days" : "30 Days"}
-              </button>
-            ))}
-          </div>
+          <PeriodSelector value={period} onChange={setPeriod} />
         </div>
 
         {/* KPI Cards */}
@@ -121,7 +125,8 @@ export default function AnalyticsDashboard() {
                 ? `${summary.days} days`
                 : null
             }
-            subtitle={period === "today" ? "right now" : `over ${period}`}
+            subtitle={periodLabel}
+            tooltip={METRIC_TIPS.activeBuses}
           />
           <KpiCard
             label="Network Speed"
@@ -136,6 +141,7 @@ export default function AnalyticsDashboard() {
                   : "#ef4444"
                 : undefined
             }
+            tooltip={METRIC_TIPS.networkSpeed}
           />
           <KpiCard
             label="Excess Wait Time"
@@ -143,6 +149,11 @@ export default function AnalyticsDashboard() {
               summary?.ewt !== null && summary?.ewt !== undefined
                 ? `${Math.floor(summary.ewt / 60)}m ${summary.ewt % 60}s`
                 : null
+            }
+            subtitle={
+              period === "today" && summary?.lastAggregatedDate
+                ? `from ${summary.lastAggregatedDate}`
+                : undefined
             }
             color={
               summary?.ewt
@@ -153,15 +164,17 @@ export default function AnalyticsDashboard() {
                   : "#ef4444"
                 : undefined
             }
+            tooltip={METRIC_TIPS.ewt}
           />
           <KpiCard
             label="Worst Line"
             value={summary?.worstRoute}
             subtitle={
               summary?.worstRouteEwt
-                ? `EWT: ${Math.round(summary.worstRouteEwt / 60)}min`
+                ? `EWT: ${Math.round(summary.worstRouteEwt / 60)}min${period === "today" && summary?.lastAggregatedDate ? ` (${summary.lastAggregatedDate})` : ""}`
                 : undefined
             }
+            tooltip={METRIC_TIPS.worstLine}
           />
         </div>
 
@@ -215,7 +228,7 @@ export default function AnalyticsDashboard() {
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
+                    border: "1px solid var(--color-border)",
                     borderRadius: "8px",
                   }}
                 />

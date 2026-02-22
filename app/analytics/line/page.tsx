@@ -17,8 +17,19 @@ import {
 } from "recharts";
 
 import { DesktopNav } from "@/components/DesktopNav";
+import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
+import { MetricTooltip, METRIC_TIPS } from "@/components/analytics/MetricTooltip";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+function isDateStr(v: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(v);
+}
+
+function buildLineUrl(route: string, period: PeriodValue, view: string): string {
+  const dateParam = isDateStr(period) ? `date=${period}` : `period=${period}`;
+  return `/api/analytics/line?route=${route}&${dateParam}&view=${view}`;
+}
 
 function GradeBadge({ grade }: { grade: string }) {
   const colors: Record<string, string> = {
@@ -44,20 +55,20 @@ function LineAnalyticsContent() {
   const searchParams = useSearchParams();
   const routeParam = searchParams.get("route") || "";
   const [route, setRoute] = useState(routeParam);
-  const [period, setPeriod] = useState<"7d" | "30d">("7d");
+  const [period, setPeriod] = useState<PeriodValue>("7d");
 
   const { data: summary } = useSWR(
-    route ? `/api/analytics/line?route=${route}&period=${period}&view=summary` : null,
+    route ? buildLineUrl(route, period, "summary") : null,
     fetcher
   );
 
   const { data: headways } = useSWR(
-    route ? `/api/analytics/line?route=${route}&period=${period}&view=headways` : null,
+    route ? buildLineUrl(route, period, "headways") : null,
     fetcher
   );
 
   const { data: runtimes } = useSWR(
-    route ? `/api/analytics/line?route=${route}&period=${period}&view=runtimes` : null,
+    route ? buildLineUrl(route, period, "runtimes") : null,
     fetcher
   );
 
@@ -90,20 +101,12 @@ function LineAnalyticsContent() {
               </option>
             ))}
           </select>
-          <div className="flex gap-2 ml-auto">
-            {(["7d", "30d"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  period === p
-                    ? "bg-[var(--color-accent)] text-white"
-                    : "bg-[var(--color-surface)] text-[var(--color-content-secondary)]"
-                }`}
-              >
-                {p === "7d" ? "7 Days" : "30 Days"}
-              </button>
-            ))}
+          <div className="ml-auto">
+            <PeriodSelector
+              value={period}
+              onChange={setPeriod}
+              presets={["7d", "30d"]}
+            />
           </div>
         </div>
 
@@ -120,28 +123,38 @@ function LineAnalyticsContent() {
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 flex items-center gap-3">
                 <GradeBadge grade={summary.grade} />
                 <div>
-                  <div className="text-xs text-[var(--color-content-secondary)]">Grade</div>
+                  <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
+                    Grade <MetricTooltip text={METRIC_TIPS.grade} />
+                  </div>
                   <div className="font-semibold">{summary.grade}</div>
                 </div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-content-secondary)]">Trips</div>
+                <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
+                  Trips <MetricTooltip text={METRIC_TIPS.trips} />
+                </div>
                 <div className="text-xl font-bold">{summary.totalTrips}</div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-content-secondary)]">EWT</div>
+                <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
+                  EWT <MetricTooltip text={METRIC_TIPS.ewt} />
+                </div>
                 <div className="text-xl font-bold">
                   {summary.avgEwt !== null ? `${Math.floor(summary.avgEwt / 60)}m ${summary.avgEwt % 60}s` : "—"}
                 </div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-content-secondary)]">Adherence</div>
+                <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
+                  Adherence <MetricTooltip text={METRIC_TIPS.headwayAdherence} />
+                </div>
                 <div className="text-xl font-bold">
                   {summary.avgHeadwayAdherence !== null ? `${summary.avgHeadwayAdherence}%` : "—"}
                 </div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-content-secondary)]">Speed</div>
+                <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
+                  Speed <MetricTooltip text={METRIC_TIPS.speed} />
+                </div>
                 <div className="text-xl font-bold">
                   {summary.avgCommercialSpeed !== null ? `${summary.avgCommercialSpeed} km/h` : "—"}
                 </div>

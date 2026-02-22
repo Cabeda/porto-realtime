@@ -6,8 +6,19 @@ import Link from "next/link";
 import { computeGrade } from "@/lib/analytics/metrics";
 
 import { DesktopNav } from "@/components/DesktopNav";
+import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
+import { MetricTooltip, METRIC_TIPS } from "@/components/analytics/MetricTooltip";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+function isDateStr(v: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(v);
+}
+
+function buildApiUrl(base: string, period: PeriodValue): string {
+  if (isDateStr(period)) return `${base}?date=${period}`;
+  return `${base}?period=${period}`;
+}
 
 function GradeBadge({ grade }: { grade: string }) {
   const colors: Record<string, string> = {
@@ -28,10 +39,10 @@ function GradeBadge({ grade }: { grade: string }) {
 }
 
 export default function ReliabilityPage() {
-  const [period, setPeriod] = useState<"7d" | "30d">("7d");
+  const [period, setPeriod] = useState<PeriodValue>("7d");
 
   const { data } = useSWR(
-    `/api/analytics/reliability?period=${period}`,
+    buildApiUrl("/api/analytics/reliability", period),
     fetcher
   );
 
@@ -51,29 +62,20 @@ export default function ReliabilityPage() {
           <p className="text-sm text-[var(--color-content-secondary)]">
             Route rankings by headway adherence and excess wait time
           </p>
-          <div className="flex gap-2">
-            {(["7d", "30d"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  period === p
-                    ? "bg-[var(--color-accent)] text-white"
-                    : "bg-[var(--color-surface)] text-[var(--color-content-secondary)] hover:bg-[var(--color-border)]"
-                }`}
-              >
-                {p === "7d" ? "7 Days" : "30 Days"}
-              </button>
-            ))}
-          </div>
+          <PeriodSelector
+            value={period}
+            onChange={setPeriod}
+            presets={["7d", "30d"]}
+          />
         </div>
 
         {/* Network KPIs */}
         {data && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-content-secondary)] uppercase">
+              <div className="text-xs text-[var(--color-content-secondary)] uppercase flex items-center">
                 Network EWT
+                <MetricTooltip text={METRIC_TIPS.ewt} />
               </div>
               <div className="text-2xl font-bold mt-1">
                 {data.networkEwt !== null
@@ -82,8 +84,9 @@ export default function ReliabilityPage() {
               </div>
             </div>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-content-secondary)] uppercase">
+              <div className="text-xs text-[var(--color-content-secondary)] uppercase flex items-center">
                 Headway Adherence
+                <MetricTooltip text={METRIC_TIPS.headwayAdherence} />
               </div>
               <div className="text-2xl font-bold mt-1">
                 {data.networkAdherence !== null
@@ -92,8 +95,9 @@ export default function ReliabilityPage() {
               </div>
             </div>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-content-secondary)] uppercase">
+              <div className="text-xs text-[var(--color-content-secondary)] uppercase flex items-center">
                 Bunching Rate
+                <MetricTooltip text={METRIC_TIPS.bunching} />
               </div>
               <div className="text-2xl font-bold mt-1">
                 {data.networkBunching !== null
@@ -116,16 +120,30 @@ export default function ReliabilityPage() {
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
+                <thead>
                 <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-sunken)]">
                   <th className="text-left px-4 py-3 font-medium">Route</th>
-                  <th className="text-left px-4 py-3 font-medium">Grade</th>
-                  <th className="text-right px-4 py-3 font-medium">EWT</th>
-                  <th className="text-right px-4 py-3 font-medium">Adherence</th>
-                  <th className="text-right px-4 py-3 font-medium">Speed</th>
-                  <th className="text-right px-4 py-3 font-medium">Bunching</th>
-                  <th className="text-right px-4 py-3 font-medium">Gapping</th>
-                  <th className="text-right px-4 py-3 font-medium">Trips</th>
+                  <th className="text-left px-4 py-3 font-medium">
+                    <span className="inline-flex items-center gap-1">Grade <MetricTooltip text={METRIC_TIPS.grade} /></span>
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium">
+                    <span className="inline-flex items-center justify-end gap-1">EWT <MetricTooltip text={METRIC_TIPS.ewt} /></span>
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium">
+                    <span className="inline-flex items-center justify-end gap-1">Adherence <MetricTooltip text={METRIC_TIPS.headwayAdherence} /></span>
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium">
+                    <span className="inline-flex items-center justify-end gap-1">Speed <MetricTooltip text={METRIC_TIPS.speed} /></span>
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium">
+                    <span className="inline-flex items-center justify-end gap-1">Bunching <MetricTooltip text={METRIC_TIPS.bunching} /></span>
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium">
+                    <span className="inline-flex items-center justify-end gap-1">Gapping <MetricTooltip text={METRIC_TIPS.gapping} /></span>
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium">
+                    <span className="inline-flex items-center justify-end gap-1">Trips <MetricTooltip text={METRIC_TIPS.trips} /></span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
