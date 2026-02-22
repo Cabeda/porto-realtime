@@ -6,10 +6,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeGrade } from "@/lib/analytics/metrics";
+import { parseDateFilter } from "@/lib/analytics/date-filter";
 
 export async function GET(request: NextRequest) {
   const route = request.nextUrl.searchParams.get("route");
-  const period = request.nextUrl.searchParams.get("period") || "7d";
+  const period = request.nextUrl.searchParams.get("period");
+  const dateParam = request.nextUrl.searchParams.get("date");
   const view = request.nextUrl.searchParams.get("view") || "summary";
 
   if (!route) {
@@ -21,19 +23,33 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
-    const days = period === "today" ? 1 : period === "7d" ? 7 : 30;
-    const fromDate = new Date(now);
-    fromDate.setUTCDate(fromDate.getUTCDate() - days);
-    fromDate.setUTCHours(0, 0, 0, 0);
+    const filter = parseDateFilter(period || "7d", dateParam);
+
+    let dateWhere: object;
+    let periodLabel: string;
+
+    if (filter.mode === "date") {
+      dateWhere = { date: filter.date };
+      periodLabel = filter.dateStr;
+    } else if (filter.mode === "period") {
+      dateWhere = { date: { gte: filter.fromDate } };
+      periodLabel = filter.period;
+    } else {
+      const fromDate = new Date(now);
+      fromDate.setUTCDate(fromDate.getUTCDate() - 1);
+      fromDate.setUTCHours(0, 0, 0, 0);
+      dateWhere = { date: { gte: fromDate } };
+      periodLabel = "today";
+    }
 
     if (view === "summary") {
       const perf = await prisma.routePerformanceDaily.findMany({
-        where: { route, date: { gte: fromDate } },
+        where: { route, ...dateWhere },
         orderBy: { date: "asc" },
       });
 
       const trips = await prisma.tripLog.findMany({
-        where: { route, date: { gte: fromDate } },
+        where: { route, ...dateWhere },
         orderBy: { startedAt: "asc" },
       });
 
@@ -63,7 +79,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         route,
-        period,
+        period: periodLabel,
         grade: computeGrade(avgEwt, avgAdherence),
         totalTrips: trips.length,
         avgEwt: avgEwt ? Math.round(avgEwt) : null,
@@ -158,7 +174,7 @@ export async function GET(request: NextRequest) {
 
     if (view === "headways") {
       const trips = await prisma.tripLog.findMany({
-        where: { route, date: { gte: fromDate } },
+        where: { route, ...dateWhere },
         orderBy: { startedAt: "asc" },
         select: { startedAt: true, directionId: true },
       });
@@ -190,7 +206,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         route,
-        period,
+        period: periodLabel,
         headways: [...buckets.entries()]
           .sort((a, b) => a[0] - b[0])
           .map(([minutes, count]) => ({ minutes, count })),
@@ -207,7 +223,7 @@ export async function GET(request: NextRequest) {
       const trips = await prisma.tripLog.findMany({
         where: {
           route,
-          date: { gte: fromDate },
+          ...dateWhere,
           runtimeSecs: { gt: 60 },
         },
         select: { runtimeSecs: true },
@@ -226,7 +242,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         route,
-        period,
+        period: periodLabel,
         runtimes: [...buckets.entries()]
           .sort((a, b) => a[0] - b[0])
           .map(([minutes, count]) => ({ minutes, count })),

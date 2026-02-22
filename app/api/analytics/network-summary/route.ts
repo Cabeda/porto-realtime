@@ -1,22 +1,25 @@
 /**
  * API: Network summary for analytics dashboard (#68)
  * Returns KPIs, speed timeseries, and fleet activity data.
+ * Supports: period=today|7d|30d or date=YYYY-MM-DD
  */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseDateFilter } from "@/lib/analytics/date-filter";
 
 export async function GET(request: NextRequest) {
-  const period = request.nextUrl.searchParams.get("period") || "today";
+  const period = request.nextUrl.searchParams.get("period");
+  const dateParam = request.nextUrl.searchParams.get("date");
+  const filter = parseDateFilter(period, dateParam);
 
   try {
-    const now = new Date();
-    const todayStart = new Date(now);
-    todayStart.setUTCHours(0, 0, 0, 0);
+    if (filter.mode === "today") {
+      const now = new Date();
+      const todayStart = new Date(now);
+      todayStart.setUTCHours(0, 0, 0, 0);
 
-    if (period === "today") {
-      // Live stats from today's raw positions
-      const [posCount, vehicleCount, routeCount, avgSpeedResult] =
+      const [posCount, vehicleCount, routeCount, avgSpeedResult, lastSummary] =
         await Promise.all([
           prisma.busPositionLog.count({
             where: { recordedAt: { gte: todayStart } },
@@ -45,6 +48,10 @@ export async function GET(request: NextRequest) {
             },
             _avg: { speed: true },
           }),
+          // Fetch most recent aggregated day for EWT + worst route
+          prisma.networkSummaryDaily.findFirst({
+            orderBy: { date: "desc" },
+          }),
         ]);
 
       return NextResponse.json({
@@ -55,30 +62,91 @@ export async function GET(request: NextRequest) {
         avgSpeed: avgSpeedResult._avg.speed
           ? Math.round(avgSpeedResult._avg.speed * 10) / 10
           : null,
-        // Historical comparisons will come from NetworkSummaryDaily
-        yesterdayAvgSpeed: null,
-        worstRoute: null,
-        ewt: null,
+        yesterdayAvgSpeed: lastSummary?.avgCommercialSpeed
+          ? Math.round(lastSummary.avgCommercialSpeed * 10) / 10
+          : null,
+        worstRoute: lastSummary?.worstRoute ?? null,
+        worstRouteEwt: lastSummary?.worstRouteEwt ?? null,
+        ewt: lastSummary?.avgExcessWaitTime
+          ? Math.round(lastSummary.avgExcessWaitTime)
+          : null,
+        lastAggregatedDate: lastSummary?.date
+          ? lastSummary.date.toISOString().slice(0, 10)
+          : null,
+      });
+    }
+
+    if (filter.mode === "date") {
+      const summary = await prisma.networkSummaryDaily.findFirst({
+        where: { date: filter.date },
+      });
+
+      const routePerf = await prisma.routePerformanceDaily.findMany({
+        where: { date: filter.date },
+      });
+
+      if (!summary) {
+        return NextResponse.json({
+          period: filter.dateStr,
+          date: filter.dateStr,
+          days: 0,
+          totalTrips: 0,
+          avgSpeed: null,
+          ewt: null,
+          worstRoute: null,
+          worstRouteEwt: null,
+          dailySummaries: [],
+        });
+      }
+
+      let worstRoute: string | null = null;
+      let worstEwt = 0;
+      for (const r of routePerf) {
+        if (r.excessWaitTimeSecs !== null && r.excessWaitTimeSecs > worstEwt) {
+          worstEwt = r.excessWaitTimeSecs;
+          worstRoute = r.route;
+        }
+      }
+
+      return NextResponse.json({
+        period: filter.dateStr,
+        date: filter.dateStr,
+        days: 1,
+        activeVehicles: summary.activeVehicles,
+        totalTrips: summary.totalTrips,
+        avgSpeed: summary.avgCommercialSpeed
+          ? Math.round(summary.avgCommercialSpeed * 10) / 10
+          : null,
+        ewt: summary.avgExcessWaitTime
+          ? Math.round(summary.avgExcessWaitTime)
+          : null,
+        worstRoute,
+        worstRouteEwt: worstEwt ? Math.round(worstEwt) : null,
+        positionsCollected: Number(summary.positionsCollected),
+        dailySummaries: [
+          {
+            date: filter.dateStr,
+            activeVehicles: summary.activeVehicles,
+            totalTrips: summary.totalTrips,
+            avgSpeed: summary.avgCommercialSpeed,
+            ewt: summary.avgExcessWaitTime,
+            positions: Number(summary.positionsCollected),
+          },
+        ],
       });
     }
 
     // Historical periods: 7d, 30d
-    const days = period === "7d" ? 7 : 30;
-    const fromDate = new Date(now);
-    fromDate.setUTCDate(fromDate.getUTCDate() - days);
-    fromDate.setUTCHours(0, 0, 0, 0);
-
     const summaries = await prisma.networkSummaryDaily.findMany({
-      where: { date: { gte: fromDate } },
+      where: { date: { gte: filter.fromDate } },
       orderBy: { date: "asc" },
     });
 
     const routePerf = await prisma.routePerformanceDaily.findMany({
-      where: { date: { gte: fromDate } },
+      where: { date: { gte: filter.fromDate } },
       orderBy: { date: "asc" },
     });
 
-    // Aggregate across days
     const totalTrips = summaries.reduce((a, s) => a + s.totalTrips, 0);
     const avgSpeed =
       summaries.length > 0
@@ -95,7 +163,6 @@ export async function GET(request: NextRequest) {
           summaries.filter((s) => s.avgExcessWaitTime !== null).length
         : null;
 
-    // Find worst route across the period
     const routeEwts = new Map<string, number[]>();
     for (const r of routePerf) {
       if (r.excessWaitTimeSecs !== null) {
@@ -114,7 +181,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      period,
+      period: filter.period,
       days: summaries.length,
       totalTrips,
       avgSpeed: avgSpeed ? Math.round(avgSpeed * 10) / 10 : null,

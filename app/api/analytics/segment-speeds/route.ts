@@ -8,30 +8,45 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseDateFilter } from "@/lib/analytics/date-filter";
 
 export async function GET(request: NextRequest) {
-  const period = request.nextUrl.searchParams.get("period") || "today";
+  const period = request.nextUrl.searchParams.get("period");
+  const dateParam = request.nextUrl.searchParams.get("date");
   const route = request.nextUrl.searchParams.get("route");
+  const filter = parseDateFilter(period, dateParam);
 
   try {
     const now = new Date();
 
-    if (period === "today") {
-      const todayStart = new Date(now);
-      todayStart.setUTCHours(0, 0, 0, 0);
+    if (filter.mode === "today" || filter.mode === "date") {
+      let dayStart: Date;
+      let dayEnd: Date;
+      let periodLabel: string;
+
+      if (filter.mode === "date") {
+        dayStart = new Date(filter.dateStr + "T00:00:00Z");
+        dayEnd = new Date(filter.dateStr + "T23:59:59.999Z");
+        periodLabel = filter.dateStr;
+      } else {
+        dayStart = new Date(now);
+        dayStart.setUTCHours(0, 0, 0, 0);
+        dayEnd = now;
+        periodLabel = "today";
+      }
 
       const segments = await prisma.routeSegment.findMany({
         where: route ? { route } : undefined,
       });
 
       if (segments.length === 0) {
-        return NextResponse.json({ segments: [], period });
+        return NextResponse.json({ segments: [], period: periodLabel });
       }
 
       // First try pre-aggregated hourly data
       const speeds = await prisma.segmentSpeedHourly.findMany({
         where: {
-          hourStart: { gte: todayStart },
+          hourStart: { gte: dayStart, lte: dayEnd },
           ...(route ? { route } : {}),
         },
       });
@@ -40,7 +55,7 @@ export async function GET(request: NextRequest) {
         // Use pre-aggregated data
         const speedMap = new Map(speeds.map((s) => [s.segmentId, s]));
         return NextResponse.json({
-          period,
+          period: periodLabel,
           segments: segments.map((seg) => {
             const speed = speedMap.get(seg.id);
             return {
@@ -61,7 +76,7 @@ export async function GET(request: NextRequest) {
       const routeSpeeds = await prisma.busPositionLog.groupBy({
         by: ["route"],
         where: {
-          recordedAt: { gte: todayStart },
+          recordedAt: { gte: dayStart, lte: dayEnd },
           speed: { gt: 0 },
           route: route ? route : { not: null },
         },
@@ -82,7 +97,7 @@ export async function GET(request: NextRequest) {
       );
 
       return NextResponse.json({
-        period,
+        period: periodLabel,
         source: "live",
         segments: segments.map((seg) => {
           const rs = routeSpeedMap.get(seg.route);
@@ -100,19 +115,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Historical periods
-    const days = period === "7d" ? 7 : 30;
-    const fromDate = new Date(now);
-    fromDate.setUTCDate(fromDate.getUTCDate() - days);
-    fromDate.setUTCHours(0, 0, 0, 0);
-
+    // Historical periods (7d, 30d) — filter.mode === "period"
     const segments = await prisma.routeSegment.findMany({
       where: route ? { route } : undefined,
     });
 
     const speeds = await prisma.segmentSpeedHourly.findMany({
       where: {
-        hourStart: { gte: fromDate },
+        hourStart: { gte: filter.fromDate },
         ...(route ? { route } : {}),
       },
     });
@@ -129,7 +139,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      period,
+      period: filter.period,
       segments: segments.map((seg) => {
         const agg = segAgg.get(seg.id);
         const avgSpeed =

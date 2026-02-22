@@ -5,9 +5,14 @@ import useSWR from "swr";
 import Link from "next/link";
 import type L from "leaflet";
 import { DesktopNav } from "@/components/DesktopNav";
+import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
 import "leaflet/dist/leaflet.css";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+function isDateStr(v: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(v);
+}
 
 /** Map speed (km/h) to a color from red (slow) through yellow to green (fast) */
 function speedColor(speed: number | null): string {
@@ -33,15 +38,19 @@ const LEGEND_ITEMS = [
 ];
 
 export default function HeatmapPage() {
-  const [period, setPeriod] = useState<"today" | "7d" | "30d">("today");
+  const [period, setPeriod] = useState<PeriodValue>("today");
   const [route, setRoute] = useState("");
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const leafletRef = useRef<typeof L | null>(null);
 
+  const segUrl = isDateStr(period)
+    ? `/api/analytics/segment-speeds?date=${period}${route ? `&route=${route}` : ""}`
+    : `/api/analytics/segment-speeds?period=${period}${route ? `&route=${route}` : ""}`;
+
   const { data: segmentData } = useSWR(
-    `/api/analytics/segment-speeds?period=${period}${route ? `&route=${route}` : ""}`,
+    segUrl,
     fetcher,
     { refreshInterval: period === "today" ? 300000 : 0 }
   );
@@ -153,20 +162,8 @@ export default function HeatmapPage() {
             ))}
           </select>
 
-          <div className="flex gap-2 ml-auto">
-            {(["today", "7d", "30d"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  period === p
-                    ? "bg-[var(--color-accent)] text-white"
-                    : "bg-[var(--color-surface)] text-[var(--color-content-secondary)] hover:bg-[var(--color-border)]"
-                }`}
-              >
-                {p === "today" ? "Today" : p === "7d" ? "7 Days" : "30 Days"}
-              </button>
-            ))}
+          <div className="ml-auto">
+            <PeriodSelector value={period} onChange={setPeriod} />
           </div>
         </div>
 

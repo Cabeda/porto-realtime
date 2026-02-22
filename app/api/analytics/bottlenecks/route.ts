@@ -4,21 +4,37 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseDateFilter } from "@/lib/analytics/date-filter";
 
 export async function GET(request: NextRequest) {
-  const period = request.nextUrl.searchParams.get("period") || "7d";
+  const period = request.nextUrl.searchParams.get("period");
+  const dateParam = request.nextUrl.searchParams.get("date");
   const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20");
+  const filter = parseDateFilter(period || "7d", dateParam);
 
   try {
-    const now = new Date();
-    const days = period === "7d" ? 7 : 30;
-    const fromDate = new Date(now);
-    fromDate.setUTCDate(fromDate.getUTCDate() - days);
-    fromDate.setUTCHours(0, 0, 0, 0);
+    let hourWhere: object;
+    let periodLabel: string;
+
+    if (filter.mode === "date") {
+      const dayStart = new Date(filter.dateStr + "T00:00:00Z");
+      const dayEnd = new Date(filter.dateStr + "T23:59:59.999Z");
+      hourWhere = { hourStart: { gte: dayStart, lte: dayEnd } };
+      periodLabel = filter.dateStr;
+    } else if (filter.mode === "period") {
+      hourWhere = { hourStart: { gte: filter.fromDate } };
+      periodLabel = filter.period;
+    } else {
+      const fromDate = new Date();
+      fromDate.setUTCDate(fromDate.getUTCDate() - 7);
+      fromDate.setUTCHours(0, 0, 0, 0);
+      hourWhere = { hourStart: { gte: fromDate } };
+      periodLabel = "7d";
+    }
 
     // Get segment speeds
     const speeds = await prisma.segmentSpeedHourly.findMany({
-      where: { hourStart: { gte: fromDate } },
+      where: hourWhere,
     });
 
     // Aggregate per segment
@@ -89,7 +105,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => (a.avgSpeed ?? 99) - (b.avgSpeed ?? 99))
       .slice(0, limit);
 
-    return NextResponse.json({ period, bottlenecks });
+    return NextResponse.json({ period: periodLabel, bottlenecks });
   } catch (error) {
     console.error("Bottlenecks error:", error);
     return NextResponse.json({ error: "Failed to fetch bottlenecks" }, { status: 500 });

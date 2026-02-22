@@ -1,23 +1,39 @@
 /**
  * API: Reliability rankings and metrics (#71)
+ * Supports: period=today|7d|30d or date=YYYY-MM-DD
  */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeGrade } from "@/lib/analytics/metrics";
+import { parseDateFilter } from "@/lib/analytics/date-filter";
 
 export async function GET(request: NextRequest) {
-  const period = request.nextUrl.searchParams.get("period") || "7d";
+  const period = request.nextUrl.searchParams.get("period");
+  const dateParam = request.nextUrl.searchParams.get("date");
+  const filter = parseDateFilter(period || "7d", dateParam);
 
   try {
-    const now = new Date();
-    const days = period === "today" ? 1 : period === "7d" ? 7 : 30;
-    const fromDate = new Date(now);
-    fromDate.setUTCDate(fromDate.getUTCDate() - days);
-    fromDate.setUTCHours(0, 0, 0, 0);
+    let dateWhere: object;
+    let periodLabel: string;
+
+    if (filter.mode === "date") {
+      dateWhere = { date: filter.date };
+      periodLabel = filter.dateStr;
+    } else if (filter.mode === "period") {
+      dateWhere = { date: { gte: filter.fromDate } };
+      periodLabel = filter.period;
+    } else {
+      // "today" — use last 1 day of aggregated data
+      const fromDate = new Date();
+      fromDate.setUTCDate(fromDate.getUTCDate() - 1);
+      fromDate.setUTCHours(0, 0, 0, 0);
+      dateWhere = { date: { gte: fromDate } };
+      periodLabel = "today";
+    }
 
     const perf = await prisma.routePerformanceDaily.findMany({
-      where: { date: { gte: fromDate } },
+      where: dateWhere,
       orderBy: { date: "asc" },
     });
 
@@ -72,14 +88,13 @@ export async function GET(request: NextRequest) {
           grade: computeGrade(ewt, adherence),
         };
       })
-      .sort((a, b) => (b.ewt ?? 0) - (a.ewt ?? 0)); // worst first
+      .sort((a, b) => (b.ewt ?? 0) - (a.ewt ?? 0));
 
-    // Network-wide averages
     const allEwts = rankings.filter((r) => r.ewt !== null).map((r) => r.ewt!);
     const allAdherences = rankings.filter((r) => r.headwayAdherence !== null).map((r) => r.headwayAdherence!);
 
     return NextResponse.json({
-      period,
+      period: periodLabel,
       networkEwt: avg(allEwts) !== null ? Math.round(avg(allEwts)!) : null,
       networkAdherence: avg(allAdherences) !== null ? Math.round(avg(allAdherences)! * 10) / 10 : null,
       networkBunching: avg(rankings.filter((r) => r.bunching !== null).map((r) => r.bunching!)) !== null
