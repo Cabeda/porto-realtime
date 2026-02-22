@@ -56,6 +56,7 @@ function buildFleetTimeseries(
 
 export async function GET(request: NextRequest) {
   const dateParam = request.nextUrl.searchParams.get("date");
+  const route = request.nextUrl.searchParams.get("route");
   const filter = parseDateFilter(null, dateParam);
 
   try {
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
     }
 
     const positions = await prisma.busPositionLog.findMany({
-      where: { recordedAt: { gte: dayStart, lte: dayEnd } },
+      where: { recordedAt: { gte: dayStart, lte: dayEnd }, ...(route ? { route } : {}) },
       select: { recordedAt: true, vehicleId: true, route: true },
     });
 

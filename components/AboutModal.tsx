@@ -74,8 +74,16 @@ export function AboutModal({ onClose, onResetOnboarding }: AboutModalProps) {
             </button>
           </div>
 
-          <div className="text-xs text-content-muted pt-2 font-mono">
-            Versão: {process.env.NEXT_PUBLIC_APP_VERSION || '2.0.0'}
+          <div className="text-xs text-content-muted pt-2 font-mono flex items-center gap-2">
+            <span>Versão: {process.env.NEXT_PUBLIC_APP_VERSION || '2.0.0'}</span>
+            <a
+              href={`https://github.com/Cabeda/porto-realtime/releases/tag/v${process.env.NEXT_PUBLIC_APP_VERSION || '2.0.0'}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:text-accent-hover underline"
+            >
+              Changelog
+            </a>
           </div>
         </div>
       </div>

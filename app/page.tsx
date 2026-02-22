@@ -101,6 +101,7 @@ function MapPageContent() {
     }
     return true;
   });
+  const [busNumberFilter, setBusNumberFilter] = useState("");
 
   // Feedback state for bottom sheet (triggered by bus popup custom event)
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
@@ -437,9 +438,17 @@ function MapPageContent() {
   }, [activeCheckInsData, showActivity]);
 
   const filteredBuses = data?.buses
-    ? selectedRoutes.length > 0
-      ? data.buses.filter(bus => selectedRoutes.includes(bus.routeShortName) || activeBusIds.has(bus.id))
-      : data.buses
+    ? (() => {
+        let buses = data.buses;
+        if (selectedRoutes.length > 0) {
+          buses = buses.filter(bus => selectedRoutes.includes(bus.routeShortName) || activeBusIds.has(bus.id));
+        }
+        if (busNumberFilter.trim()) {
+          const q = busNumberFilter.trim().toLowerCase();
+          buses = buses.filter(bus => bus.vehicleNumber?.toLowerCase().includes(q));
+        }
+        return buses;
+      })()
     : [];
 
   const toggleRoute = (route: string) => {
@@ -512,6 +521,16 @@ function MapPageContent() {
             <DesktopNav />
             <div className="hidden sm:block flex-1 max-w-xs">
               <GlobalSearch availableRoutes={allRoutes} />
+            </div>
+            <div className="hidden sm:block">
+              <input
+                type="text"
+                value={busNumberFilter}
+                onChange={(e) => setBusNumberFilter(e.target.value)}
+                placeholder="Bus #"
+                className="w-20 px-2 py-1.5 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-[var(--color-content)] placeholder-[var(--color-content-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                aria-label="Filter by bus number"
+              />
             </div>
             <button
               onClick={() => setShowSettings(true)}

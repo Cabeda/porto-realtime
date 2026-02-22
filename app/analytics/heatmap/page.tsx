@@ -14,18 +14,23 @@ function isDateStr(v: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(v);
 }
 
-/** Map speed (km/h) to a color — 3 meaningful bands */
+/** Map speed (km/h) to a smooth color gradient: red → amber → green */
 function speedColor(speed: number | null): string {
   if (speed === null) return "#94a3b8";
-  if (speed < 10) return "#dc2626";   // slow — congestion
-  if (speed < 18) return "#f59e0b";   // moderate — acceptable urban
-  return "#22c55e";                    // fast — free-flowing
+  // Clamp to [0, 30], map to hue [0°=red, 120°=green] via 18 km/h midpoint
+  const clamped = Math.max(0, Math.min(speed, 30));
+  // Use a non-linear scale: 0→0°, 18→80°, 30→120°
+  const hue = clamped <= 18
+    ? (clamped / 18) * 80          // 0–80° (red → yellow-green)
+    : 80 + ((clamped - 18) / 12) * 40; // 80–120° (yellow-green → green)
+  return `hsl(${Math.round(hue)}, 90%, 45%)`;
 }
 
 const LEGEND_ITEMS = [
-  { label: "< 10 km/h — Lento", color: "#dc2626" },
-  { label: "10–18 km/h — Moderado", color: "#f59e0b" },
-  { label: "> 18 km/h — Rápido", color: "#22c55e" },
+  { label: "< 5 km/h — Congestionado", color: speedColor(3) },
+  { label: "10 km/h — Lento", color: speedColor(10) },
+  { label: "18 km/h — Meta EU", color: speedColor(18) },
+  { label: "> 25 km/h — Rápido", color: speedColor(26) },
   { label: "Sem dados", color: "#94a3b8" },
 ];
 

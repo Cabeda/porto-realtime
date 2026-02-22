@@ -1,7 +1,13 @@
 import withPWA from "@ducanh2912/next-pwa";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const { version } = require("./package.json");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: version,
+  },
   // Explicitly configure Turbopack to silence webpack warning
   turbopack: {},
   // Security headers (GDPR, OWASP)

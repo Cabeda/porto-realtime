@@ -78,6 +78,14 @@ function KpiCard({
 
 export default function AnalyticsDashboard() {
   const [period, setPeriod] = useState<PeriodValue>("today");
+  const [selectedRoute, setSelectedRoute] = useState("");
+
+  const { data: routes } = useSWR("/api/routes", fetcher, { revalidateOnFocus: false });
+
+  function buildUrl(base: string) {
+    const url = buildApiUrl(base, period);
+    return selectedRoute ? `${url}&route=${encodeURIComponent(selectedRoute)}` : url;
+  }
 
   const { data: summary } = useSWR(
     buildApiUrl("/api/analytics/network-summary", period),
@@ -86,12 +94,12 @@ export default function AnalyticsDashboard() {
   );
 
   const { data: speedTs } = useSWR(
-    buildApiUrl("/api/analytics/speed-timeseries", period),
+    buildUrl("/api/analytics/speed-timeseries"),
     fetcher
   );
 
   const { data: fleet } = useSWR(
-    buildApiUrl("/api/analytics/fleet-activity", period),
+    buildUrl("/api/analytics/fleet-activity"),
     fetcher,
     { refreshInterval: period === "today" ? 300000 : 0 }
   );
@@ -107,12 +115,26 @@ export default function AnalyticsDashboard() {
         </div>
       </header>
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Period selector */}
+        {/* Period selector + route filter */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
           <p className="text-sm text-[var(--color-content-secondary)]">
             STCP network performance — Porto
           </p>
-          <PeriodSelector value={period} onChange={setPeriod} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={selectedRoute}
+              onChange={(e) => setSelectedRoute(e.target.value)}
+              className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm"
+            >
+              <option value="">All routes</option>
+              {routes?.routes?.map((r: { shortName: string; longName: string }) => (
+                <option key={r.shortName} value={r.shortName}>
+                  {r.shortName} — {r.longName}
+                </option>
+              ))}
+            </select>
+            <PeriodSelector value={period} onChange={setPeriod} />
+          </div>
         </div>
 
         {/* KPI Cards */}
@@ -241,6 +263,8 @@ export default function AnalyticsDashboard() {
                   dot={false}
                   name="Avg Speed"
                 />
+                <ReferenceLine y={18} stroke="#22c55e" strokeDasharray="4 3" label={{ value: "Meta EU 18", fill: "#22c55e", fontSize: 11, position: "insideTopRight" }} />
+                <ReferenceLine y={12} stroke="#eab308" strokeDasharray="4 3" label={{ value: "Mínimo 12", fill: "#eab308", fontSize: 11, position: "insideTopRight" }} />
               </LineChart>
             </ResponsiveContainer>
           ) : (

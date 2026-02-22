@@ -31,6 +31,7 @@ function buildHourlyTimeseries(hourly: Map<number, number[]>) {
 export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
+  const route = request.nextUrl.searchParams.get("route");
   const filter = parseDateFilter(period, dateParam);
 
   try {
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
         where: {
           recordedAt: { gte: todayStart },
           speed: { gt: 0 },
+          ...(route ? { route } : {}),
         },
         select: { recordedAt: true, speed: true },
       });
@@ -66,6 +68,7 @@ export async function GET(request: NextRequest) {
         where: {
           recordedAt: { gte: dayStart, lte: dayEnd },
           speed: { gt: 0 },
+          ...(route ? { route } : {}),
         },
         select: { recordedAt: true, speed: true },
       });
@@ -82,7 +85,7 @@ export async function GET(request: NextRequest) {
 
       // Fall back to SegmentSpeedHourly for this date
       const speeds = await prisma.segmentSpeedHourly.findMany({
-        where: { hourStart: { gte: dayStart, lte: dayEnd } },
+        where: { hourStart: { gte: dayStart, lte: dayEnd }, ...(route ? { route } : {}) },
         select: { hourStart: true, avgSpeed: true, sampleCount: true },
       });
 
@@ -114,7 +117,7 @@ export async function GET(request: NextRequest) {
 
     // Historical periods: 7d, 30d
     const speeds = await prisma.segmentSpeedHourly.findMany({
-      where: { hourStart: { gte: filter.fromDate } },
+      where: { hourStart: { gte: filter.fromDate }, ...(route ? { route } : {}) },
       select: { hourStart: true, avgSpeed: true, sampleCount: true },
     });
 
