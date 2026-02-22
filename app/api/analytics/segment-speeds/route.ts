@@ -10,11 +10,24 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
 
+const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
+const NO_CACHE = { "Cache-Control": "no-store" };
+
 export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
   const route = request.nextUrl.searchParams.get("route");
+  const hourFrom = request.nextUrl.searchParams.get("hourFrom");
+  const hourTo = request.nextUrl.searchParams.get("hourTo");
   const filter = parseDateFilter(period, dateParam);
+
+  const hFrom = hourFrom ? parseInt(hourFrom) : null;
+  const hTo = hourTo ? parseInt(hourTo) : null;
+  function matchesHour(d: Date): boolean {
+    if (hFrom === null || hTo === null) return true;
+    const h = d.getUTCHours();
+    return h >= hFrom && h < hTo;
+  }
 
   try {
     const now = new Date();
@@ -40,36 +53,47 @@ export async function GET(request: NextRequest) {
       });
 
       if (segments.length === 0) {
-        return NextResponse.json({ segments: [], period: periodLabel });
+        return NextResponse.json({ segments: [], period: periodLabel }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
       }
 
       // First try pre-aggregated hourly data
-      const speeds = await prisma.segmentSpeedHourly.findMany({
+      const rawSpeeds = await prisma.segmentSpeedHourly.findMany({
         where: {
           hourStart: { gte: dayStart, lte: dayEnd },
           ...(route ? { route } : {}),
         },
       });
+      const speeds = rawSpeeds.filter((s) => matchesHour(s.hourStart));
 
       if (speeds.length > 0) {
-        // Use pre-aggregated data
-        const speedMap = new Map(speeds.map((s) => [s.segmentId, s]));
+        // Aggregate across filtered hours per segment
+        const segAgg = new Map<string, { speeds: number[]; samples: number }>();
+        for (const s of speeds) {
+          if (s.avgSpeed === null) continue;
+          if (!segAgg.has(s.segmentId)) segAgg.set(s.segmentId, { speeds: [], samples: 0 });
+          const a = segAgg.get(s.segmentId)!;
+          a.speeds.push(s.avgSpeed);
+          a.samples += s.sampleCount;
+        }
         return NextResponse.json({
           period: periodLabel,
           segments: segments.map((seg) => {
-            const speed = speedMap.get(seg.id);
+            const a = segAgg.get(seg.id);
+            const avgSpeed = a && a.speeds.length > 0
+              ? Math.round((a.speeds.reduce((x, y) => x + y, 0) / a.speeds.length) * 10) / 10
+              : null;
             return {
               id: seg.id,
               route: seg.route,
               directionId: seg.directionId,
               geometry: seg.geometry,
               lengthM: seg.lengthM,
-              avgSpeed: speed?.avgSpeed ?? null,
-              medianSpeed: speed?.medianSpeed ?? null,
-              sampleCount: speed?.sampleCount ?? 0,
+              avgSpeed,
+              medianSpeed: null,
+              sampleCount: a?.samples ?? 0,
             };
           }),
-        });
+        }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
       }
 
       // Fallback: compute live average speed per route from raw positions
@@ -112,7 +136,7 @@ export async function GET(request: NextRequest) {
             sampleCount: rs?.count ?? 0,
           };
         }),
-      });
+      }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
     }
 
     // Historical periods (7d, 30d) — filter.mode === "period"
@@ -120,12 +144,13 @@ export async function GET(request: NextRequest) {
       where: route ? { route } : undefined,
     });
 
-    const speeds = await prisma.segmentSpeedHourly.findMany({
+    const allSpeeds = await prisma.segmentSpeedHourly.findMany({
       where: {
         hourStart: { gte: filter.fromDate },
         ...(route ? { route } : {}),
       },
     });
+    const speeds = allSpeeds.filter((s) => matchesHour(s.hourStart));
 
     const segAgg = new Map<string, { speeds: number[]; samples: number }>();
     for (const s of speeds) {
@@ -158,7 +183,7 @@ export async function GET(request: NextRequest) {
           sampleCount: agg?.samples ?? 0,
         };
       }),
-    });
+    }, { headers: CACHE });
   } catch (error) {
     console.error("Segment speeds error:", error);
     return NextResponse.json(

@@ -14,40 +14,47 @@ function isDateStr(v: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(v);
 }
 
-/** Map speed (km/h) to a color from red (slow) through yellow to green (fast) */
+/** Map speed (km/h) to a color — 3 meaningful bands */
 function speedColor(speed: number | null): string {
-  if (speed === null) return "#94a3b8"; // gray for no data
-  if (speed <= 5) return "#dc2626";    // red
-  if (speed <= 8) return "#ea580c";    // orange-red
-  if (speed <= 12) return "#d97706";   // orange
-  if (speed <= 16) return "#eab308";   // yellow
-  if (speed <= 20) return "#84cc16";   // lime
-  if (speed <= 25) return "#22c55e";   // green
-  return "#15803d";                     // dark green
+  if (speed === null) return "#94a3b8";
+  if (speed < 10) return "#dc2626";   // slow — congestion
+  if (speed < 18) return "#f59e0b";   // moderate — acceptable urban
+  return "#22c55e";                    // fast — free-flowing
 }
 
 const LEGEND_ITEMS = [
-  { label: "0-5", color: "#dc2626" },
-  { label: "5-8", color: "#ea580c" },
-  { label: "8-12", color: "#d97706" },
-  { label: "12-16", color: "#eab308" },
-  { label: "16-20", color: "#84cc16" },
-  { label: "20-25", color: "#22c55e" },
-  { label: "25+", color: "#15803d" },
-  { label: "N/A", color: "#94a3b8" },
+  { label: "< 10 km/h — Lento", color: "#dc2626" },
+  { label: "10–18 km/h — Moderado", color: "#f59e0b" },
+  { label: "> 18 km/h — Rápido", color: "#22c55e" },
+  { label: "Sem dados", color: "#94a3b8" },
 ];
+
+const HOUR_PRESETS = [
+  { label: "Todo o dia", from: 0, to: 24 },
+  { label: "Manhã cedo", from: 6, to: 9 },
+  { label: "Ponta manhã", from: 7, to: 9 },
+  { label: "Meio-dia", from: 11, to: 14 },
+  { label: "Ponta tarde", from: 17, to: 19 },
+  { label: "Noite", from: 20, to: 23 },
+] as const;
 
 export default function HeatmapPage() {
   const [period, setPeriod] = useState<PeriodValue>("today");
   const [route, setRoute] = useState("");
+  const [hourPreset, setHourPreset] = useState(0); // index into HOUR_PRESETS
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const leafletRef = useRef<typeof L | null>(null);
 
+  const hp = HOUR_PRESETS[hourPreset];
+  const hourSuffix = hp.from === 0 && hp.to === 24
+    ? ""
+    : `&hourFrom=${hp.from}&hourTo=${hp.to}`;
+
   const segUrl = isDateStr(period)
-    ? `/api/analytics/segment-speeds?date=${period}${route ? `&route=${route}` : ""}`
-    : `/api/analytics/segment-speeds?period=${period}${route ? `&route=${route}` : ""}`;
+    ? `/api/analytics/segment-speeds?date=${period}${route ? `&route=${route}` : ""}${hourSuffix}`
+    : `/api/analytics/segment-speeds?period=${period}${route ? `&route=${route}` : ""}${hourSuffix}`;
 
   const { data: segmentData } = useSWR(
     segUrl,
@@ -148,7 +155,6 @@ export default function HeatmapPage() {
       </header>
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex flex-wrap items-center gap-4 mb-4">
-
           <select
             value={route}
             onChange={(e) => setRoute(e.target.value)}
@@ -161,6 +167,23 @@ export default function HeatmapPage() {
               </option>
             ))}
           </select>
+
+          {/* Hour range presets */}
+          <div className="flex flex-wrap gap-1">
+            {HOUR_PRESETS.map((p, i) => (
+              <button
+                key={i}
+                onClick={() => setHourPreset(i)}
+                className={`px-2 py-1 rounded text-xs border transition-colors ${
+                  hourPreset === i
+                    ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+                    : "bg-[var(--color-surface)] border-[var(--color-border)] hover:bg-[var(--color-border)]"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
 
           <div className="ml-auto">
             <PeriodSelector value={period} onChange={setPeriod} />

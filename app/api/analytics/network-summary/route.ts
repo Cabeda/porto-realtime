@@ -8,6 +8,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
 
+const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
+const NO_CACHE = { "Cache-Control": "no-store" };
+
 export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
@@ -73,7 +76,7 @@ export async function GET(request: NextRequest) {
         lastAggregatedDate: lastSummary?.date
           ? lastSummary.date.toISOString().slice(0, 10)
           : null,
-      });
+      }, { headers: NO_CACHE });
     }
 
     if (filter.mode === "date") {
@@ -86,17 +89,17 @@ export async function GET(request: NextRequest) {
       });
 
       if (!summary) {
-        return NextResponse.json({
-          period: filter.dateStr,
-          date: filter.dateStr,
-          days: 0,
-          totalTrips: 0,
-          avgSpeed: null,
-          ewt: null,
-          worstRoute: null,
-          worstRouteEwt: null,
-          dailySummaries: [],
-        });
+      return NextResponse.json({
+        period: filter.dateStr,
+        date: filter.dateStr,
+        days: 0,
+        totalTrips: 0,
+        avgSpeed: null,
+        ewt: null,
+        worstRoute: null,
+        worstRouteEwt: null,
+        dailySummaries: [],
+      }, { headers: CACHE });
       }
 
       let worstRoute: string | null = null;
@@ -133,7 +136,7 @@ export async function GET(request: NextRequest) {
             positions: Number(summary.positionsCollected),
           },
         ],
-      });
+      }, { headers: CACHE });
     }
 
     // Historical periods: 7d, 30d
@@ -196,7 +199,7 @@ export async function GET(request: NextRequest) {
         ewt: s.avgExcessWaitTime,
         positions: Number(s.positionsCollected),
       })),
-    });
+    }, { headers: CACHE });
   } catch (error) {
     console.error("Network summary error:", error);
     return NextResponse.json(

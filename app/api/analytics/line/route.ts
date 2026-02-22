@@ -8,6 +8,9 @@ import { prisma } from "@/lib/prisma";
 import { computeGrade } from "@/lib/analytics/metrics";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
 
+const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
+const NO_CACHE = { "Cache-Control": "no-store" };
+
 export async function GET(request: NextRequest) {
   const route = request.nextUrl.searchParams.get("route");
   const period = request.nextUrl.searchParams.get("period");
@@ -118,7 +121,7 @@ export async function GET(request: NextRequest) {
           bunching: p.bunchingPct,
           gapping: p.gappingPct,
         })),
-      });
+      }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
     }
 
     if (view === "stringline") {
@@ -169,7 +172,7 @@ export async function GET(request: NextRequest) {
           vehicleId: id,
           positions: trail,
         })),
-      });
+      }, { headers: NO_CACHE });
     }
 
     if (view === "headways") {
@@ -216,7 +219,7 @@ export async function GET(request: NextRequest) {
               (headways.reduce((a: number, b: number) => a + b, 0) / headways.length / 60) * 10
             ) / 10
           : null,
-      });
+      }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
     }
 
     if (view === "runtimes") {
@@ -261,7 +264,7 @@ export async function GET(request: NextRequest) {
                 10
             ) / 10
           : null,
-      });
+      }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
     }
 
     return NextResponse.json({ error: "Invalid view parameter" }, { status: 400 });

@@ -8,6 +8,8 @@ import { prisma } from "@/lib/prisma";
 import { computeGrade } from "@/lib/analytics/metrics";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
 
+const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
+
 export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
@@ -102,7 +104,7 @@ export async function GET(request: NextRequest) {
         : null,
       totalRoutes: rankings.length,
       rankings,
-    });
+    }, { headers: CACHE });
   } catch (error) {
     console.error("Reliability error:", error);
     return NextResponse.json({ error: "Failed to fetch reliability data" }, { status: 500 });

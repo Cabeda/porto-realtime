@@ -7,6 +7,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
 
+const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
+const NO_CACHE = { "Cache-Control": "no-store" };
+
 function buildFleetTimeseries(
   positions: { recordedAt: Date; vehicleId: string; route: string | null }[]
 ) {
@@ -77,7 +80,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       period: filter.mode === "date" ? filter.dateStr : "today",
       timeseries: buildFleetTimeseries(positions),
-    });
+    }, { headers: filter.mode === "date" ? CACHE : NO_CACHE });
   } catch (error) {
     console.error("Fleet activity error:", error);
     return NextResponse.json(

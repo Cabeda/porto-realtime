@@ -1,15 +1,54 @@
 "use client";
 
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+
+interface TooltipPos { top: number; left: number }
+
 /**
  * Small "?" button that shows a tooltip explaining a metric.
- * Uses CSS-only hover + focus-visible so it works without JS state.
+ * Uses createPortal so the bubble renders on document.body and is never
+ * clipped by overflow:hidden ancestors (e.g. table wrappers).
  */
 export function MetricTooltip({ text }: { text: string }) {
+  const [pos, setPos] = useState<TooltipPos | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const show = useCallback(() => {
+    if (!btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({ top: r.top + window.scrollY, left: r.left + r.width / 2 + window.scrollX });
+  }, []);
+
+  const hide = useCallback(() => setPos(null), []);
+
+  const bubble = pos && mounted ? createPortal(
+    <span
+      role="tooltip"
+      style={{ position: "absolute", top: pos.top - 8, left: pos.left, transform: "translate(-50%, -100%)" }}
+      className="pointer-events-none z-[9999] w-56 rounded-lg px-3 py-2 text-xs leading-relaxed
+        bg-[var(--color-surface-raised)] border border-[var(--color-border)] shadow-lg
+        text-[var(--color-content)]"
+    >
+      {text}
+      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--color-border)]" />
+    </span>,
+    document.body
+  ) : null;
+
   return (
-    <span className="relative inline-flex items-center group">
+    <span className="inline-flex items-center">
       <button
+        ref={btnRef}
         type="button"
         aria-label="Explicação da métrica"
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
         className="ml-1 w-4 h-4 rounded-full text-[10px] font-bold leading-none
           flex items-center justify-center
           bg-[var(--color-border)] text-[var(--color-content-secondary)]
@@ -20,21 +59,7 @@ export function MetricTooltip({ text }: { text: string }) {
       >
         ?
       </button>
-      {/* Tooltip bubble */}
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50
-          w-56 rounded-lg px-3 py-2 text-xs leading-relaxed
-          bg-[var(--color-surface-raised)] border border-[var(--color-border)] shadow-lg
-          text-[var(--color-content)]
-          opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
-          group-focus-within:opacity-100 group-focus-within:scale-100
-          transition-all duration-150 origin-bottom"
-      >
-        {text}
-        {/* Arrow */}
-        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--color-border)]" />
-      </span>
+      {bubble}
     </span>
   );
 }

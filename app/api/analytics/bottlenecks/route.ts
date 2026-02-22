@@ -6,6 +6,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
 
+const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
+
 export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
@@ -105,7 +107,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => (a.avgSpeed ?? 99) - (b.avgSpeed ?? 99))
       .slice(0, limit);
 
-    return NextResponse.json({ period: periodLabel, bottlenecks });
+    return NextResponse.json({ period: periodLabel, bottlenecks }, { headers: CACHE });
   } catch (error) {
     console.error("Bottlenecks error:", error);
     return NextResponse.json({ error: "Failed to fetch bottlenecks" }, { status: 500 });

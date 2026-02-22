@@ -7,6 +7,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
 
+const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
+const NO_CACHE = { "Cache-Control": "no-store" };
+
 function buildHourlyTimeseries(hourly: Map<number, number[]>) {
   const timeseries = [];
   for (let h = 0; h < 24; h++) {
@@ -51,7 +54,7 @@ export async function GET(request: NextRequest) {
         hourly.get(h)!.push(p.speed!);
       }
 
-      return NextResponse.json({ period: "today", timeseries: buildHourlyTimeseries(hourly) });
+      return NextResponse.json({ period: "today", timeseries: buildHourlyTimeseries(hourly) }, { headers: NO_CACHE });
     }
 
     if (filter.mode === "date") {
@@ -74,7 +77,7 @@ export async function GET(request: NextRequest) {
           if (!hourly.has(h)) hourly.set(h, []);
           hourly.get(h)!.push(p.speed!);
         }
-        return NextResponse.json({ period: filter.dateStr, timeseries: buildHourlyTimeseries(hourly) });
+        return NextResponse.json({ period: filter.dateStr, timeseries: buildHourlyTimeseries(hourly) }, { headers: CACHE });
       }
 
       // Fall back to SegmentSpeedHourly for this date
@@ -106,7 +109,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({ period: filter.dateStr, timeseries });
+      return NextResponse.json({ period: filter.dateStr, timeseries }, { headers: CACHE });
     }
 
     // Historical periods: 7d, 30d
@@ -138,7 +141,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ period: filter.period, timeseries });
+    return NextResponse.json({ period: filter.period, timeseries }, { headers: CACHE });
   } catch (error) {
     console.error("Speed timeseries error:", error);
     return NextResponse.json(
