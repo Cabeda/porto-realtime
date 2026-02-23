@@ -69,7 +69,7 @@ export const METRIC_TIPS = {
   activeBuses:
     "Número de autocarros da STCP detetados em circulação. Atualizado a cada 30 segundos.",
   networkSpeed:
-    "Velocidade comercial média de todos os autocarros em serviço, incluindo paragens e tráfego. Valores abaixo de 10 km/h indicam congestionamento grave.",
+    "Velocidade comercial média de todos os autocarros em serviço, incluindo paragens e tráfego. A STCP registou 15,4 km/h em 2024 (mínimo histórico desde 2005). Valores abaixo de 10 km/h indicam congestionamento grave.",
   ewt: "Tempo de Espera Excessivo (EWT): tempo extra que um passageiro espera além do intervalo previsto entre autocarros. Zero significa que os autocarros chegam exatamente como planeado. Quanto menor, melhor.",
   worstLine:
     "A linha com maior tempo de espera excessivo no período selecionado — ou seja, a que mais atrasa os passageiros.",
@@ -80,9 +80,9 @@ export const METRIC_TIPS = {
   gapping:
     "Percentagem de viagens em que o intervalo entre autocarros foi muito maior do que o previsto, deixando passageiros à espera por muito tempo. Quanto menor, melhor.",
   grade:
-    "Nota geral da linha de A (excelente) a F (mau), calculada com base no tempo de espera excessivo e na aderência ao intervalo.",
+    "Nota geral da linha de A (excelente) a F (mau), calculada com base no tempo de espera excessivo, aderência ao intervalo e velocidade comercial. Linhas abaixo de 13 km/h são penalizadas (referência: STCP 2024 = 15,4 km/h).",
   speed:
-    "Velocidade comercial média da linha, incluindo paragens. Reflete a rapidez real do serviço no percurso.",
+    "Velocidade comercial média da linha, incluindo paragens. Referência STCP 2024: 15,4 km/h (mínimo histórico). Meta EU para autocarros urbanos: 18 km/h.",
   trips:
     "Número de viagens completas observadas no período selecionado.",
 } as const;

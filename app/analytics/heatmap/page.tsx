@@ -29,6 +29,7 @@ function speedColor(speed: number | null): string {
 const LEGEND_ITEMS = [
   { label: "< 5 km/h — Congestionado", color: speedColor(3) },
   { label: "10 km/h — Lento", color: speedColor(10) },
+  { label: "15.4 km/h — STCP 2024", color: speedColor(15.4) },
   { label: "18 km/h — Meta EU", color: speedColor(18) },
   { label: "> 25 km/h — Rápido", color: speedColor(26) },
   { label: "Sem dados", color: "#94a3b8" },

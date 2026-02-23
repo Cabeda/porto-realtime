@@ -5,6 +5,23 @@
  * transit performance metrics (headway, EWT, bunching, etc.)
  */
 
+/**
+ * STCP Porto performance baselines — sourced from STCP annual reports
+ * and Expresso investigative report (Sep 2024).
+ *
+ * Commercial speed hit a historic low of 15.4 km/h in 2024 (lowest since 2005).
+ * Schedule adherence was 94.8% in 2024.
+ * Source: https://expresso.pt/sociedade/2024-09-19-vias-bus-estagnaram-em-lisboa-e-no-porto-velocidade-de-circulacao-de-autocarros-em-minimos-historicos-cd8d31a5
+ */
+export const STCP_BASELINES = {
+  /** Network commercial speed 2024 — historic low (km/h) */
+  commercialSpeedKmh: 15.4,
+  /** Schedule adherence 2024 (%) */
+  scheduleAdherencePct: 94.8,
+  /** EU urban bus speed target (km/h) */
+  euTargetSpeedKmh: 18,
+} as const;
+
 export interface PositionPoint {
   recordedAt: Date;
   vehicleId: string;
@@ -205,16 +222,39 @@ export function percentile(arr: number[], p: number): number {
 }
 
 /**
- * Assign a letter grade based on EWT and headway adherence.
+ * Assign a letter grade based on EWT, headway adherence, and commercial speed.
+ * Speed is compared against the STCP 2024 network baseline (15.4 km/h).
+ * A route running well below baseline gets capped at C even with good headways.
  */
 export function computeGrade(
   ewt: number | null,
-  adherence: number | null
+  adherence: number | null,
+  speed?: number | null
 ): string {
   if (ewt === null || adherence === null) return "N/A";
-  if (ewt < 60 && adherence > 90) return "A";
-  if (ewt < 120 && adherence > 80) return "B";
-  if (ewt < 180 && adherence > 70) return "C";
-  if (ewt < 300 && adherence > 50) return "D";
-  return "F";
+
+  // Base grade from EWT + adherence
+  let grade: string;
+  if (ewt < 60 && adherence > 90) grade = "A";
+  else if (ewt < 120 && adherence > 80) grade = "B";
+  else if (ewt < 180 && adherence > 70) grade = "C";
+  else if (ewt < 300 && adherence > 50) grade = "D";
+  else grade = "F";
+
+  // Speed penalty: cap grade if significantly below STCP 2024 baseline
+  if (speed !== null && speed !== undefined) {
+    const ORDER = ["A", "B", "C", "D", "F"];
+    const baseline = STCP_BASELINES.commercialSpeedKmh; // 15.4 km/h
+    if (speed < baseline * 0.65) {
+      // < ~10 km/h: severe congestion, cap at D
+      const idx = Math.max(ORDER.indexOf(grade), ORDER.indexOf("D"));
+      grade = ORDER[idx];
+    } else if (speed < baseline * 0.85) {
+      // < ~13 km/h: below baseline, cap at C
+      const idx = Math.max(ORDER.indexOf(grade), ORDER.indexOf("C"));
+      grade = ORDER[idx];
+    }
+  }
+
+  return grade;
 }

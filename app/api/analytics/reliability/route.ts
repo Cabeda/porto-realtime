@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
           avgSpeed: avg(agg.speeds) !== null ? Math.round(avg(agg.speeds)! * 10) / 10 : null,
           bunching: avg(agg.bunchings) !== null ? Math.round(avg(agg.bunchings)! * 10) / 10 : null,
           gapping: avg(agg.gappings) !== null ? Math.round(avg(agg.gappings)! * 10) / 10 : null,
-          grade: computeGrade(ewt, adherence),
+          grade: computeGrade(ewt, adherence, avg(agg.speeds)),
         };
       })
       .sort((a, b) => (b.ewt ?? 0) - (a.ewt ?? 0));

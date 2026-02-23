@@ -216,6 +216,8 @@ function VehicleAnalyticsContent() {
                         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} unit="%" />
                         <Tooltip contentStyle={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "8px" }} />
                         <Line yAxisId="left" type="monotone" dataKey="speed" stroke="var(--color-accent)" strokeWidth={2} dot={false} name="Speed (km/h)" />
+                        <ReferenceLine yAxisId="left" y={15.4} stroke="#f59e0b" strokeDasharray="4 3" label={{ value: "STCP 2024 (15.4)", fontSize: 10, fill: "#f59e0b", position: "insideTopRight" }} />
+                        <ReferenceLine yAxisId="left" y={18} stroke="#22c55e" strokeDasharray="4 3" label={{ value: "EU target (18)", fontSize: 10, fill: "#22c55e", position: "insideTopRight" }} />
                         <Line yAxisId="right" type="monotone" dataKey="adherence" stroke="#f59e0b" strokeWidth={2} dot={false} name="Adherence (%)" />
                       </LineChart>
                     </ResponsiveContainer>
