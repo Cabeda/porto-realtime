@@ -106,6 +106,17 @@ export default function AnalyticsDashboard() {
 
   const periodLabel = isDateStr(period) ? period : period === "today" ? "right now" : `over ${period}`;
 
+  // For "today", cut off trailing hours with no data so the chart doesn't
+  // misleadingly slope to zero for hours that haven't happened yet.
+  const fleetTimeseries = (() => {
+    const ts = fleet?.timeseries;
+    if (!ts) return ts;
+    if (period !== "today") return ts;
+    let last = ts.length - 1;
+    while (last > 0 && ts[last].totalVehicles === 0) last--;
+    return ts.slice(0, last + 1);
+  })();
+
   return (
     <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
       <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
@@ -279,9 +290,9 @@ export default function AnalyticsDashboard() {
           <h2 className="text-lg font-semibold mb-4">
             Active Buses by Hour
           </h2>
-          {fleet?.timeseries ? (
+          {fleetTimeseries ? (
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={fleet.timeseries}>
+              <AreaChart data={fleetTimeseries}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis
                   dataKey="label"
@@ -312,8 +323,7 @@ export default function AnalyticsDashboard() {
             <div className="h-[300px] flex items-center justify-center text-[var(--color-content-secondary)]">
               {fleet === undefined ? "Loading..." : "No data available yet."}
             </div>
-          )}
-        </div>
+          )}        </div>
       </div>
     </div>
   );
