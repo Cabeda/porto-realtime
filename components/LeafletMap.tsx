@@ -4,8 +4,9 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import type { Map as LMap, Marker, LatLngBounds, Polyline, TileLayer as LTileLayer } from "leaflet";
 import { logger } from "@/lib/logger";
 import { escapeHtml } from "@/lib/sanitize";
+import { toTitleCase } from "@/lib/strings";
 import { storage } from "@/lib/storage";
-import type { Bus, Stop, PatternGeometry, BikePark, BikeLane, ActiveCheckIn } from "@/lib/types";
+import type { Bus, Stop, PatternGeometry, BikePark, BikeLane, ActiveCheckIn, RouteInfo } from "@/lib/types";
 
 // Color palette for routes (vibrant colors that work in light and dark mode)
 export const ROUTE_COLORS = [
@@ -138,6 +139,7 @@ interface LeafletMapProps {
   onMapReady?: (map: LMap) => void;
   activeCheckIns?: ActiveCheckIn[];
   showActivity?: boolean;
+  routes?: RouteInfo[];
 }
 
 export function LeafletMap({
@@ -160,6 +162,7 @@ export function LeafletMap({
   onMapReady,
   activeCheckIns = [],
   showActivity = false,
+  routes = [],
 }: LeafletMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<LMap | null>(null);
@@ -443,6 +446,12 @@ export function LeafletMap({
           ? `<div class="${animClass}" style="position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;background:#10b981;border:2px solid white;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;font-family:system-ui,sans-serif;padding:0 3px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">${riderCount}</div>`
           : "";
 
+        // Full route span from OTP (e.g. "Bolhão - Codiceira")
+        const routeInfo = routes.find(r => r.shortName === bus.routeShortName);
+        const fullRouteName = routeInfo
+          ? toTitleCase(routeInfo.longName.replace(/([^\s])-([^\s])/g, '$1 - $2'))
+          : null;
+
         const iconHtml = `
           <div style="display:flex;align-items:center;gap:4px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
             <div style="position:relative;min-width:44px;height:32px;background:${routeColor};border:2px solid white;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;font-family:system-ui,sans-serif;cursor:pointer;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">
@@ -456,7 +465,8 @@ export function LeafletMap({
         const popupHtml = `
           <div class="bus-popup text-sm" style="min-width:240px;font-family:system-ui,sans-serif;">
             <a href="/reviews/line?id=${encodeURIComponent(bus.routeShortName)}" class="bus-popup-title" style="color:inherit;text-decoration:none;display:block;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Linha ${escapeHtml(bus.routeShortName)}</a>
-            <div class="bus-popup-destination">${escapeHtml(destinationText)}</div>
+            ${fullRouteName ? `<div class="bus-popup-info" style="color:#64748b;font-size:11px;margin-bottom:2px;">${escapeHtml(fullRouteName)}</div>` : ''}
+            <div class="bus-popup-destination">→ ${escapeHtml(destinationText)}</div>
             <div class="bus-popup-info"><strong>Velocidade:</strong> ${bus.speed > 0 ? Math.round(bus.speed) + ' km/h' : 'Parado'}</div>
             ${bus.vehicleNumber ? `<div class="bus-popup-info"><strong>Veículo nº</strong> <a href="/reviews/vehicle?id=${encodeURIComponent(bus.vehicleNumber)}" style="color:#4f46e5;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(bus.vehicleNumber)}</a></div>` : ''}
             <div class="bus-popup-footer">Atualizado: ${new Date(bus.lastUpdated).toLocaleTimeString('pt-PT')}</div>
@@ -527,7 +537,7 @@ export function LeafletMap({
       });
       prevRiderCountsRef.current = next;
     });
-  }, [buses, isMapReady, selectedRoutes, routePatterns, checkInCounts]);
+  }, [buses, isMapReady, selectedRoutes, routePatterns, checkInCounts, routes]);
 
   // Viewport-based stop rendering
   useEffect(() => {

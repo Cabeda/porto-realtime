@@ -720,6 +720,7 @@ function MapPageContent() {
             onMapReady={setLeafletMap}
             activeCheckIns={activeCheckInsData?.checkIns}
             showActivity={showActivity}
+            routes={allRoutes}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
