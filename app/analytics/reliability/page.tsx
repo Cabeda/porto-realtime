@@ -4,6 +4,16 @@ import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { computeGrade } from "@/lib/analytics/metrics";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 import { DesktopNav } from "@/components/DesktopNav";
 import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
@@ -18,6 +28,12 @@ function isDateStr(v: string): boolean {
 function buildApiUrl(base: string, period: PeriodValue): string {
   if (isDateStr(period)) return `${base}?date=${period}`;
   return `${base}?period=${period}`;
+}
+
+function stdDevColor(stdDevMins: number): string {
+  if (stdDevMins < 2) return "#22c55e"; // green
+  if (stdDevMins < 5) return "#f59e0b"; // amber
+  return "#ef4444"; // red
 }
 
 function GradeBadge({ grade }: { grade: string }) {
@@ -38,13 +54,40 @@ function GradeBadge({ grade }: { grade: string }) {
   );
 }
 
+function StopHeadwayTooltip({ active, payload }: { active?: boolean; payload?: { payload: { stopName: string | null; stopId: string; avgHeadwaySecs: number | null; headwayStdDev: number | null; observations: number } }[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs shadow-lg">
+      <div className="font-semibold mb-1">{d.stopName ?? d.stopId}</div>
+      <div>Avg headway: {d.avgHeadwaySecs !== null ? `${Math.round(d.avgHeadwaySecs / 60)}m ${d.avgHeadwaySecs % 60}s` : "—"}</div>
+      <div>Std dev: {d.headwayStdDev !== null ? `${(d.headwayStdDev / 60).toFixed(1)} min` : "—"}</div>
+      <div>Arrivals: {d.observations}</div>
+    </div>
+  );
+}
+
 export default function ReliabilityPage() {
   const [period, setPeriod] = useState<PeriodValue>("7d");
+  const [stopRoute, setStopRoute] = useState("");
+  const [stopDirection, setStopDirection] = useState("0");
 
   const { data } = useSWR(
     buildApiUrl("/api/analytics/reliability", period),
     fetcher
   );
+
+  const stopHeadwayUrl =
+    stopRoute
+      ? `${buildApiUrl("/api/analytics/stop-headways", period)}&route=${stopRoute}&direction=${stopDirection}`
+      : null;
+  const { data: stopData } = useSWR(stopHeadwayUrl, fetcher);
+
+  const chartData = stopData?.stops?.map((s: { stopName: string | null; stopId: string; headwayStdDev: number | null; avgHeadwaySecs: number | null; observations: number }) => ({
+    ...s,
+    label: s.stopName ?? s.stopId,
+    stdDevMins: s.headwayStdDev !== null ? s.headwayStdDev / 60 : 0,
+  }));
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
@@ -117,7 +160,7 @@ export default function ReliabilityPage() {
         )}
 
         {/* Rankings Table */}
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden mb-8">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
                 <thead>
@@ -214,7 +257,82 @@ export default function ReliabilityPage() {
             </table>
           </div>
         </div>
+
+        {/* Stop Analysis */}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+            <h2 className="text-base font-semibold flex-1">Stop Analysis — Headway Irregularity</h2>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Route (e.g. 205)"
+                value={stopRoute}
+                onChange={(e) => setStopRoute(e.target.value.toUpperCase())}
+                className="w-28 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+              />
+              <select
+                value={stopDirection}
+                onChange={(e) => setStopDirection(e.target.value)}
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+              >
+                <option value="0">Direction 0</option>
+                <option value="1">Direction 1</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-4 mb-4 text-xs text-[var(--color-content-secondary)]">
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-green-500" /> &lt;2 min</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-amber-400" /> 2–5 min</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-red-500" /> &gt;5 min</span>
+            <span className="ml-2">Std dev of headways between consecutive buses</span>
+          </div>
+
+          {!stopRoute && (
+            <p className="text-sm text-[var(--color-content-secondary)] py-8 text-center">
+              Enter a route number above to see where service breaks down along the route.
+            </p>
+          )}
+
+          {stopRoute && !stopData && (
+            <p className="text-sm text-[var(--color-content-secondary)] py-8 text-center">Loading...</p>
+          )}
+
+          {stopData && stopData.stops?.length === 0 && (
+            <p className="text-sm text-[var(--color-content-secondary)] py-8 text-center">
+              No stop data yet for route {stopRoute}. Data will appear the day after the worker runs with the updated schema.
+            </p>
+          )}
+
+          {chartData && chartData.length > 0 && (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 10, fill: "var(--color-content-secondary)" }}
+                  angle={-45}
+                  textAnchor="end"
+                  interval={Math.max(0, Math.floor(chartData.length / 20) - 1)}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "var(--color-content-secondary)" }}
+                  tickFormatter={(v: number) => `${v.toFixed(1)}m`}
+                  label={{ value: "Std dev (min)", angle: -90, position: "insideLeft", fontSize: 11, fill: "var(--color-content-secondary)" }}
+                />
+                <Tooltip content={<StopHeadwayTooltip />} />
+                <Bar dataKey="stdDevMins" radius={[3, 3, 0, 0]}>
+                  {chartData.map((entry: { stdDevMins: number }, idx: number) => (
+                    <Cell key={idx} fill={stdDevColor(entry.stdDevMins)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+

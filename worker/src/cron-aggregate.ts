@@ -10,7 +10,7 @@ import {
   computeHeadwayMetrics,
   percentile,
 } from "./metrics.js";
-import { snapToSegment, type SegmentDef } from "./segments.js";
+import { snapToSegment, type SegmentDef, haversineM } from "./segments.js";
 
 export async function runAggregateDaily(): Promise<void> {
   const startTime = Date.now();
@@ -235,7 +235,94 @@ export async function runAggregateDaily(): Promise<void> {
     `[aggregate] Computed performance for ${routePerfRows.length} route-directions`
   );
 
-  // 7. Network summary
+  // 7. Stop headway irregularity
+  const routeStops = await prisma.routeStop.findMany();
+  if (routeStops.length > 0) {
+    // Map: "route:directionId:stopId" -> sorted arrival timestamps (ms)
+    const stopArrivals = new Map<string, number[]>();
+
+    // Dedupe: track last seen time per vehicle+stop to avoid counting same arrival twice
+    const lastSeenAt = new Map<string, number>(); // "vehicleId:stopKey" -> ms
+
+    for (const pos of positions) {
+      if (!pos.route) continue;
+
+      // Find nearest stop within 80m for this route+direction
+      let bestStop: (typeof routeStops)[0] | null = null;
+      let bestDist = Infinity;
+      for (const rs of routeStops) {
+        if (rs.route !== pos.route) continue;
+        if (pos.directionId !== null && rs.directionId !== pos.directionId) continue;
+        const dist = haversineM(pos.lat, pos.lon, rs.lat, rs.lon);
+        if (dist < bestDist && dist <= 80) {
+          bestDist = dist;
+          bestStop = rs;
+        }
+      }
+      if (!bestStop) continue;
+
+      const stopKey = `${pos.route}:${pos.directionId ?? "x"}:${bestStop.stopId}`;
+      const dedupeKey = `${pos.vehicleId}:${stopKey}`;
+      const ts = pos.recordedAt.getTime();
+
+      // Deduplicate: same vehicle at same stop within 3 minutes
+      const last = lastSeenAt.get(dedupeKey);
+      if (last !== undefined && ts - last < 3 * 60 * 1000) continue;
+      lastSeenAt.set(dedupeKey, ts);
+
+      if (!stopArrivals.has(stopKey)) stopArrivals.set(stopKey, []);
+      stopArrivals.get(stopKey)!.push(ts);
+    }
+
+    await prisma.stopHeadwayDaily.deleteMany({ where: { date: yesterday } });
+
+    const headwayRows = [];
+    for (const [stopKey, arrivals] of stopArrivals) {
+      if (arrivals.length < 3) continue;
+      arrivals.sort((a, b) => a - b);
+
+      const headways: number[] = [];
+      for (let i = 1; i < arrivals.length; i++) {
+        headways.push((arrivals[i] - arrivals[i - 1]) / 1000); // seconds
+      }
+
+      const avg = headways.reduce((a, b) => a + b, 0) / headways.length;
+      const variance =
+        headways.reduce((a, b) => a + (b - avg) ** 2, 0) / headways.length;
+      const stdDev = Math.sqrt(variance);
+
+      const [route, dirStr, stopId] = stopKey.split(/:(.+):(.+)$/).filter(Boolean);
+      const directionId = dirStr === "x" ? null : parseInt(dirStr);
+      const rs = routeStops.find(
+        (s) => s.route === route && s.stopId === stopId &&
+          (directionId === null || s.directionId === directionId)
+      );
+
+      headwayRows.push({
+        date: yesterday,
+        route,
+        directionId,
+        stopId,
+        stopName: rs?.stopName ?? null,
+        stopSequence: rs?.stopSequence ?? 0,
+        avgHeadwaySecs: Math.round(avg),
+        headwayStdDev: Math.round(stdDev * 10) / 10,
+        observations: arrivals.length,
+      });
+    }
+
+    if (headwayRows.length > 0) {
+      for (let i = 0; i < headwayRows.length; i += 500) {
+        await prisma.stopHeadwayDaily.createMany({
+          data: headwayRows.slice(i, i + 500),
+        });
+      }
+    }
+
+    console.log(`[aggregate] Computed headway irregularity for ${headwayRows.length} stops`);
+  }
+
+  // 8. Network summary
   const uniqueVehicles = new Set(positions.map((p) => p.vehicleId)).size;
   const allSpeeds = routePerfRows
     .filter((r) => r.avgCommercialSpeed !== null)

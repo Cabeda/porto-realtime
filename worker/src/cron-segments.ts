@@ -60,6 +60,7 @@ export async function runRefreshSegments(): Promise<void> {
           patterns {
             directionId
             patternGeometry { points }
+            stops { gtfsId name lat lon }
           }
         }
       }`,
@@ -127,6 +128,34 @@ export async function runRefreshSegments(): Promise<void> {
         }
 
         totalSegments += segments.length;
+
+        // Upsert RouteStop records from pattern stops
+        if (Array.isArray(pattern.stops)) {
+          for (let seq = 0; seq < pattern.stops.length; seq++) {
+            const stop = pattern.stops[seq];
+            if (!stop?.gtfsId) continue;
+            const stopId = `${route.shortName}:${pattern.directionId}:${seq}`;
+            await prisma.routeStop.upsert({
+              where: { id: stopId },
+              create: {
+                id: stopId,
+                route: route.shortName,
+                directionId: pattern.directionId,
+                stopSequence: seq,
+                stopId: stop.gtfsId,
+                stopName: stop.name ?? null,
+                lat: stop.lat,
+                lon: stop.lon,
+              },
+              update: {
+                stopId: stop.gtfsId,
+                stopName: stop.name ?? null,
+                lat: stop.lat,
+                lon: stop.lon,
+              },
+            });
+          }
+        }
       } catch (err) {
         console.error(
           `[segments] Failed to process pattern for ${route.shortName}:${pattern.directionId}`,

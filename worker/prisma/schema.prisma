@@ -102,6 +102,35 @@ model RoutePerformanceDaily {
   @@index([route])
 }
 
+model RouteStop {
+  id           String  @id
+  route        String
+  directionId  Int     @db.SmallInt
+  stopSequence Int
+  stopId       String
+  stopName     String?
+  lat          Float
+  lon          Float
+
+  @@index([route, directionId])
+}
+
+model StopHeadwayDaily {
+  id             BigInt   @id @default(autoincrement())
+  date           DateTime @db.Date
+  route          String
+  directionId    Int?     @db.SmallInt
+  stopId         String
+  stopName       String?
+  stopSequence   Int
+  avgHeadwaySecs Float?   @db.Real
+  headwayStdDev  Float?   @db.Real
+  observations   Int
+
+  @@unique([date, route, directionId, stopId])
+  @@index([date, route])
+}
+
 model NetworkSummaryDaily {
   id                  BigInt   @id @default(autoincrement())
   date                DateTime @db.Date @unique

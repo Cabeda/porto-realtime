@@ -296,6 +296,37 @@ model RoutePerformanceDaily {
   @@index([route])
 }
 
+// Stop-level route topology — populated by cron-segments from OTP patterns
+model RouteStop {
+  id           String  @id  // "route:direction:sequence" e.g. "205:0:3"
+  route        String
+  directionId  Int     @db.SmallInt
+  stopSequence Int
+  stopId       String  // GTFS ID e.g. "2:BRRS2"
+  stopName     String?
+  lat          Float
+  lon          Float
+
+  @@index([route, directionId])
+}
+
+// Daily headway irregularity per stop — populated by cron-aggregate
+model StopHeadwayDaily {
+  id             BigInt   @id @default(autoincrement())
+  date           DateTime @db.Date
+  route          String
+  directionId    Int?     @db.SmallInt
+  stopId         String
+  stopName       String?
+  stopSequence   Int
+  avgHeadwaySecs Float?   @db.Real
+  headwayStdDev  Float?   @db.Real  // irregularity: higher = worse
+  observations   Int               // number of bus arrivals seen
+
+  @@unique([date, route, directionId, stopId])
+  @@index([date, route])
+}
+
 // Network-wide daily summary
 model NetworkSummaryDaily {
   id                  BigInt   @id @default(autoincrement())
