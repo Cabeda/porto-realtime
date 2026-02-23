@@ -53,6 +53,7 @@ export const OTPRouteSimpleSchema = z.object({
   shortName: z.string(),
   longName: z.string(),
   mode: z.string(),
+  color: z.string().nullable().optional(),
 });
 
 export const OTPRoutesSimpleResponseSchema = z.object({

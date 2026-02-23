@@ -14,15 +14,16 @@ export const ROUTE_COLORS = [
   '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16',
 ];
 
-export const getRouteColor = (routeShortName: string, selectedRoutes: string[]): string => {
-  // When routes are filtered, use the selection index for stable color assignment.
-  // When showing all routes, derive a consistent color from the route name so each
-  // route gets a distinct color rather than everything appearing blue.
+export const getRouteColor = (routeShortName: string, selectedRoutes: string[], routeInfos?: RouteInfo[]): string => {
+  // Prefer the official GTFS color from OTP (stored without leading #)
+  const info = routeInfos?.find((r) => r.shortName === routeShortName);
+  if (info?.color) return `#${info.color}`;
+
+  // Fall back to palette: use selection index when filtered, hash when showing all
   if (selectedRoutes.length > 0) {
     const index = selectedRoutes.indexOf(routeShortName);
     return index === -1 ? '#2563eb' : ROUTE_COLORS[index % ROUTE_COLORS.length];
   }
-  // Hash the route name to a palette index for a stable, distinct color per route
   let hash = 0;
   for (let i = 0; i < routeShortName.length; i++) {
     hash = (hash * 31 + routeShortName.charCodeAt(i)) >>> 0;
@@ -446,7 +447,7 @@ export function LeafletMap({
         const truncatedDestination = destinationText.length > 20
           ? destinationText.substring(0, 17) + '...'
           : destinationText;
-        const routeColor = getRouteColor(bus.routeShortName, selectedRoutes);
+        const routeColor = getRouteColor(bus.routeShortName, selectedRoutes, routes);
         // Look up rider count by individual bus ID (FIWARE entity ID)
         const riderCount = checkInCounts.get(`BUS:${bus.id}`) || 0;
         const prevCount = prevRiderCountsRef.current.get(bus.id) || 0;
@@ -800,7 +801,8 @@ export function LeafletMap({
 
       const routeColorMap = new Map<string, string>();
       selectedRoutes.forEach((route, index) => {
-        routeColorMap.set(route, ROUTE_COLORS[index % ROUTE_COLORS.length]);
+        const info = routes?.find((r) => r.shortName === route);
+        routeColorMap.set(route, info?.color ? `#${info.color}` : ROUTE_COLORS[index % ROUTE_COLORS.length]);
       });
 
       routePatterns

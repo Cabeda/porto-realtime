@@ -57,6 +57,7 @@ export interface RouteInfo {
   longName: string;
   mode: "BUS" | "SUBWAY" | "TRAM" | "RAIL" | "FERRY";
   gtfsId: string;
+  color?: string | null; // hex color from GTFS/OTP (e.g. "009EE0"), no leading #
 }
 
 export interface RoutesResponse {

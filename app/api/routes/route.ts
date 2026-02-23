@@ -35,7 +35,7 @@ export async function GET() {
             Origin: "https://explore.porto.pt",
           },
           body: JSON.stringify({
-            query: `query { routes { gtfsId shortName longName mode } }`,
+            query: `query { routes { gtfsId shortName longName mode color } }`,
           }),
         },
       }
@@ -54,11 +54,12 @@ export async function GET() {
     const validatedRoutes = parsed.success ? parsed.data.data.routes : raw.data.routes;
 
     const routes: RouteInfo[] = validatedRoutes
-      .map((r: { shortName: string; longName: string; mode: string; gtfsId: string }) => ({
+      .map((r: { shortName: string; longName: string; mode: string; gtfsId: string; color?: string | null }) => ({
         shortName: r.shortName,
         longName: toTitleCase(r.longName),
         mode: r.mode as RouteInfo["mode"],
         gtfsId: r.gtfsId,
+        color: r.color || null,
       }))
       .sort((a: RouteInfo, b: RouteInfo) => {
         if (a.mode !== b.mode) {
