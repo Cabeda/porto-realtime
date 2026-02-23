@@ -123,6 +123,43 @@ async function fetchRouteDestinations(): Promise<
   }
 }
 
+/**
+ * Parse STCP annotations from FIWARE entity.
+ * STCP uses 1-indexed sentido values (1, 2), while OTP uses 0-indexed directionId (0, 1).
+ * We subtract 1 to convert: sentido:1 → directionId 0, sentido:2 → directionId 1.
+ */
+export function parseAnnotations(annotations: string[] | undefined): {
+  directionId: number | null;
+  tripId: string;
+} {
+  let directionId: number | null = null;
+  let tripId = "";
+
+  if (!annotations || !Array.isArray(annotations)) {
+    return { directionId, tripId };
+  }
+
+  const sentidoAnnotation = annotations.find(
+    (ann) => typeof ann === "string" && ann.startsWith("stcp:sentido:")
+  );
+  if (sentidoAnnotation) {
+    const match = sentidoAnnotation.match(/stcp:sentido:(\d+)/);
+    if (match && match[1]) {
+      // Convert 1-indexed STCP sentido to 0-indexed OTP directionId
+      directionId = parseInt(match[1], 10) - 1;
+    }
+  }
+
+  const viagemAnnotation = annotations.find(
+    (ann) => typeof ann === "string" && ann.startsWith("stcp:nr_viagem:")
+  );
+  if (viagemAnnotation) {
+    tripId = viagemAnnotation.replace("stcp:nr_viagem:", "");
+  }
+
+  return { directionId, tripId };
+}
+
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
 
@@ -239,28 +276,10 @@ export async function GET(request: NextRequest) {
         }
 
         // Extract direction from FIWARE annotations
-        let directionId: number | null = null;
-        let tripId = "";
-        const annotations = unwrapAnnotations(entity.annotations);
-        if (annotations && Array.isArray(annotations)) {
-          const sentidoAnnotation = annotations.find(
-            (ann: string) =>
-              typeof ann === "string" && ann.startsWith("stcp:sentido:")
-          );
-          if (sentidoAnnotation) {
-            const match = sentidoAnnotation.match(/stcp:sentido:(\d+)/);
-            if (match && match[1]) {
-              directionId = parseInt(match[1], 10);
-            }
-          }
-          const viagemAnnotation = annotations.find(
-            (ann: string) =>
-              typeof ann === "string" && ann.startsWith("stcp:nr_viagem:")
-          );
-          if (viagemAnnotation) {
-            tripId = viagemAnnotation.replace("stcp:nr_viagem:", "");
-          }
-        }
+        // STCP uses 1-indexed sentido (1, 2), OTP uses 0-indexed directionId (0, 1)
+        const { directionId, tripId } = parseAnnotations(
+          unwrapAnnotations(entity.annotations)
+        );
 
         // Get destination from cache based on route number and direction
         let routeLongName =
