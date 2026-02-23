@@ -176,6 +176,7 @@ export interface FeedbackItem {
   voteCount?: number;
   userVoted?: boolean;
   userReported?: boolean;
+  authorBadges?: string[]; // BadgeId[]
 }
 
 export interface FeedbackSummaryData {

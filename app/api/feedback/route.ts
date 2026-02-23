@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { checkComment } from "@/lib/content-filter";
 import { auth } from "@/lib/auth";
 import { validateOrigin, safeGetSession } from "@/lib/security";
+import { batchComputeBadges } from "@/lib/badges";
 
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE", "BIKE_PARK", "BIKE_LANE"] as const;
 const VALID_TAGS = ["OVERCROWDED", "LATE", "DIRTY", "ACCESSIBILITY", "SAFETY", "BROKEN_INFRASTRUCTURE", "FREQUENCY", "ROUTE_COVERAGE"] as const;
@@ -102,6 +103,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         select: {
           id: true,
+          userId: true,
           type: true,
           targetId: true,
           rating: true,
@@ -129,7 +131,11 @@ export async function GET(request: NextRequest) {
       userFeedbackQuery,
     ]);
 
-    // Transform feedbacks to include voteCount, userVoted, userReported
+    // Batch-compute badges for all authors in this page
+    const authorIds = [...new Set(feedbacks.map((f) => f.userId))];
+    const badgeMap = await batchComputeBadges(authorIds, prisma);
+
+    // Transform feedbacks to include voteCount, userVoted, userReported, authorBadges
     const transformedFeedbacks = feedbacks.map((f) => ({
       id: f.id,
       type: f.type,
@@ -143,6 +149,7 @@ export async function GET(request: NextRequest) {
       voteCount: f._count.votes,
       userVoted: "votes" in f ? (f.votes as { id: string }[]).length > 0 : false,
       userReported: "reports" in f ? (f.reports as { id: string }[]).length > 0 : false,
+      authorBadges: badgeMap.get(f.userId) ?? [],
     }));
 
     const headers: Record<string, string> = {};

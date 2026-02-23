@@ -929,6 +929,11 @@ function CommunityContent() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 pb-20 sm:pb-6">
         {activeSection === "trending" ? <TrendingTab /> : activeSection === "reviews" ? <ReviewsTab /> : <ProposalsTab />}
+        <div className="mt-8 text-center">
+          <Link href="/contributors" className="text-xs text-[var(--color-content-secondary)] hover:text-[var(--color-accent)] transition-colors">
+            🏆 Contributors
+          </Link>
+        </div>
       </main>
 
       {showSettings && (

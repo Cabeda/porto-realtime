@@ -4,6 +4,7 @@ import { useTranslations } from "@/lib/hooks/useTranslations";
 import { UpvoteButton } from "@/components/UpvoteButton";
 import { ReportButton } from "@/components/ReportButton";
 import { ShareButton } from "@/components/ShareButton";
+import { BADGES, type BadgeId } from "@/lib/badges";
 import type { FeedbackItem, FeedbackTag } from "@/lib/types";
 
 interface ReviewCardProps {
@@ -46,6 +47,25 @@ export function ReviewCard({ feedback: f, badge, targetName }: ReviewCardProps) 
           {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
         </span>
         {badge}
+        {/* Author badges */}
+        {f.authorBadges && f.authorBadges.length > 0 && (
+          <span className="flex items-center gap-0.5">
+            {f.authorBadges.map((bid) => {
+              const b = BADGES[bid as BadgeId];
+              if (!b) return null;
+              return (
+                <span
+                  key={bid}
+                  title={b.label}
+                  className="text-sm cursor-default"
+                  aria-label={b.label}
+                >
+                  {b.emoji}
+                </span>
+              );
+            })}
+          </span>
+        )}
         <span className="text-xs text-content-muted">
           {new Date(f.createdAt).toLocaleDateString("pt-PT", {
             day: "numeric",
