@@ -41,6 +41,37 @@ const STALE_DATA_THRESHOLD = 5 * 60 * 1000; // 5 minutes
 
 // fetchWithRetry is now imported from @/lib/api-fetch
 
+export function buildRouteDestinationMap(
+  routes: Array<{ shortName: string; patterns: Array<{ headsign?: string | null; directionId: number }> }>
+): Map<string, RouteDirectionMap> {
+  const routeMap = new Map<string, RouteDirectionMap>();
+
+  routes.forEach((route) => {
+    const directionMap = new Map<number, string[]>();
+
+    route.patterns.forEach((pattern) => {
+      if (pattern.headsign) {
+        if (!directionMap.has(pattern.directionId)) {
+          directionMap.set(pattern.directionId, []);
+        }
+        const headsigns = directionMap.get(pattern.directionId)!;
+        if (!headsigns.includes(pattern.headsign)) {
+          headsigns.push(pattern.headsign);
+        }
+      }
+    });
+
+    if (directionMap.size > 0) {
+      routeMap.set(route.shortName, {
+        destinations: Array.from(directionMap.values()).flat(),
+        directionHeadsigns: directionMap,
+      });
+    }
+  });
+
+  return routeMap;
+}
+
 async function fetchRouteDestinations(): Promise<
   Map<string, RouteDirectionMap>
 > {
@@ -79,38 +110,7 @@ async function fetchRouteDestinations(): Promise<
     }
 
     const data = parsed.data;
-    const routeMap = new Map<string, RouteDirectionMap>();
-
-    data.data.routes.forEach((route) => {
-      const allDestinations = new Set<string>();
-      const directionMap = new Map<number, string[]>();
-
-      if (route.longName) {
-        allDestinations.add(route.longName);
-      }
-
-      route.patterns.forEach((pattern) => {
-        if (pattern.headsign) {
-          allDestinations.add(pattern.headsign);
-
-          if (!directionMap.has(pattern.directionId)) {
-            directionMap.set(pattern.directionId, []);
-          }
-
-          const directionHeadsigns = directionMap.get(pattern.directionId)!;
-          if (!directionHeadsigns.includes(pattern.headsign)) {
-            directionHeadsigns.push(pattern.headsign);
-          }
-        }
-      });
-
-      if (allDestinations.size > 0) {
-        routeMap.set(route.shortName, {
-          destinations: Array.from(allDestinations),
-          directionHeadsigns: directionMap,
-        });
-      }
-    });
+    const routeMap = buildRouteDestinationMap(data.data.routes);
 
     routeDestinationsCache = routeMap;
     cacheTimestamp = now;
@@ -294,16 +294,14 @@ export async function GET(request: NextRequest) {
         if (!routeLongName && routeDestinations.has(routeShortName)) {
           const routeData = routeDestinations.get(routeShortName)!;
 
-          if (
-            directionId !== null &&
-            routeData.directionHeadsigns.has(directionId)
-          ) {
-            const directionHeadsigns =
-              routeData.directionHeadsigns.get(directionId)!;
-            routeLongName = directionHeadsigns[0] || "";
-          } else {
-            routeLongName = routeData.destinations[0] || "";
-          }
+          // Prefer the headsign for the known direction; fall back to direction 0
+          const resolvedDirection =
+            directionId !== null && routeData.directionHeadsigns.has(directionId)
+              ? directionId
+              : 0;
+          const directionHeadsigns =
+            routeData.directionHeadsigns.get(resolvedDirection);
+          routeLongName = directionHeadsigns?.[0] || "";
         }
 
         const vehicleNumber =

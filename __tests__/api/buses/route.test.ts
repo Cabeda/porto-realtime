@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAnnotations } from "@/app/api/buses/route";
+import { parseAnnotations, buildRouteDestinationMap } from "@/app/api/buses/route";
 
 describe("parseAnnotations", () => {
   it("converts STCP 1-indexed sentido to 0-indexed OTP directionId", () => {
@@ -29,5 +29,37 @@ describe("parseAnnotations", () => {
     const result = parseAnnotations(undefined);
     expect(result.directionId).toBeNull();
     expect(result.tripId).toBe("");
+  });
+});
+
+describe("buildRouteDestinationMap", () => {
+  const routes = [
+    {
+      gtfsId: "1:701",
+      shortName: "701",
+      longName: "Bolhão - Codiceira",
+      patterns: [
+        { headsign: "Codiceira", directionId: 1 },
+        { headsign: "Bolhão", directionId: 0 },
+      ],
+    },
+  ];
+
+  it("does not include longName as a destination", () => {
+    const map = buildRouteDestinationMap(routes);
+    const entry = map.get("701")!;
+    expect(entry.destinations).not.toContain("Bolhão - Codiceira");
+  });
+
+  it("maps direction 0 to correct headsign", () => {
+    const map = buildRouteDestinationMap(routes);
+    const entry = map.get("701")!;
+    expect(entry.directionHeadsigns.get(0)).toEqual(["Bolhão"]);
+  });
+
+  it("maps direction 1 to correct headsign", () => {
+    const map = buildRouteDestinationMap(routes);
+    const entry = map.get("701")!;
+    expect(entry.directionHeadsigns.get(1)).toEqual(["Codiceira"]);
   });
 });
