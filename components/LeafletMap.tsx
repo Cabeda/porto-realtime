@@ -15,9 +15,19 @@ export const ROUTE_COLORS = [
 ];
 
 export const getRouteColor = (routeShortName: string, selectedRoutes: string[]): string => {
-  if (selectedRoutes.length === 0) return '#2563eb';
-  const index = selectedRoutes.indexOf(routeShortName);
-  return index === -1 ? '#2563eb' : ROUTE_COLORS[index % ROUTE_COLORS.length];
+  // When routes are filtered, use the selection index for stable color assignment.
+  // When showing all routes, derive a consistent color from the route name so each
+  // route gets a distinct color rather than everything appearing blue.
+  if (selectedRoutes.length > 0) {
+    const index = selectedRoutes.indexOf(routeShortName);
+    return index === -1 ? '#2563eb' : ROUTE_COLORS[index % ROUTE_COLORS.length];
+  }
+  // Hash the route name to a palette index for a stable, distinct color per route
+  let hash = 0;
+  for (let i = 0; i < routeShortName.length; i++) {
+    hash = (hash * 31 + routeShortName.charCodeAt(i)) >>> 0;
+  }
+  return ROUTE_COLORS[hash % ROUTE_COLORS.length];
 };
 
 // --- Snap-to-route helpers ---
