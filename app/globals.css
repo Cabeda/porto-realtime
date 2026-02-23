@@ -358,3 +358,9 @@ body {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(1.4); }
 }
+
+/* Header refresh progress bar */
+@keyframes progress {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}

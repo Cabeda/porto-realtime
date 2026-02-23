@@ -46,7 +46,7 @@ function MapPageContent() {
     return true;
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [secondsSinceRefresh, setSecondsSinceRefresh] = useState<number | null>(null);
   const [showRouteFilter, setShowRouteFilter] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("showRouteFilter");
@@ -77,6 +77,7 @@ function MapPageContent() {
   });
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [showLocationSuccess, setShowLocationSuccess] = useState(false);
   const [degradedDismissed, setDegradedDismissed] = useState(false);
@@ -377,13 +378,22 @@ function MapPageContent() {
   };
 
   const handleRefresh = async () => {
-    const now = Date.now();
-    if (now - lastRefreshTime < 5000) return;
+    if (isRefreshing) return; // already in flight
     setIsRefreshing(true);
-    setLastRefreshTime(now);
+    setLastRefreshTime(Date.now());
+    setSecondsSinceRefresh(0);
     await mutate();
-    setTimeout(() => setIsRefreshing(false), 500);
+    setIsRefreshing(false);
   };
+
+  // Tick "Xs ago" counter every second after a refresh
+  useEffect(() => {
+    if (lastRefreshTime === 0) return;
+    const id = setInterval(() => {
+      setSecondsSinceRefresh(Math.floor((Date.now() - lastRefreshTime) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [lastRefreshTime]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -508,15 +518,30 @@ function MapPageContent() {
         <div className="px-3 sm:px-6 lg:px-8 py-2 sm:py-3">
            <div className="flex justify-between items-center gap-2">
             <div className="flex-shrink-0 min-w-0">
-              <h1
-                className="text-base sm:text-xl font-bold text-content cursor-pointer hover:text-accent transition-colors flex items-center gap-2"
+              <button
+                className="flex items-center gap-2 text-base sm:text-xl font-bold text-content hover:text-accent transition-colors focus:outline-none"
                 onClick={handleRefresh}
                 title={t.map.refreshTitle}
+                aria-label={t.map.refreshTitle}
               >
                 <span className="hidden sm:inline">{t.map.busMap}</span>
                 <span className="sm:hidden">{t.map.appName}</span>
-                {isRefreshing && <span className="animate-spin text-base">🔄</span>}
-              </h1>
+                <svg
+                  className={`w-4 h-4 flex-shrink-0 transition-colors ${isRefreshing ? "animate-spin text-accent" : "text-content-muted"}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {secondsSinceRefresh !== null && !isRefreshing && (
+                  <span className="text-xs font-normal text-content-muted hidden sm:inline">
+                    {secondsSinceRefresh < 60
+                      ? `${secondsSinceRefresh}s ago`
+                      : `${Math.floor(secondsSinceRefresh / 60)}m ago`}
+                  </span>
+                )}
+              </button>
             </div>
             <DesktopNav />
             <div className="hidden sm:block flex-1 max-w-xs">
@@ -544,6 +569,10 @@ function MapPageContent() {
               </svg>
             </button>
           </div>
+        </div>
+        {/* Thin progress bar shown while fetching */}
+        <div className={`absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden transition-opacity duration-300 ${isRefreshing ? "opacity-100" : "opacity-0"}`}>
+          <div className="h-full bg-accent animate-[progress_1s_ease-in-out_infinite]" style={{ width: "40%" }} />
         </div>
       </header>
 
@@ -691,6 +720,7 @@ function MapPageContent() {
             onMapReady={setLeafletMap}
             activeCheckIns={activeCheckInsData?.checkIns}
             showActivity={showActivity}
+            routes={allRoutes}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
