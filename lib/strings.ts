@@ -13,19 +13,22 @@ const PT_LOWERCASE = new Set([
 
 /**
  * Title-case a string, keeping Portuguese prepositions/articles lowercase
- * when they appear mid-string.
+ * when they appear mid-string, and stripping leading non-letter characters
+ * (e.g. STCP uses "*codiceira" internally).
  * e.g., "BOAVISTA - CAMPANHÃ"  → "Boavista - Campanhã"
  * e.g., "SENHORA DE HORA"      → "Senhora de Hora"
- * e.g., "ESTAÇÃO DO BOLHÃO"    → "Estação do Bolhão"
+ * e.g., "*codiceira"           → "Codiceira"
  */
 export function toTitleCase(s: string): string {
   let isFirst = true;
   return s.replace(/\S+/g, (word) => {
     const lower = word.toLowerCase();
-    const result = (!isFirst && PT_LOWERCASE.has(lower))
-      ? lower
-      : lower.charAt(0).toUpperCase() + lower.slice(1);
+    // Strip leading non-letter characters (e.g. "*" used by STCP)
+    const firstLetterIdx = lower.search(/[a-zà-ÿ]/i);
+    if (firstLetterIdx === -1) return word; // pure punctuation — keep as-is
+    const letters = lower.slice(firstLetterIdx);
+    const isLower = !isFirst && PT_LOWERCASE.has(letters);
     isFirst = false;
-    return result;
-  });
+    return isLower ? letters : letters.charAt(0).toUpperCase() + letters.slice(1);
+  }).replace(/\s{2,}/g, " ").trim();
 }

@@ -29,6 +29,11 @@ describe("toTitleCase", () => {
     expect(toTitleCase("bolhão de codiceira")).toBe("Bolhão de Codiceira");
   });
 
+  it("strips leading STCP asterisk from headsigns", () => {
+    expect(toTitleCase("*codiceira")).toBe("Codiceira");
+    expect(toTitleCase("*BOLHÃO")).toBe("Bolhão");
+  });
+
   it("handles empty string", () => {
     expect(toTitleCase("")).toBe("");
   });
