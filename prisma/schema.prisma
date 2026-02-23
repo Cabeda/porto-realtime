@@ -369,3 +369,20 @@ model NetworkSummaryDaily {
 
   @@index([date])
 }
+
+// External reviews scraped from app stores (#46)
+// Source: Google Play Store / App Store reviews for the STCP app
+model ExternalReview {
+  id          String   @id // platform:reviewId e.g. "play:gp:abc123"
+  source      String   // "play" | "appstore"
+  appId       String   // app package/bundle id
+  rating      Int      // 1-5
+  title       String?
+  text        String?
+  thumbsUp    Int      @default(0) // helpful votes (Play Store)
+  reviewedAt  DateTime // when the user wrote the review
+  fetchedAt   DateTime @default(now())
+
+  @@index([source, reviewedAt])
+  @@index([reviewedAt])
+}
