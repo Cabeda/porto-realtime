@@ -50,7 +50,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://otp.services.porto.digital" />
         <link rel="dns-prefetch" href="https://opendata.porto.digital" />
       </head>
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <Providers>
           {children}
           <BottomNav />
