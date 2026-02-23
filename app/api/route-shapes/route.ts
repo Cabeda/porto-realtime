@@ -105,7 +105,7 @@ export async function GET() {
             allPatterns.push({
               patternId: pattern.id,
               routeShortName: route.shortName,
-              routeLongName: toTitleCase(route.longName),
+              routeLongName: toTitleCase(route.longName ?? ""),
               headsign: pattern.headsign || "",
               directionId: pattern.directionId,
               geometry: {

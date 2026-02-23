@@ -36,7 +36,7 @@ export const OTPPatternBriefSchema = z.object({
 export const OTPRouteBriefSchema = z.object({
   gtfsId: z.string(),
   shortName: z.string(),
-  longName: z.string(),
+  longName: z.string().nullable(),
   patterns: z.array(OTPPatternBriefSchema),
 });
 
@@ -51,7 +51,7 @@ export const OTPRoutesResponseSchema = z.object({
 export const OTPRouteSimpleSchema = z.object({
   gtfsId: z.string(),
   shortName: z.string(),
-  longName: z.string(),
+  longName: z.string().nullable(),
   mode: z.string(),
   color: z.string().nullable().optional(),
 });
@@ -79,7 +79,7 @@ export const OTPPatternWithGeometrySchema = z.object({
 export const OTPRouteWithPatternsSchema = z.object({
   gtfsId: z.string(),
   shortName: z.string(),
-  longName: z.string(),
+  longName: z.string().nullable(),
   patterns: z.array(OTPPatternWithGeometrySchema).nullable().optional(),
 });
 
@@ -94,7 +94,7 @@ export const OTPRouteShapesResponseSchema = z.object({
 export const OTPTripRouteSchema = z.object({
   gtfsId: z.string(),
   shortName: z.string(),
-  longName: z.string(),
+  longName: z.string().nullable(),
   mode: z.string(),
   color: z.string().nullable().optional(),
   id: z.string(),
@@ -165,7 +165,7 @@ export const OTPLinePatternSchema = z.object({
 export const OTPLineRouteSchema = z.object({
   gtfsId: z.string(),
   shortName: z.string(),
-  longName: z.string(),
+  longName: z.string().nullable(),
   patterns: z.array(OTPLinePatternSchema).nullable().optional(),
 });
 

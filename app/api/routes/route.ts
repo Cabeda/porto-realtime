@@ -56,7 +56,7 @@ export async function GET() {
     const routes: RouteInfo[] = validatedRoutes
       .map((r: { shortName: string; longName: string; mode: string; gtfsId: string; color?: string | null }) => ({
         shortName: r.shortName,
-        longName: toTitleCase(r.longName),
+        longName: toTitleCase(r.longName ?? ""),
         mode: r.mode as RouteInfo["mode"],
         gtfsId: r.gtfsId,
         color: r.color || null,

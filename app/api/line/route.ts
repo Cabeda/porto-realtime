@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
     const data = {
       gtfsId: route.gtfsId,
       shortName: route.shortName,
-      longName: toTitleCase(route.longName),
+      longName: toTitleCase(route.longName ?? ""),
       patterns,
       stops: allStops,
     };
