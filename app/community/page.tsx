@@ -929,9 +929,13 @@ function CommunityContent() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 pb-20 sm:pb-6">
         {activeSection === "trending" ? <TrendingTab /> : activeSection === "reviews" ? <ReviewsTab /> : <ProposalsTab />}
-        <div className="mt-8 text-center">
+        <div className="mt-8 flex items-center justify-center gap-4">
           <Link href="/contributors" className="text-xs text-[var(--color-content-secondary)] hover:text-[var(--color-accent)] transition-colors">
             🏆 Contributors
+          </Link>
+          <span className="text-[var(--color-border)]">·</span>
+          <Link href="/digest" className="text-xs text-[var(--color-content-secondary)] hover:text-[var(--color-accent)] transition-colors">
+            📰 Weekly Digest
           </Link>
         </div>
       </main>
