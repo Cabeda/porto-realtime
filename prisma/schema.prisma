@@ -22,6 +22,7 @@ model User {
   proposals       Proposal[]
   proposalVotes   ProposalVote[]
   proposalReports ProposalReport[]
+  operatorResponses OperatorResponse[]
 }
 
 // Feedback on lines, stops, and vehicles (extensible to ROUTE_PROPOSAL, FEATURE_REQUEST)
@@ -36,10 +37,12 @@ model Feedback {
   metadata  Json? // optional context: e.g. { "lineContext": "205" } for vehicle feedback
   tags      String[] @default([]) // issue tags: OVERCROWDED, LATE, DIRTY, etc.
   hidden    Boolean  @default(false) // auto-hidden after N reports
+  status    FeedbackStatus @default(OPEN) // operator response status
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   votes     FeedbackVote[]
   reports   Report[]
+  operatorResponse OperatorResponse?
 
   @@unique([userId, type, targetId]) // one rating per user per target (upsert)
   @@index([type, targetId])
@@ -73,6 +76,22 @@ model Report {
   @@index([feedbackId])
 }
 
+// Official response from a transit operator on a feedback item
+model OperatorResponse {
+  id         String         @id @default(cuid())
+  feedbackId String         @unique // one response per feedback
+  feedback   Feedback       @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  operatorId String
+  operator   User           @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  status     FeedbackStatus // the new status set by the operator
+  message    String         // operator's public response, max 1000 chars
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([feedbackId])
+  @@index([operatorId])
+}
+
 // Transit check-in — users check in to a transit mode
 // userId is optional to support anonymous check-ins (GDPR-friendly)
 // lat/lon represent the target infrastructure location (bus stop, bike park), NOT user GPS
@@ -97,6 +116,15 @@ model CheckIn {
 enum UserRole {
   USER
   ADMIN
+  OPERATOR // verified transit operator (STCP, Metro do Porto, CM Porto)
+}
+
+enum FeedbackStatus {
+  OPEN          // default — awaiting operator attention
+  ACKNOWLEDGED  // operator has seen it
+  UNDER_REVIEW  // operator is investigating
+  PLANNED_FIX   // fix is scheduled
+  RESOLVED      // operator marked as resolved
 }
 
 enum FeedbackType {

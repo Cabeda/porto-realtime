@@ -163,6 +163,20 @@ export interface FeedbackMetadata {
   lineContext?: string; // routeShortName the vehicle was on when rated
 }
 
+export type FeedbackStatus =
+  | "OPEN"
+  | "ACKNOWLEDGED"
+  | "UNDER_REVIEW"
+  | "PLANNED_FIX"
+  | "RESOLVED";
+
+export interface OperatorResponse {
+  status: FeedbackStatus;
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FeedbackItem {
   id: string;
   type: FeedbackType;
@@ -173,10 +187,12 @@ export interface FeedbackItem {
   tags: FeedbackTag[];
   createdAt: string;
   updatedAt: string;
+  status?: FeedbackStatus;
   voteCount?: number;
   userVoted?: boolean;
   userReported?: boolean;
   authorBadges?: string[]; // BadgeId[]
+  operatorResponse?: OperatorResponse | null;
 }
 
 export interface FeedbackSummaryData {

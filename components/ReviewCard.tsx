@@ -6,7 +6,23 @@ import { ReportButton } from "@/components/ReportButton";
 import { ShareButton } from "@/components/ShareButton";
 import { EscalationPrompt } from "@/components/EscalationPrompt";
 import { BADGES, type BadgeId } from "@/lib/badges";
-import type { FeedbackItem, FeedbackTag } from "@/lib/types";
+import type { FeedbackItem, FeedbackTag, FeedbackStatus } from "@/lib/types";
+
+const STATUS_LABEL: Record<FeedbackStatus, string> = {
+  OPEN: "",
+  ACKNOWLEDGED: "Acknowledged",
+  UNDER_REVIEW: "Under review",
+  PLANNED_FIX: "Fix planned",
+  RESOLVED: "Resolved",
+};
+
+const STATUS_COLOR: Record<FeedbackStatus, string> = {
+  OPEN: "",
+  ACKNOWLEDGED: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  UNDER_REVIEW: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  PLANNED_FIX: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+  RESOLVED: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+};
 
 interface ReviewCardProps {
   feedback: FeedbackItem;
@@ -92,6 +108,28 @@ export function ReviewCard({ feedback: f, badge, targetName }: ReviewCardProps) 
 
       {f.comment && (
         <p className="text-sm text-content-secondary mb-2">{f.comment}</p>
+      )}
+
+      {/* Operator response */}
+      {f.operatorResponse && (
+        <div className="mt-2 mb-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] p-3">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs font-semibold text-[var(--color-content)]">🏢 Official response</span>
+            {f.operatorResponse.status !== "OPEN" && (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_COLOR[f.operatorResponse.status]}`}>
+                {STATUS_LABEL[f.operatorResponse.status]}
+              </span>
+            )}
+            <span className="ml-auto text-[10px] text-[var(--color-content-muted)]">
+              {new Date(f.operatorResponse.updatedAt).toLocaleDateString("pt-PT", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+          </div>
+          <p className="text-xs text-[var(--color-content-secondary)]">{f.operatorResponse.message}</p>
+        </div>
       )}
 
       <div className="flex items-center justify-between">

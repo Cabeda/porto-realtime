@@ -113,6 +113,14 @@ export async function GET(request: NextRequest) {
           createdAt: true,
           updatedAt: true,
           _count: { select: { votes: true } },
+          operatorResponse: {
+            select: {
+              status: true,
+              message: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
           ...(sessionUser
             ? {
                 votes: {
@@ -150,6 +158,7 @@ export async function GET(request: NextRequest) {
       userVoted: "votes" in f ? (f.votes as { id: string }[]).length > 0 : false,
       userReported: "reports" in f ? (f.reports as { id: string }[]).length > 0 : false,
       authorBadges: badgeMap.get(f.userId) ?? [],
+      operatorResponse: "operatorResponse" in f ? f.operatorResponse : null,
     }));
 
     const headers: Record<string, string> = {};
