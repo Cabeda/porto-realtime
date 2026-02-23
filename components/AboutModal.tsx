@@ -61,8 +61,10 @@ export function AboutModal({ onClose, onResetOnboarding }: AboutModalProps) {
             </a>
           </div>
 
-          <div className="text-xs text-content-muted pt-2">
-            Dados fornecidos pela API OpenTripPlanner do Porto
+          <div className="text-xs text-content-muted pt-2 space-y-1">
+            <p>Posições em tempo real: <strong>FIWARE Urban Platform</strong> (Porto Digital)</p>
+            <p>Rotas e horários: <strong>OpenTripPlanner GraphQL API</strong> (Porto Digital)</p>
+            <p>Dados STCP via <a href="https://opendata.porto.digital" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Porto Open Data</a></p>
           </div>
 
           <div className="pt-4 border-t border-border">

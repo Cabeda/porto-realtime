@@ -38,13 +38,16 @@ export default function AboutPage() {
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li>
-              <strong>Bus positions</strong> — FIWARE Urban Platform (NGSI v2). Real-time GPS
-              snapshots of ~400–600 STCP buses, collected every 30 seconds by our worker process.
+              <strong>Bus positions</strong> — FIWARE Urban Platform (NGSI v2), provided by Porto Digital.
+              Real-time GPS snapshots of ~400–600 STCP buses, collected every 30 seconds by our worker process.
               Each record includes: vehicle ID, lat/lon, speed, heading, route, trip ID, direction.
             </li>
             <li>
-              <strong>Route patterns &amp; schedules</strong> — Porto OpenTripPlanner GraphQL API.
+              <strong>Route patterns &amp; schedules</strong> — Porto Digital OpenTripPlanner (OTP) GraphQL API
+              at <code className="text-xs bg-surface-sunken px-1 rounded">otp.portodigital.pt</code>.
               Provides route geometries (polylines), stop locations, and scheduled departure times.
+              All transit data originates from STCP and is published on the{" "}
+              <a href="https://opendata.porto.digital" target="_blank" rel="noopener noreferrer" className="text-[var(--color-accent)] hover:underline">Porto Open Data portal</a>.
             </li>
             <li>
               <strong>Bike infrastructure</strong> — Explore Porto API. Bike parks and bike lanes (ciclovias).
@@ -66,7 +69,7 @@ export default function AboutPage() {
 
         <Section title="Route Segments">
           <p>
-            Route polylines from OTP are split into ~200-meter segments. Each GPS position is
+            Route polylines from the Porto Digital OTP API are split into ~200-meter segments. Each GPS position is
             snapped to the nearest segment (within 150m) using the Haversine formula. This allows
             us to compute speed statistics at a granular geographic level.
           </p>
@@ -186,7 +189,7 @@ export default function AboutPage() {
             segment speeds. At 04:00 UTC, positions older than 24 hours are cleaned up.
           </p>
           <p>
-            Route segment definitions are refreshed weekly from OTP to capture any route changes.
+            Route segment definitions are refreshed weekly from the Porto Digital OTP API to capture any route changes.
           </p>
         </Section>
 
