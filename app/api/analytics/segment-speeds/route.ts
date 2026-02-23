@@ -97,10 +97,18 @@ export async function GET(request: NextRequest) {
       }
 
       // Fallback: compute live average speed per route from raw positions
+      const liveTimeFilter =
+        hFrom !== null && hTo !== null
+          ? {
+              gte: new Date(dayStart.getTime() + hFrom * 3600_000),
+              lt: new Date(dayStart.getTime() + hTo * 3600_000),
+            }
+          : { gte: dayStart, lte: dayEnd };
+
       const routeSpeeds = await prisma.busPositionLog.groupBy({
         by: ["route"],
         where: {
-          recordedAt: { gte: dayStart, lte: dayEnd },
+          recordedAt: liveTimeFilter,
           speed: { gt: 0 },
           route: route ? route : { not: null },
         },

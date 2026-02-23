@@ -39,11 +39,11 @@ const LEGEND_ITEMS = [
 
 const HOUR_PRESETS = [
   { label: "Todo o dia", from: 0, to: 24 },
-  { label: "Manhã cedo", from: 6, to: 9 },
-  { label: "Ponta manhã", from: 7, to: 9 },
-  { label: "Meio-dia", from: 11, to: 14 },
-  { label: "Ponta tarde", from: 17, to: 19 },
-  { label: "Noite", from: 20, to: 23 },
+  { label: "6h–9h", from: 6, to: 9 },
+  { label: "7h–9h", from: 7, to: 9 },
+  { label: "11h–14h", from: 11, to: 14 },
+  { label: "16h–19h", from: 16, to: 19 },
+  { label: "20h–23h", from: 20, to: 23 },
 ] as const;
 
 export default function HeatmapPage() {
