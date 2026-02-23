@@ -14,24 +14,26 @@ function isDateStr(v: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(v);
 }
 
-/** Map speed (km/h) to a smooth color gradient: red → amber → green */
+/** Map speed (km/h) to a color: red (<10) → orange (15) → green (≥25) */
 function speedColor(speed: number | null): string {
   if (speed === null) return "#94a3b8";
-  // Clamp to [0, 30], map to hue [0°=red, 120°=green] via 18 km/h midpoint
-  const clamped = Math.max(0, Math.min(speed, 30));
-  // Use a non-linear scale: 0→0°, 18→80°, 30→120°
-  const hue = clamped <= 18
-    ? (clamped / 18) * 80          // 0–80° (red → yellow-green)
-    : 80 + ((clamped - 18) / 12) * 40; // 80–120° (yellow-green → green)
-  return `hsl(${Math.round(hue)}, 90%, 45%)`;
+  if (speed < 10) return "hsl(0, 90%, 45%)";           // red
+  if (speed >= 25) return "hsl(120, 70%, 38%)";         // green
+  // 10–15: red → orange (hue 0°→30°)
+  if (speed < 15) {
+    const hue = ((speed - 10) / 5) * 30;
+    return `hsl(${Math.round(hue)}, 90%, 45%)`;
+  }
+  // 15–25: orange → green (hue 30°→120°)
+  const hue = 30 + ((speed - 15) / 10) * 90;
+  return `hsl(${Math.round(hue)}, 85%, 42%)`;
 }
 
 const LEGEND_ITEMS = [
-  { label: "< 5 km/h — Congestionado", color: speedColor(3) },
-  { label: "10 km/h — Lento", color: speedColor(10) },
-  { label: "15.4 km/h — STCP 2024", color: speedColor(15.4) },
+  { label: "< 10 km/h — Congestionado", color: speedColor(5) },
+  { label: "15 km/h — STCP 2024", color: speedColor(15) },
   { label: "18 km/h — Meta EU", color: speedColor(18) },
-  { label: "> 25 km/h — Rápido", color: speedColor(26) },
+  { label: "≥ 25 km/h — Rápido", color: speedColor(25) },
   { label: "Sem dados", color: "#94a3b8" },
 ];
 
