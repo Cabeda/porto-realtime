@@ -14,11 +14,7 @@ export async function GET(request: NextRequest) {
   const vehicle = request.nextUrl.searchParams.get("vehicle");
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
-  const view = request.nextUrl.searchParams.get("view") || "summary";
-
-  if (!vehicle) {
-    return NextResponse.json({ error: "vehicle parameter required" }, { status: 400 });
-  }
+  const view = request.nextUrl.searchParams.get("view") || "fleet";
 
   try {
     const filter = parseDateFilter(period || "7d", dateParam);
@@ -38,6 +34,64 @@ export async function GET(request: NextRequest) {
       fromDate.setUTCHours(0, 0, 0, 0);
       dateWhere = { date: { gte: fromDate } };
       periodLabel = "today";
+    }
+
+    // Fleet overview — all vehicles active in the period
+    if (view === "fleet") {
+      const trips = await prisma.tripLog.findMany({
+        where: { vehicleNum: { not: null }, runtimeSecs: { gt: 60 }, ...dateWhere },
+        select: {
+          vehicleNum: true,
+          route: true,
+          runtimeSecs: true,
+          scheduledRuntimeSecs: true,
+          avgSpeed: true,
+          commercialSpeed: true,
+        },
+      });
+
+      const byVehicle = new Map<string, {
+        trips: number;
+        routes: Set<string>;
+        speeds: number[];
+        adherence: number[];
+      }>();
+
+      for (const t of trips) {
+        const v = t.vehicleNum!;
+        if (!byVehicle.has(v)) byVehicle.set(v, { trips: 0, routes: new Set(), speeds: [], adherence: [] });
+        const e = byVehicle.get(v)!;
+        e.trips++;
+        e.routes.add(t.route);
+        const s = t.commercialSpeed ?? t.avgSpeed;
+        if (s && s > 0) e.speeds.push(s);
+        if (t.runtimeSecs && t.scheduledRuntimeSecs && t.scheduledRuntimeSecs > 0) {
+          e.adherence.push((t.runtimeSecs / t.scheduledRuntimeSecs) * 100);
+        }
+      }
+
+      const fleet = [...byVehicle.entries()]
+        .map(([vehicleNum, d]) => ({
+          vehicleNum,
+          trips: d.trips,
+          routes: [...d.routes].sort(),
+          avgSpeed: d.speeds.length > 0
+            ? Math.round((d.speeds.reduce((a, b) => a + b, 0) / d.speeds.length) * 10) / 10
+            : null,
+          avgAdherence: d.adherence.length > 0
+            ? Math.round((d.adherence.reduce((a, b) => a + b, 0) / d.adherence.length) * 10) / 10
+            : null,
+        }))
+        .sort((a, b) => b.trips - a.trips);
+
+      return NextResponse.json(
+        { period: periodLabel, totalVehicles: fleet.length, fleet },
+        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
+      );
+    }
+
+    if (!vehicle) {
+      return NextResponse.json({ error: "vehicle parameter required" }, { status: 400 });
     }
 
     const baseWhere = { vehicleNum: vehicle, ...dateWhere };
