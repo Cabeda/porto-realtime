@@ -208,12 +208,13 @@ function LineAnalyticsContent() {
                   <LineChart data={summary.dailyPerformance}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 12 }} unit=" km/h" />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} unit="%" />
                     <Tooltip />
-                    <Line type="monotone" dataKey="speed" stroke="var(--color-accent)" strokeWidth={2} dot={false} name="Speed (km/h)" />
-                    <ReferenceLine y={15.4} stroke="#f59e0b" strokeDasharray="4 3" label={{ value: "STCP 2024 (15.4)", fontSize: 10, fill: "#f59e0b", position: "insideTopRight" }} />
-                    <ReferenceLine y={18} stroke="#22c55e" strokeDasharray="4 3" label={{ value: "EU target (18)", fontSize: 10, fill: "#22c55e", position: "insideTopRight" }} />
-                    <Line type="monotone" dataKey="adherence" stroke="#22c55e" strokeWidth={2} dot={false} name="Adherence (%)" />
+                    <Line yAxisId="left" type="monotone" dataKey="speed" stroke="var(--color-accent)" strokeWidth={2} dot={false} name="Speed (km/h)" />
+                    <ReferenceLine yAxisId="left" y={15.4} stroke="#f59e0b" strokeDasharray="4 3" label={{ value: "STCP 2024 (15.4)", fontSize: 10, fill: "#f59e0b", position: "insideTopRight" }} />
+                    <ReferenceLine yAxisId="left" y={18} stroke="#22c55e" strokeDasharray="4 3" label={{ value: "EU target (18)", fontSize: 10, fill: "#22c55e", position: "insideTopRight" }} />
+                    <Line yAxisId="right" type="monotone" dataKey="adherence" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Adherence (%)" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
