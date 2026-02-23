@@ -217,6 +217,12 @@ export default function AnalyticsDashboard() {
         {/* Navigation links */}
         <div className="flex flex-wrap gap-2 mb-6">
           <Link
+            href="/analytics/vehicle"
+            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+          >
+            Vehicle Analytics
+          </Link>
+          <Link
             href="/analytics/heatmap"
             className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
           >
