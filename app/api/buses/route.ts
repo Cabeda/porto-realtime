@@ -125,8 +125,7 @@ async function fetchRouteDestinations(): Promise<
 
 /**
  * Parse STCP annotations from FIWARE entity.
- * STCP uses 1-indexed sentido values (1, 2), while OTP uses 0-indexed directionId (0, 1).
- * We subtract 1 to convert: sentido:1 → directionId 0, sentido:2 → directionId 1.
+ * stcp:sentido values are 0-indexed and map directly to OTP directionId.
  */
 export function parseAnnotations(annotations: string[] | undefined): {
   directionId: number | null;
@@ -145,8 +144,7 @@ export function parseAnnotations(annotations: string[] | undefined): {
   if (sentidoAnnotation) {
     const match = sentidoAnnotation.match(/stcp:sentido:(\d+)/);
     if (match && match[1]) {
-      // Convert 1-indexed STCP sentido to 0-indexed OTP directionId
-      directionId = parseInt(match[1], 10) - 1;
+      directionId = parseInt(match[1], 10);
     }
   }
 

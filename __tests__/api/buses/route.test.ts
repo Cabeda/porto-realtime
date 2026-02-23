@@ -2,14 +2,14 @@ import { describe, it, expect } from "vitest";
 import { parseAnnotations, buildRouteDestinationMap } from "@/app/api/buses/route";
 
 describe("parseAnnotations", () => {
-  it("converts STCP 1-indexed sentido to 0-indexed OTP directionId", () => {
-    const result = parseAnnotations(["stcp:sentido:1", "stcp:nr_viagem:12345"]);
+  it("maps sentido:0 directly to directionId 0 (already 0-indexed)", () => {
+    const result = parseAnnotations(["stcp:sentido:0", "stcp:nr_viagem:12345"]);
     expect(result.directionId).toBe(0);
     expect(result.tripId).toBe("12345");
   });
 
-  it("converts sentido:2 to directionId 1", () => {
-    const result = parseAnnotations(["stcp:sentido:2"]);
+  it("maps sentido:1 directly to directionId 1", () => {
+    const result = parseAnnotations(["stcp:sentido:1"]);
     expect(result.directionId).toBe(1);
   });
 
