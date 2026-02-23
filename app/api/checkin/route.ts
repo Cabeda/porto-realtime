@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { createHash } from "crypto";
 import { validateOrigin, safeGetSession } from "@/lib/security";
 
-const VALID_MODES = ["BUS", "METRO", "BIKE", "WALK", "SCOOTER"] as const;
+const VALID_MODES = ["BUS", "METRO", "BIKE"] as const;
 const AUTH_CHECKIN_DURATION_MS = 60 * 60 * 1000; // 1 hour for authenticated
 const ANON_CHECKIN_DURATION_MS = 30 * 60 * 1000; // 30 min for anonymous
 const ANON_RATE_LIMIT_PER_IP = 5; // max 5 anonymous check-ins per fingerprint per window
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const transitMode = mode as "BUS" | "METRO" | "BIKE" | "WALK" | "SCOOTER";
+  const transitMode = mode as "BUS" | "METRO" | "BIKE";
   const now = new Date();
 
   try {

@@ -10,8 +10,6 @@ const MODE_OPTIONS: { mode: TransitMode; emoji: string; key: keyof ReturnType<ty
   { mode: "BUS", emoji: "🚌", key: "bus" },
   { mode: "METRO", emoji: "🚇", key: "metro" },
   { mode: "BIKE", emoji: "🚲", key: "bike" },
-  { mode: "WALK", emoji: "🚶", key: "walk" },
-  { mode: "SCOOTER", emoji: "🛴", key: "scooter" },
 ];
 
 /** Haversine distance in meters between two [lat, lon] points */
@@ -130,9 +128,6 @@ function findNearbyCandidates(
     // Always offer "cycling here" at user's location — signals demand for bike infrastructure
     // lat/lon NOT sent to API (privacy) — shown client-side only via userLocation prop
     candidates.push({ targetId: "bike-here", lat: 0, lon: 0, label: t.checkin.cyclingHere, emoji: "🚲", distance: 0, priority: 2 });
-  } else {
-    // WALK / SCOOTER — no lat/lon sent to API (privacy) — shown client-side only
-    return [{ targetId: mode.toLowerCase(), lat: 0, lon: 0, label: "", emoji: mode === "WALK" ? "🚶" : "🛴", distance: 0, priority: 0 }];
   }
 
   // Sort by priority first (live/primary before static/fallback), then by distance
@@ -228,8 +223,8 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
   }, [activeCheckIn, minutesLeft, isAuthenticated]);
 
   // Check-in handler — works for both anonymous and authenticated users
-  // lat/lon are target infrastructure coordinates or user GPS (quantized server-side to ~100m)
-  const handleCheckIn = useCallback(async (mode: TransitMode, targetId?: string, targetLat?: number, targetLon?: number) => {
+  // lat/lon are infrastructure coords (stop, bike park); null for bike-here (privacy)
+  const handleCheckIn = useCallback(async (mode: TransitMode, targetId?: string, lat?: number, lon?: number) => {
     // Block if anon user already has an active check-in (client-side guard)
     if (!isAuthenticated && activeCheckIn) {
       setToast(t.checkin.alreadyCheckedIn);
@@ -239,13 +234,13 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
     setIsLoading(true);
     // Dispatch optimistic event immediately so the map updates before the API responds
     window.dispatchEvent(new CustomEvent("checkin-changed", {
-      detail: { mode, targetId, lat: targetLat, lon: targetLon, action: "add" },
+      detail: { mode, targetId, lat, lon, action: "add" },
     }));
     try {
       const res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, targetId, lat: targetLat, lon: targetLon }),
+        body: JSON.stringify({ mode, targetId, lat, lon }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -329,13 +324,6 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
     if (candidates.length === 0) {
       setToast(t.checkin.noNearbyTarget);
       setShowPicker(false);
-      return;
-    }
-
-    // WALK/SCOOTER: auto-pick — no lat/lon sent to API (privacy)
-    if (mode === "WALK" || mode === "SCOOTER") {
-      const best = candidates[0];
-      handleCheckIn(mode, best.targetId, undefined, undefined);
       return;
     }
 
@@ -446,8 +434,8 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
                   <button
                     key={`${c.targetId}-${i}`}
                     onClick={() => {
-                      // Don't send lat/lon for user-location check-ins (privacy)
-                      const isUserLoc = c.targetId === "bike-here" || c.targetId === "walk" || c.targetId === "scooter";
+                      // Don't send lat/lon for "cycling here" (privacy — user location)
+                      const isUserLoc = c.targetId === "bike-here";
                       handleCheckIn(selectedMode, c.targetId, isUserLoc ? undefined : c.lat, isUserLoc ? undefined : c.lon);
                     }}
                     disabled={isLoading}

@@ -28,8 +28,6 @@ export async function GET() {
       BUS: 0,
       METRO: 0,
       BIKE: 0,
-      WALK: 0,
-      SCOOTER: 0,
     };
 
     let total = 0;
@@ -49,7 +47,7 @@ export async function GET() {
   } catch (error) {
     console.error("Error fetching check-in stats:", error);
     return NextResponse.json(
-      { total: 0, byMode: { BUS: 0, METRO: 0, BIKE: 0, WALK: 0, SCOOTER: 0 }, todayTotal: 0 },
+      { total: 0, byMode: { BUS: 0, METRO: 0, BIKE: 0 }, todayTotal: 0 },
       { status: 500 }
     );
   }

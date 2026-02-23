@@ -9,32 +9,20 @@ const MODE_EMOJI: Record<string, string> = {
   BUS: "🚌",
   METRO: "🚇",
   BIKE: "🚲",
-  WALK: "🚶",
-  SCOOTER: "🛴",
 };
 
 const MODE_COLORS: Record<string, string> = {
   BUS: "#3b82f6",
   METRO: "#8b5cf6",
   BIKE: "#10b981",
-  WALK: "#f59e0b",
-  SCOOTER: "#ec4899",
 };
 
 /** Minimal bike SVG icon (two wheels + frame), used in map markers */
 const BIKE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 18a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm14 2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM12 6h2l3 5h-3.5L12 6Zm-1.5 5L8 6H6v2h1l1.5 3H5v2h7l-1.5-2Z"/></svg>`;
 
-/** Walking person SVG icon */
-const WALK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 4c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm-1.8 4.4L8 20h2l1.5-5.5L14 16v4h2v-5.5l-2.5-2.5.7-2.5C15.5 11 17.1 12 19 12v-2c-1.5 0-2.8-.7-3.5-1.8l-1-1.5c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l2.2-.8Z"/></svg>`;
-
-/** Scooter SVG icon */
-const SCOOTER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7.5 20a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Zm0-2a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1Zm9 2a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Zm0-2a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1ZM10 4h2v6h3l2 5h-2l-1.5-3H10V4Z"/></svg>`;
-
 /** SVG icons by mode for map markers */
 const MODE_SVG: Record<string, string> = {
   BIKE: BIKE_SVG,
-  WALK: WALK_SVG,
-  SCOOTER: SCOOTER_SVG,
 };
 
 const fetcher = async (url: string): Promise<ActiveCheckInsResponse> => {
@@ -464,7 +452,7 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
         // Resolve location: use stored coords for infrastructure, or userLocation for privacy-safe check-ins
         let ciLat = ci.lat;
         let ciLon = ci.lon;
-        const isUserLocCheckin = ci.targetId === "bike-here" || ci.targetId === "walk" || ci.targetId === "scooter";
+        const isUserLocCheckin = ci.targetId === "bike-here";
         if ((ciLat == null || ciLon == null) && isUserLocCheckin && userLocation) {
           ciLat = userLocation[0];
           ciLon = userLocation[1];

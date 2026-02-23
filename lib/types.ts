@@ -203,7 +203,7 @@ export interface FeedbackCreateRequest {
 
 // Transit check-in types
 
-export type TransitMode = "BUS" | "METRO" | "BIKE" | "WALK" | "SCOOTER";
+export type TransitMode = "BUS" | "METRO" | "BIKE";
 
 export interface CheckInStats {
   total: number;
