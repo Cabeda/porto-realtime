@@ -4,6 +4,7 @@ import { useTranslations } from "@/lib/hooks/useTranslations";
 import { UpvoteButton } from "@/components/UpvoteButton";
 import { ReportButton } from "@/components/ReportButton";
 import { ShareButton } from "@/components/ShareButton";
+import { EscalationPrompt } from "@/components/EscalationPrompt";
 import { BADGES, type BadgeId } from "@/lib/badges";
 import type { FeedbackItem, FeedbackTag } from "@/lib/types";
 
@@ -111,6 +112,16 @@ export function ReviewCard({ feedback: f, badge, targetName }: ReviewCardProps) 
           <ReportButton feedbackId={f.id} userReported={f.userReported} />
         </div>
       </div>
+
+      <EscalationPrompt
+        voteCount={f.voteCount ?? 0}
+        type={f.type}
+        targetId={f.targetId}
+        rating={f.rating}
+        comment={f.comment ?? null}
+        tags={f.tags ?? []}
+        createdAt={f.createdAt}
+      />
     </div>
   );
 }
