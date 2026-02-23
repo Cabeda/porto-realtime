@@ -106,15 +106,17 @@ export default function AnalyticsDashboard() {
 
   const periodLabel = isDateStr(period) ? period : period === "today" ? "right now" : `over ${period}`;
 
-  // For "today", cut off trailing hours with no data so the chart doesn't
-  // misleadingly slope to zero for hours that haven't happened yet.
+  // For "today", null-out trailing hours with no data so the chart stops
+  // at the current hour rather than misleadingly sloping to zero.
   const fleetTimeseries = (() => {
     const ts = fleet?.timeseries;
     if (!ts) return ts;
     if (period !== "today") return ts;
     let last = ts.length - 1;
     while (last > 0 && ts[last].totalVehicles === 0) last--;
-    return ts.slice(0, last + 1);
+    return ts.map((entry: { hour: number; label: string; totalVehicles: number; routes: unknown[] }, i: number) =>
+      i > last ? { ...entry, totalVehicles: null } : entry
+    );
   })();
 
   return (
@@ -316,6 +318,7 @@ export default function AnalyticsDashboard() {
                   fill="var(--color-accent)"
                   fillOpacity={0.2}
                   name="Active Buses"
+                  connectNulls={false}
                 />
               </AreaChart>
             </ResponsiveContainer>
