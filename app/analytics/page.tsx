@@ -229,6 +229,12 @@ export default function AnalyticsDashboard() {
             Velocity Heatmap
           </Link>
           <Link
+            href="/analytics/history"
+            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+          >
+            History Replay
+          </Link>
+          <Link
             href="/analytics/reliability"
             className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
           >
