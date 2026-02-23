@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.1](https://github.com/Cabeda/porto-realtime/compare/porto-app-v2.1.0...porto-app-v2.1.1) (2026-02-23)
+
+
+### Bug Fixes
+
+* keep full 24h x-axis but null future hours on fleet activity chart ([072dc74](https://github.com/Cabeda/porto-realtime/commit/072dc7484231e04ffe009d0fdbabb4e14ed22b8c))
+* trim trailing zero hours from fleet activity chart when viewing today ([d3f9f15](https://github.com/Cabeda/porto-realtime/commit/d3f9f15224da69eda2d80d5390439241b9720b4e))
+
 ## [2.1.0](https://github.com/Cabeda/porto-realtime/compare/porto-app-v2.0.0...porto-app-v2.1.0) (2026-02-22)
 
 
