@@ -855,6 +855,7 @@ function CommunityContent() {
             <div>
               <h1 className="text-2xl font-bold text-content">
                 {t.nav.community}
+                <span className="ml-2 align-middle px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 uppercase tracking-wide">Beta</span>
               </h1>
               <p className="text-sm text-content-muted mt-1">
                 {t.community.subtitle}
