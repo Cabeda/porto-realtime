@@ -1,5 +1,40 @@
 # Changelog
 
+## [2.2.0](https://github.com/Cabeda/porto-realtime/compare/porto-app-v2.1.1...porto-app-v2.2.0) (2026-02-24)
+
+
+### Features
+
+* add statistics link to line review page ([2277aa6](https://github.com/Cabeda/porto-realtime/commit/2277aa65219b477c63cfbff28dbb443458fd70d2))
+* add vehicle analytics page ([ddac0df](https://github.com/Cabeda/porto-realtime/commit/ddac0df9191110573394ad02b728579587b94464))
+* **analytics:** history replay map ([#77](https://github.com/Cabeda/porto-realtime/issues/77)) ([dfc60e3](https://github.com/Cabeda/porto-realtime/commit/dfc60e37830234576a556436eb4f936de101c23d))
+* calibrate analytics baselines to STCP 2024 data (Expresso report) ([c11f883](https://github.com/Cabeda/porto-realtime/commit/c11f883fc1619f01cee3a6ce394818a3dbe32443))
+* civic escalation prompts on review cards ([#48](https://github.com/Cabeda/porto-realtime/issues/48)) ([7241f0c](https://github.com/Cabeda/porto-realtime/commit/7241f0cbff7a5fa9c5848911f189c9fb8bb90af6))
+* external app store review scraping ([#46](https://github.com/Cabeda/porto-realtime/issues/46)) ([1a1678a](https://github.com/Cabeda/porto-realtime/commit/1a1678a20e2de79446a2a533625d48d728d65779))
+* **gamification:** badges and contributors leaderboard ([#39](https://github.com/Cabeda/porto-realtime/issues/39)) ([9ab9fd2](https://github.com/Cabeda/porto-realtime/commit/9ab9fd2430d67b6ff4407469266cffcd0239b972))
+* operator responses on feedback ([#40](https://github.com/Cabeda/porto-realtime/issues/40)) ([5238f76](https://github.com/Cabeda/porto-realtime/commit/5238f76ed8843ff07cc48503586faceb15ea743c))
+* stop-level headway irregularity tracking ([#76](https://github.com/Cabeda/porto-realtime/issues/76)) ([a5e0e40](https://github.com/Cabeda/porto-realtime/commit/a5e0e40886aed82819f42f0054f0c82246172972))
+* vehicle analytics fleet overview with clickable drill-down ([1a93764](https://github.com/Cabeda/porto-realtime/commit/1a93764de8dc1a6395da14ac44689232ad1cb144))
+* weekly digest page and API ([#42](https://github.com/Cabeda/porto-realtime/issues/42)) ([945136a](https://github.com/Cabeda/porto-realtime/commit/945136a712bef7c3fd6d234c7e8bb9549923c9de))
+
+
+### Bug Fixes
+
+* **analytics:** split line daily performance chart into dual Y axes ([758437d](https://github.com/Cabeda/porto-realtime/commit/758437d5fabb42671e1660bae12bfa05102d369b))
+* assign distinct colors to routes when no filter is active ([e6e4a87](https://github.com/Cabeda/porto-realtime/commit/e6e4a875df0b09c28a6d9da3bca2ce0790297598))
+* correct data source descriptions to name FIWARE and Porto Digital OTP ([901de12](https://github.com/Cabeda/porto-realtime/commit/901de12fe8aa075f687e6e585a818fbe4e5051fe))
+* correct STCP sentido to OTP directionId off-by-one for bus destinations ([#83](https://github.com/Cabeda/porto-realtime/issues/83)) ([2987375](https://github.com/Cabeda/porto-realtime/commit/2987375824d5a2b9ab510676e4ab3abf8c1f667f))
+* **heatmap:** apply hour filter to live fallback path; show time ranges in presets ([1b1c7f4](https://github.com/Cabeda/porto-realtime/commit/1b1c7f48a57081ec7f0e7d352a46bd9c45db738b))
+* **heatmap:** rework speed color scale with STCP 2024 baselines ([f9fa86a](https://github.com/Cabeda/porto-realtime/commit/f9fa86a9f4a8a1c46e640b29eb0045f71e22faed))
+* **otp:** allow null longName in all OTP route schemas ([6a6a09f](https://github.com/Cabeda/porto-realtime/commit/6a6a09fd8638a6e80d527b820bfce6930e4f4c8f))
+* suppress hydration warning on body caused by browser extensions ([afdacd7](https://github.com/Cabeda/porto-realtime/commit/afdacd75a6d7b3f8b167632f82a371354a765f65))
+* use OTP GTFS color as source of truth for route colors; remove redundant Bus # search ([6375d74](https://github.com/Cabeda/porto-realtime/commit/6375d74719d3e9ffe3fb1bf12270cc7cc37afe14))
+
+
+### Performance Improvements
+
+* **worker:** stream positions in chunks to fix OOM ([001407e](https://github.com/Cabeda/porto-realtime/commit/001407ef12aac2a49f2078e3cc3d6df58ad6b3e9))
+
 ## [2.1.1](https://github.com/Cabeda/porto-realtime/compare/porto-app-v2.1.0...porto-app-v2.1.1) (2026-02-23)
 
 
