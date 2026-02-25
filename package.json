@@ -73,6 +73,11 @@
     "@types/react": "19.2.13",
     "@types/react-dom": "19.2.3"
   },
+  "pnpm": {
+    "overrides": {
+      "form-data": ">=2.5.4"
+    }
+  },
   "lint-staged": {
     "*.{ts,tsx}": [
       "eslint --no-warn-ignored",
