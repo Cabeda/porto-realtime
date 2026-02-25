@@ -58,4 +58,4 @@ jobs:
         run: pnpm vitest run --coverage
 
       - name: Security audit
-        run: pnpm audit --audit-level=critical
+        run: pnpm audit --audit-level=high
