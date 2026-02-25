@@ -23,8 +23,7 @@ export async function GET() {
   const since = new Date(now.getTime() - WEEK_MS);
 
   // Week label e.g. "17–23 Feb 2026"
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const fmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   const weekLabel = `${fmt(since)}–${fmt(now)} ${now.getFullYear()}`;
 
   try {
@@ -32,10 +31,12 @@ export async function GET() {
     const [newReviews, newVotes, activeReviewers] = await Promise.all([
       prisma.feedback.count({ where: { createdAt: { gte: since }, hidden: false } }),
       prisma.feedbackVote.count({ where: { createdAt: { gte: since } } }),
-      prisma.feedback.groupBy({
-        by: ["userId"],
-        where: { createdAt: { gte: since }, hidden: false },
-      }).then((r) => r.length),
+      prisma.feedback
+        .groupBy({
+          by: ["userId"],
+          where: { createdAt: { gte: since }, hidden: false },
+        })
+        .then((r) => r.length),
     ]);
 
     // --- Top 5 most-upvoted reviews this week ---

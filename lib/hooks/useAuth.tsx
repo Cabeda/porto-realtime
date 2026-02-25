@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useCallback,
-  useMemo,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useCallback, useMemo, type ReactNode } from "react";
 import { authClient } from "@/lib/auth-client";
 
 interface AuthUser {
@@ -128,7 +122,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       requestPasswordReset,
       resetPassword,
     }),
-    [user, session.isPending, signUp, signIn, signInSocial, logout, sendVerificationOtp, verifyEmail, requestPasswordReset, resetPassword]
+    [
+      user,
+      session.isPending,
+      signUp,
+      signIn,
+      signInSocial,
+      logout,
+      sendVerificationOtp,
+      verifyEmail,
+      requestPasswordReset,
+      resetPassword,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

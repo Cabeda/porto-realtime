@@ -10,35 +10,31 @@ import "leaflet/dist/leaflet.css";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 // Interpolate a position along a polyline [0..1]
-function interpolatePolyline(
-  coords: [number, number][],
-  t: number
-): [number, number] {
+function interpolatePolyline(coords: [number, number][], t: number): [number, number] {
   if (coords.length === 0) return [41.1579, -8.6291];
-  if (t <= 0) return coords[0];
-  if (t >= 1) return coords[coords.length - 1];
+  if (t <= 0) return coords[0]!;
+  if (t >= 1) return coords[coords.length - 1]!;
 
   // Compute cumulative distances
   const dists: number[] = [0];
   for (let i = 1; i < coords.length; i++) {
-    const dlat = coords[i][0] - coords[i - 1][0];
-    const dlon = coords[i][1] - coords[i - 1][1];
-    dists.push(dists[i - 1] + Math.sqrt(dlat * dlat + dlon * dlon));
+    const dlat = coords[i]![0] - coords[i - 1]![0];
+    const dlon = coords[i]![1] - coords[i - 1]![1];
+    dists.push(dists[i - 1]! + Math.sqrt(dlat * dlat + dlon * dlon));
   }
-  const total = dists[dists.length - 1];
+  const total = dists[dists.length - 1]!;
   const target = t * total;
 
   for (let i = 1; i < dists.length; i++) {
-    if (dists[i] >= target) {
-      const seg = dists[i] - dists[i - 1];
-      const frac = seg > 0 ? (target - dists[i - 1]) / seg : 0;
-      return [
-        coords[i - 1][0] + frac * (coords[i][0] - coords[i - 1][0]),
-        coords[i - 1][1] + frac * (coords[i][1] - coords[i - 1][1]),
-      ];
+    if (dists[i]! >= target) {
+      const seg = dists[i]! - dists[i - 1]!;
+      const frac = seg > 0 ? (target - dists[i - 1]!) / seg : 0;
+      const prev = coords[i - 1]!;
+      const curr = coords[i]!;
+      return [prev[0] + frac * (curr[0] - prev[0]), prev[1] + frac * (curr[1] - prev[1])];
     }
   }
-  return coords[coords.length - 1];
+  return coords[coords.length - 1]!;
 }
 
 function formatTime(ms: number): string {
@@ -47,11 +43,11 @@ function formatTime(ms: number): string {
 }
 
 interface TripEntry {
-  v: string;       // vehicle num
-  r: string;       // route
-  d: number;       // directionId
-  s: number;       // startedAt ms
-  e: number;       // endedAt ms
+  v: string; // vehicle num
+  r: string; // route
+  d: number; // directionId
+  s: number; // startedAt ms
+  e: number; // endedAt ms
   spd: number | null;
 }
 
@@ -106,7 +102,10 @@ export default function HistoryPage() {
     for (const p of shapesData.patterns) {
       const key = `${p.routeShortName}:${p.directionId}`;
       if (!idx.has(key)) {
-        idx.set(key, p.geometry.coordinates.map(([lon, lat]) => [lat, lon]));
+        idx.set(
+          key,
+          p.geometry.coordinates.map(([lon, lat]) => [lat, lon])
+        );
       }
     }
     shapeIndex.current = idx;
@@ -128,14 +127,11 @@ export default function HistoryPage() {
         zoomControl: true,
       });
 
-      Lf.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-        {
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-          maxZoom: 19,
-        }
-      ).addTo(map);
+      Lf.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        maxZoom: 19,
+      }).addTo(map);
 
       layerRef.current = Lf.layerGroup().addTo(map);
       mapRef.current = map;
@@ -182,8 +178,7 @@ export default function HistoryPage() {
         const id = `${trip.v}:${trip.r}:${trip.d}`;
         const progress = (ms - trip.s) / (trip.e - trip.s);
         const coords =
-          shapeIndex.current.get(`${trip.r}:${trip.d}`) ??
-          shapeIndex.current.get(`${trip.r}:0`);
+          shapeIndex.current.get(`${trip.r}:${trip.d}`) ?? shapeIndex.current.get(`${trip.r}:0`);
 
         if (!coords || coords.length === 0) continue;
 
@@ -243,12 +238,8 @@ export default function HistoryPage() {
     drawFrame(currentMs);
   }, [currentMs, drawFrame]);
 
-  const totalMs = replayData
-    ? replayData.dayEndMs - replayData.dayStartMs
-    : 1;
-  const _progressPct = replayData
-    ? ((currentMs - replayData.dayStartMs) / totalMs) * 100
-    : 0;
+  const totalMs = replayData ? replayData.dayEndMs - replayData.dayStartMs : 1;
+  const _progressPct = replayData ? ((currentMs - replayData.dayStartMs) / totalMs) * 100 : 0;
 
   const activeCount = replayData
     ? replayData.trips.filter((t) => t.s <= currentMs && t.e >= currentMs).length

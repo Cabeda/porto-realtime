@@ -49,7 +49,15 @@ interface LineInfo {
 const jsonFetcher = (url: string) => fetch(url).then((r) => r.json());
 
 // Lightweight route map — renders polylines + stop markers via Leaflet
-function RouteMap({ patterns, stops, lineId: _lineId }: { patterns: LinePattern[]; stops: LineStop[]; lineId: string }) {
+function RouteMap({
+  patterns,
+  stops,
+  lineId: _lineId,
+}: {
+  patterns: LinePattern[];
+  stops: LineStop[];
+  lineId: string;
+}) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("leaflet").Map | null>(null);
   const [selectedDirection, setSelectedDirection] = useState(0);
@@ -78,7 +86,11 @@ function RouteMap({ patterns, stops, lineId: _lineId }: { patterns: LinePattern[
         document.head.appendChild(css);
       }
 
-      const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false, maxZoom: 19 }).setView([41.1579, -8.6291], 13);
+      const map = L.map(mapRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+        maxZoom: 19,
+      }).setView([41.1579, -8.6291], 13);
       mapInstanceRef.current = map;
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -111,9 +123,7 @@ function RouteMap({ patterns, stops, lineId: _lineId }: { patterns: LinePattern[
 
       // Draw polyline
       if (activePattern.coordinates.length > 0) {
-        const latLngs = activePattern.coordinates.map(
-          (c) => [c[1], c[0]] as [number, number]
-        );
+        const latLngs = activePattern.coordinates.map((c) => [c[1], c[0]] as [number, number]);
         const polyline = L.polyline(latLngs, {
           color: "#3b82f6",
           weight: 4,
@@ -206,9 +216,12 @@ function LineReviewsContent() {
   const stopIds = lineInfo?.stops?.map((s) => s.gtfsId) || [];
   const { data: stopSummaries } = useFeedbackSummaries("STOP", stopIds);
 
-  const handleFeedbackSuccess = useCallback((_feedback: FeedbackItem) => {
-    mutate();
-  }, [mutate]);
+  const handleFeedbackSuccess = useCallback(
+    (_feedback: FeedbackItem) => {
+      mutate();
+    },
+    [mutate]
+  );
 
   if (!lineId) {
     return (
@@ -243,8 +256,18 @@ function LineReviewsContent() {
                 aria-label={t.nav.settings}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
                 </svg>
               </button>
             </div>
@@ -257,13 +280,12 @@ function LineReviewsContent() {
               <h1 className="text-2xl font-bold text-content">
                 {t.reviews.line} {lineId}
               </h1>
-              {longName && (
-                <p className="text-xs text-content-muted truncate">{longName}</p>
-              )}
+              {longName && <p className="text-xs text-content-muted truncate">{longName}</p>}
               {detail && detail.count > 0 && (
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-yellow-400 text-sm">
-                    {"★".repeat(stars)}{"☆".repeat(5 - stars)}
+                    {"★".repeat(stars)}
+                    {"☆".repeat(5 - stars)}
                   </span>
                   <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                     {detail.avg.toFixed(1)}
@@ -280,7 +302,12 @@ function LineReviewsContent() {
               title="Ver estatísticas da linha"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
               </svg>
               <span className="hidden sm:inline">Estatísticas</span>
             </Link>
@@ -319,14 +346,10 @@ function LineReviewsContent() {
                   <div key={stop.gtfsId} className="flex items-start gap-3 relative">
                     {/* Timeline */}
                     <div className="flex flex-col items-center flex-shrink-0 w-5">
-                      {!isFirst && (
-                        <div className="w-0.5 h-3 bg-blue-300 dark:bg-blue-600" />
-                      )}
+                      {!isFirst && <div className="w-0.5 h-3 bg-blue-300 dark:bg-blue-600" />}
                       <div
                         className={`rounded-full border-2 border-white dark:border-gray-800 shadow-sm flex-shrink-0 ${
-                          isFirst || isLast
-                            ? "w-3.5 h-3.5 bg-blue-500"
-                            : "w-2.5 h-2.5 bg-red-400"
+                          isFirst || isLast ? "w-3.5 h-3.5 bg-blue-500" : "w-2.5 h-2.5 bg-red-400"
                         }`}
                       />
                       {!isLast && (
@@ -343,10 +366,7 @@ function LineReviewsContent() {
                           {stop.name}
                         </Link>
                         {stopSummaries?.[stop.gtfsId] && (
-                          <FeedbackSummary
-                            summary={stopSummaries[stop.gtfsId]}
-                            compact
-                          />
+                          <FeedbackSummary summary={stopSummaries[stop.gtfsId]} compact />
                         )}
                       </div>
                       <Link
@@ -377,13 +397,19 @@ function LineReviewsContent() {
               </h2>
               <div className="flex gap-1">
                 <button
-                  onClick={() => { setSort("recent"); setPage(0); }}
+                  onClick={() => {
+                    setSort("recent");
+                    setPage(0);
+                  }}
                   className={`px-2 py-1 text-xs rounded-md transition-colors ${sort === "recent" ? "bg-accent text-white" : "bg-surface-sunken text-content-muted hover:text-content-secondary"}`}
                 >
                   {t.feedback.sortByRecent}
                 </button>
                 <button
-                  onClick={() => { setSort("helpful"); setPage(0); }}
+                  onClick={() => {
+                    setSort("helpful");
+                    setPage(0);
+                  }}
                   className={`px-2 py-1 text-xs rounded-md transition-colors ${sort === "helpful" ? "bg-accent text-white" : "bg-surface-sunken text-content-muted hover:text-content-secondary"}`}
                 >
                   {t.feedback.sortByHelpful}
@@ -419,12 +445,8 @@ function LineReviewsContent() {
         ) : feedbackList ? (
           <div className="bg-surface-raised rounded-lg shadow-md p-8 text-center">
             <div className="text-5xl mb-4">📝</div>
-            <h3 className="text-lg font-semibold text-content mb-2">
-              {t.reviews.noReviews}
-            </h3>
-            <p className="text-content-muted text-sm">
-              {t.reviews.noReviewsDesc}
-            </p>
+            <h3 className="text-lg font-semibold text-content mb-2">{t.reviews.noReviews}</h3>
+            <p className="text-content-muted text-sm">{t.reviews.noReviewsDesc}</p>
           </div>
         ) : (
           <div className="space-y-3">

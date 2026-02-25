@@ -3,8 +3,7 @@ import { OTPStopsResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 import { readFallback } from "@/lib/fallback";
 
-const OTP_URL =
-  "https://otp.portodigital.pt/otp/routers/default/index/graphql";
+const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 
 const CACHE_DURATION = 30 * 24 * 60 * 60; // 30 days in seconds
 const staleCache = new StaleCache<unknown>(30 * 24 * 60 * 60 * 1000); // 30 days

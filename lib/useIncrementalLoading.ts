@@ -34,4 +34,3 @@ export function useIncrementalLoading<T>(
     progress: items.length > 0 ? (visibleCount / items.length) * 100 : 100,
   };
 }
-

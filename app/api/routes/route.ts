@@ -54,13 +54,21 @@ export async function GET() {
     const validatedRoutes = parsed.success ? parsed.data.data.routes : raw.data.routes;
 
     const routes: RouteInfo[] = validatedRoutes
-      .map((r: { shortName: string; longName: string; mode: string; gtfsId: string; color?: string | null }) => ({
-        shortName: r.shortName,
-        longName: toTitleCase(r.longName ?? ""),
-        mode: r.mode as RouteInfo["mode"],
-        gtfsId: r.gtfsId,
-        color: r.color || null,
-      }))
+      .map(
+        (r: {
+          shortName: string;
+          longName: string;
+          mode: string;
+          gtfsId: string;
+          color?: string | null;
+        }) => ({
+          shortName: r.shortName,
+          longName: toTitleCase(r.longName ?? ""),
+          mode: r.mode as RouteInfo["mode"],
+          gtfsId: r.gtfsId,
+          color: r.color || null,
+        })
+      )
       .sort((a: RouteInfo, b: RouteInfo) => {
         if (a.mode !== b.mode) {
           if (a.mode === "BUS") return -1;
@@ -90,10 +98,7 @@ export async function GET() {
     console.error("Error fetching routes:", error);
 
     if (cached) {
-      return NextResponse.json(
-        { routes: cached.data },
-        { headers: { "X-Cache-Status": "STALE" } }
-      );
+      return NextResponse.json({ routes: cached.data }, { headers: { "X-Cache-Status": "STALE" } });
     }
 
     // Layer 4: static fallback from public/fallback/routes.json
@@ -105,9 +110,6 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json(
-      { error: "Failed to fetch routes", routes: [] },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch routes", routes: [] }, { status: 500 });
   }
 }

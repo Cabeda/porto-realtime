@@ -16,30 +16,30 @@ export function PWAInstallPrompt() {
 
   useEffect(() => {
     // Register service worker
-    if ('serviceWorker' in navigator) {
+    if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
+        .register("/sw.js", { scope: "/" })
         .then((registration) => {
-          console.log('[PWA] Service Worker registered:', registration.scope);
-          
+          console.log("[PWA] Service Worker registered:", registration.scope);
+
           // More aggressive update checking - every 30 seconds
           setInterval(() => {
-            console.log('[PWA] Checking for updates...');
+            console.log("[PWA] Checking for updates...");
             registration.update();
           }, 30000);
 
           // Listen for update found
-          registration.addEventListener('updatefound', () => {
+          registration.addEventListener("updatefound", () => {
             const newWorker = registration.installing;
             if (!newWorker) return;
 
-            console.log('[PWA] Update found, new worker installing...');
+            console.log("[PWA] Update found, new worker installing...");
 
-            newWorker.addEventListener('statechange', () => {
-              console.log('[PWA] New worker state:', newWorker.state);
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            newWorker.addEventListener("statechange", () => {
+              console.log("[PWA] New worker state:", newWorker.state);
+              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
                 // New service worker available
-                console.log('[PWA] New version available - showing update prompt');
+                console.log("[PWA] New version available - showing update prompt");
                 setUpdateAvailable(true);
                 setShowUpdatePrompt(true);
               }
@@ -50,14 +50,14 @@ export function PWAInstallPrompt() {
           registration.update();
         })
         .catch((error) => {
-          console.error('[PWA] Service Worker registration failed:', error);
+          console.error("[PWA] Service Worker registration failed:", error);
         });
 
       // Listen for messages from service worker
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'SW_UPDATED') {
-          console.log('[PWA] Service Worker updated to version:', event.data.version);
-          setCurrentVersion(event.data.version || '');
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (event.data && event.data.type === "SW_UPDATED") {
+          console.log("[PWA] Service Worker updated to version:", event.data.version);
+          setCurrentVersion(event.data.version || "");
           // Show update notification
           setUpdateAvailable(true);
           setShowUpdatePrompt(true);
@@ -65,8 +65,8 @@ export function PWAInstallPrompt() {
       });
 
       // Listen for controller change (new SW activated)
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        console.log('[PWA] New Service Worker activated, reloading page...');
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        console.log("[PWA] New Service Worker activated, reloading page...");
         // Reload the page to get the latest content
         window.location.reload();
       });
@@ -76,22 +76,22 @@ export function PWAInstallPrompt() {
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent default browser install prompt
       e.preventDefault();
-      
+
       // Store the event for later use
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      
+
       // Check if user has dismissed the prompt before
-      const dismissed = localStorage.getItem('pwa-install-dismissed');
+      const dismissed = localStorage.getItem("pwa-install-dismissed");
       if (!dismissed) {
         setShowPrompt(true);
       }
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     // Cleanup
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     };
   }, []);
 
@@ -105,7 +105,7 @@ export function PWAInstallPrompt() {
 
     // Wait for the user's response
     const { outcome } = await deferredPrompt.userChoice;
-    console.log('[PWA] User choice:', outcome);
+    console.log("[PWA] User choice:", outcome);
 
     // Clear the prompt
     setDeferredPrompt(null);
@@ -114,21 +114,21 @@ export function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    localStorage.setItem('pwa-install-dismissed', 'true');
+    localStorage.setItem("pwa-install-dismissed", "true");
   };
 
   const handleUpdate = () => {
     setShowUpdatePrompt(false);
-    
+
     // Tell the waiting service worker to skip waiting and activate immediately
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.getRegistration().then((registration) => {
         if (registration?.waiting) {
-          console.log('[PWA] Telling waiting worker to skip waiting...');
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          console.log("[PWA] Telling waiting worker to skip waiting...");
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
         } else {
           // If no waiting worker, just reload
-          console.log('[PWA] No waiting worker, forcing reload...');
+          console.log("[PWA] No waiting worker, forcing reload...");
           window.location.reload();
         }
       });
@@ -141,11 +141,14 @@ export function PWAInstallPrompt() {
   const handleDismissUpdate = () => {
     setShowUpdatePrompt(false);
     // Show again in 5 minutes if user dismisses
-    setTimeout(() => {
-      if (updateAvailable) {
-        setShowUpdatePrompt(true);
-      }
-    }, 5 * 60 * 1000);
+    setTimeout(
+      () => {
+        if (updateAvailable) {
+          setShowUpdatePrompt(true);
+        }
+      },
+      5 * 60 * 1000
+    );
   };
 
   return (
@@ -157,9 +160,7 @@ export function PWAInstallPrompt() {
             <div className="flex items-start gap-3">
               <div className="text-3xl">📱</div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 dark:text-white mb-1">
-                  Instalar PortoMove
-                </h3>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-1">Instalar PortoMove</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                   Adicione ao ecrã inicial para acesso rápido e funcionalidades offline
                 </p>
@@ -193,7 +194,9 @@ export function PWAInstallPrompt() {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-white text-sm sm:text-base">
                     Nova Versão Disponível!
-                    {currentVersion && <span className="ml-2 text-xs opacity-90">v{currentVersion}</span>}
+                    {currentVersion && (
+                      <span className="ml-2 text-xs opacity-90">v{currentVersion}</span>
+                    )}
                   </h3>
                   <p className="text-xs sm:text-sm text-green-50 hidden sm:block">
                     Clique em atualizar para obter as últimas melhorias

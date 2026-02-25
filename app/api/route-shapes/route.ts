@@ -90,38 +90,45 @@ export async function GET() {
 
     const allPatterns: PatternGeometry[] = [];
 
-    routes.forEach((route: { shortName: string; longName: string; patterns?: Array<{ id: string; headsign?: string | null; directionId: number; patternGeometry?: { points: string } | null }> }) => {
-      route.patterns?.forEach((pattern) => {
-        if (pattern.patternGeometry?.points) {
-          try {
-            const decodedCoords: [number, number][] = polyline.decode(
-              pattern.patternGeometry.points
-            );
-            const coordinates = decodedCoords.map(
-              (coord: [number, number]) =>
-                [coord[1], coord[0]] as [number, number]
-            );
+    routes.forEach(
+      (route: {
+        shortName: string;
+        longName: string;
+        patterns?: Array<{
+          id: string;
+          headsign?: string | null;
+          directionId: number;
+          patternGeometry?: { points: string } | null;
+        }>;
+      }) => {
+        route.patterns?.forEach((pattern) => {
+          if (pattern.patternGeometry?.points) {
+            try {
+              const decodedCoords: [number, number][] = polyline.decode(
+                pattern.patternGeometry.points
+              );
+              const coordinates = decodedCoords.map(
+                (coord: [number, number]) => [coord[1], coord[0]] as [number, number]
+              );
 
-            allPatterns.push({
-              patternId: pattern.id,
-              routeShortName: route.shortName,
-              routeLongName: toTitleCase(route.longName ?? ""),
-              headsign: pattern.headsign || "",
-              directionId: pattern.directionId,
-              geometry: {
-                type: "LineString",
-                coordinates,
-              },
-            });
-          } catch (error) {
-            console.error(
-              `Failed to decode polyline for pattern ${pattern.id}:`,
-              error
-            );
+              allPatterns.push({
+                patternId: pattern.id,
+                routeShortName: route.shortName,
+                routeLongName: toTitleCase(route.longName ?? ""),
+                headsign: pattern.headsign || "",
+                directionId: pattern.directionId,
+                geometry: {
+                  type: "LineString",
+                  coordinates,
+                },
+              });
+            } catch (error) {
+              console.error(`Failed to decode polyline for pattern ${pattern.id}:`, error);
+            }
           }
-        }
-      });
-    });
+        });
+      }
+    );
 
     console.log(`Fetched ${allPatterns.length} route patterns with geometry`);
 

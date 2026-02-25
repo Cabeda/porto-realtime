@@ -23,10 +23,7 @@ const VALID_STATUSES = [
 
 const MAX_MESSAGE_LENGTH = 1000;
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: feedbackId } = await params;
 
   const sessionUser = await safeGetSession(auth);

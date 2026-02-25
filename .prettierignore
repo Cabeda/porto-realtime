@@ -1,0 +1,8 @@
+node_modules
+.next
+coverage
+prisma/generated
+pnpm-lock.yaml
+public
+worker
+worker-node

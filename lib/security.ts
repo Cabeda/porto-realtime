@@ -44,9 +44,9 @@ export function validateOrigin(request: NextRequest): NextResponse | null {
  * Safe wrapper for auth.getSession() that returns null on failure
  * instead of throwing (e.g., when called without browser cookies).
  */
-export async function safeGetSession(
-  authModule: { getSession: () => Promise<{ data: { user: { email: string } } | null }> }
-): Promise<{ email: string } | null> {
+export async function safeGetSession(authModule: {
+  getSession: () => Promise<{ data: { user: { email: string } } | null }>;
+}): Promise<{ email: string } | null> {
   try {
     const { data: session } = await authModule.getSession();
     return session?.user ?? null;

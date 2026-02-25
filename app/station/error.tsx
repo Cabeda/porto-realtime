@@ -17,7 +17,8 @@ export default function StationError({
           Erro ao carregar estação
         </h1>
         <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">
-          Não foi possível carregar os dados desta estação. O serviço pode estar temporariamente indisponível.
+          Não foi possível carregar os dados desta estação. O serviço pode estar temporariamente
+          indisponível.
         </p>
         <div className="flex flex-col gap-3">
           <button

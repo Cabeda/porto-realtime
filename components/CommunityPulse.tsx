@@ -51,9 +51,7 @@ export function CommunityPulse() {
             </span>
           )}
           <p className="text-xs font-medium text-content leading-tight">
-            {activeCount > 0
-              ? t.pulse.peopleUsing(activeCount)
-              : t.pulse.beFirst}
+            {activeCount > 0 ? t.pulse.peopleUsing(activeCount) : t.pulse.beFirst}
           </p>
         </div>
         {todayCount > 0 && (

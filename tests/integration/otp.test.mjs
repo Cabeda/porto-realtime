@@ -2,8 +2,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-const OTP_URL =
-  "https://otp.portodigital.pt/otp/routers/default/index/graphql";
+const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 const HEADERS = {
   "Content-Type": "application/json",
   Origin: "https://explore.porto.pt",
@@ -48,8 +47,14 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
     it("should have STCP and Metro feeds", async () => {
       const data = await gql("{ feeds { feedId agencies { name } } }");
       const names = data.feeds.flatMap((f) => f.agencies.map((a) => a.name));
-      assert.ok(names.some((n) => /STCP|Transportes Colectivos/i.test(n)), "Missing STCP feed");
-      assert.ok(names.some((n) => /Metro do Porto/i.test(n)), "Missing Metro feed");
+      assert.ok(
+        names.some((n) => /STCP|Transportes Colectivos/i.test(n)),
+        "Missing STCP feed"
+      );
+      assert.ok(
+        names.some((n) => /Metro do Porto/i.test(n)),
+        "Missing Metro feed"
+      );
     });
   });
 
@@ -65,10 +70,9 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
     });
 
     it("should find Bolhão stop by ID", async () => {
-      const data = await gql(
-        "query($id: String!) { stop(id: $id) { gtfsId name } }",
-        { id: "2:BLM" }
-      );
+      const data = await gql("query($id: String!) { stop(id: $id) { gtfsId name } }", {
+        id: "2:BLM",
+      });
       assert.ok(data.stop, "Bolhão stop not found");
       assert.match(data.stop.name, /bolh/i);
     });
@@ -77,7 +81,7 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
   describe("departures (real-time)", () => {
     it("should return departures for a major stop", async () => {
       const start = getStartTimeForTests();
-      
+
       const data = await gql(
         `query($id: String!, $start: Long!, $range: Int!, $n: Int!) {
           stop(id: $id) {
@@ -100,7 +104,7 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
 
     it("should include real-time updates when available", async () => {
       const start = getStartTimeForTests();
-      
+
       const data = await gql(
         `query($id: String!, $start: Long!) {
           stop(id: $id) {
@@ -118,7 +122,7 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
         const validStates = ["SCHEDULED", "UPDATED", "CANCELED"];
         const hasRealtimeState = deps.some((d) => validStates.includes(d.realtimeState));
         assert.ok(hasRealtimeState, "Expected departures to have valid realtimeState field");
-        
+
         // Log real-time status for debugging but don't fail
         const updatedCount = deps.filter((d) => d.realtimeState === "UPDATED").length;
         console.log(`Real-time departures: ${updatedCount}/${deps.length} have UPDATED status`);
@@ -128,9 +132,7 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
 
   describe("routes", () => {
     it("should return STCP bus routes", async () => {
-      const data = await gql(
-        '{ routes(feeds: ["2"]) { gtfsId shortName longName } }'
-      );
+      const data = await gql('{ routes(feeds: ["2"]) { gtfsId shortName longName } }');
       assert.ok(data.routes.length > 30, `Expected >30 routes, got ${data.routes.length}`);
       const route = data.routes[0];
       assert.ok(route.shortName, "Route missing shortName");
@@ -151,8 +153,7 @@ describe("OTP endpoint (otp.portodigital.pt)", () => {
         `Expected >20 routes with geometry, got ${withGeometry.length}`
       );
       const routeWithGeometry = withGeometry[0];
-      const sample =
-        routeWithGeometry.patterns.find((p) => p.patternGeometry?.points);
+      const sample = routeWithGeometry.patterns.find((p) => p.patternGeometry?.points);
       assert.ok(sample, "Expected at least one pattern with geometry");
       assert.ok(sample.patternGeometry.points, "Missing encoded polyline");
       assert.ok(sample.patternGeometry.length > 0, "Polyline length should be > 0");

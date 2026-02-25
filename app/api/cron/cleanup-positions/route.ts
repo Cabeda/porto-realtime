@@ -41,9 +41,6 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Cleanup failed:", error);
-    return NextResponse.json(
-      { error: "Cleanup failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Cleanup failed" }, { status: 500 });
   }
 }

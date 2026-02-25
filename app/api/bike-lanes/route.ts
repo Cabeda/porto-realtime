@@ -5,7 +5,8 @@ import { readFallback } from "@/lib/fallback";
 const CACHE_DURATION = 7 * 24 * 60 * 60; // 7 days in seconds
 
 // Open Data Porto GeoJSON endpoint for bike lanes (ciclovias)
-const BIKE_LANES_GEOJSON_URL = "https://opendata.porto.digital/dataset/d23a2bca-ffe5-43d0-954a-7b5e90167289/resource/b1039768-0a1a-46e9-bc22-766619ecdaf7/download/ext-ciclovias-geojson.geojson";
+const BIKE_LANES_GEOJSON_URL =
+  "https://opendata.porto.digital/dataset/d23a2bca-ffe5-43d0-954a-7b5e90167289/resource/b1039768-0a1a-46e9-bc22-766619ecdaf7/download/ext-ciclovias-geojson.geojson";
 
 interface GeoJSONFeature {
   type: "Feature";
@@ -46,17 +47,17 @@ const staleCache = new StaleCache<BikeLaneData>(7 * 24 * 60 * 60 * 1000); // 7 d
 function haversineDistance(coords: [number, number][]): number {
   let length = 0;
   for (let i = 1; i < coords.length; i++) {
-    const [lon1, lat1] = coords[i - 1];
-    const [lon2, lat2] = coords[i];
+    const [lon1, lat1] = coords[i - 1]!;
+    const [lon2, lat2] = coords[i]!;
     const R = 6371e3;
-    const p1 = lat1 * Math.PI / 180;
-    const p2 = lat2 * Math.PI / 180;
-    const dp = (lat2 - lat1) * Math.PI / 180;
-    const dl = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dp/2) * Math.sin(dp/2) +
-              Math.cos(p1) * Math.cos(p2) *
-              Math.sin(dl/2) * Math.sin(dl/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const p1 = (lat1 * Math.PI) / 180;
+    const p2 = (lat2 * Math.PI) / 180;
+    const dp = ((lat2 - lat1) * Math.PI) / 180;
+    const dl = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dp / 2) * Math.sin(dp / 2) +
+      Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     length += R * c;
   }
   return length;
@@ -80,21 +81,24 @@ export async function GET() {
       timeoutMs: 15000,
       init: {
         headers: {
-          "Accept": "application/geo+json",
+          Accept: "application/geo+json",
           "User-Agent": "PortoRealtime/1.0",
         },
       },
     });
 
     const geojson: GeoJSONCollection = await response.json();
-    
+
     const laneGroups = new Map<string, { features: GeoJSONFeature[]; estado: string }>();
-    
+
     for (const feature of geojson.features) {
       if (feature.geometry?.type !== "LineString") continue;
       const estado = feature.properties.estado || "Planeado";
       if (estado !== "Executado") continue;
-      const name = feature.properties.denominacao || feature.properties.toponimo || `Segmento ${feature.properties.objectid || 'desconhecido'}`;
+      const name =
+        feature.properties.denominacao ||
+        feature.properties.toponimo ||
+        `Segmento ${feature.properties.objectid || "desconhecido"}`;
       const key = `${name}::${estado}`;
       const existing = laneGroups.get(key);
       if (existing) {
@@ -120,14 +124,15 @@ export async function GET() {
       }
 
       let type = "ciclovia";
-      const lowerName = name.toLowerCase();
+      const lowerName = (name ?? "").toLowerCase();
       if (lowerName.includes("ciclorrota")) type = "ciclorrota";
       else if (lowerName.includes("pedonal")) type = "ciclovia_em_via_pedonal";
-      else if (lowerName.includes("marginal") || lowerName.includes("fluvial")) type = "ciclovia_marginal_rio";
+      else if (lowerName.includes("marginal") || lowerName.includes("fluvial"))
+        type = "ciclovia_marginal_rio";
 
       return {
         id: `lane-${index}`,
-        name,
+        name: name ?? `Ciclovia ${index}`,
         type,
         status,
         segments,

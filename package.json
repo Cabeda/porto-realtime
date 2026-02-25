@@ -20,7 +20,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:perf": "playwright test tests/performance",
-    "test:perf:ui": "playwright test tests/performance --ui"
+    "test:perf:ui": "playwright test tests/performance --ui",
+    "prepare": "husky",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "knip": "knip"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",
@@ -47,7 +51,6 @@
   },
   "devDependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
-    "@eslint/eslintrc": "^3.3.4",
     "@playwright/test": "^1.58.2",
     "@types/leaflet": "^1.9.8",
     "@types/node": "^20",
@@ -57,7 +60,11 @@
     "autoprefixer": "^10.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "husky": "^9.1.7",
+    "knip": "^5.85.0",
+    "lint-staged": "^16.2.7",
     "postcss": "^8",
+    "prettier": "^3.8.1",
     "prisma": "^7.4.1",
     "tailwindcss": "^3.3.0",
     "typescript": "^5",
@@ -66,5 +73,14 @@
   "overrides": {
     "@types/react": "19.2.13",
     "@types/react-dom": "19.2.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --no-warn-ignored",
+      "prettier --write"
+    ],
+    "*.{js,mjs,cjs,json,css,md}": [
+      "prettier --write"
+    ]
   }
 }

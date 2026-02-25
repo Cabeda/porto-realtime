@@ -26,11 +26,9 @@ function SearchStation() {
   const id = searchParams?.get("gtfsId");
   const [showSettings, setShowSettings] = useState(false);
 
-  const { data: station, error } = useSWR<StationResponse>(
-    `/api/station?gtfsId=${id}`,
-    fetcher,
-    { refreshInterval: 30000 }
-  );
+  const { data: station, error } = useSWR<StationResponse>(`/api/station?gtfsId=${id}`, fetcher, {
+    refreshInterval: 30000,
+  });
 
   // Feedback state
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
@@ -40,12 +38,18 @@ function SearchStation() {
 
   // Feedback summaries for this stop
   const stopIds = id ? [id] : [];
-  const { data: stopSummaries, mutate: mutateStopSummaries } = useFeedbackSummaries("STOP", stopIds);
+  const { data: stopSummaries, mutate: mutateStopSummaries } = useFeedbackSummaries(
+    "STOP",
+    stopIds
+  );
 
   // Get unique line IDs from departures for line summaries
   const allDepartures = station?.data?.stop?.stoptimesWithoutPatterns || [];
   const lineIds = Array.from(new Set(allDepartures.map((d) => d.trip.route.shortName)));
-  const { data: lineSummaries, mutate: mutateLineSummaries } = useFeedbackSummaries("LINE", lineIds);
+  const { data: lineSummaries, mutate: mutateLineSummaries } = useFeedbackSummaries(
+    "LINE",
+    lineIds
+  );
 
   // Feedback list for the currently-open target
   const { data: feedbackList } = useFeedbackList(
@@ -53,18 +57,24 @@ function SearchStation() {
     showFeedbackSheet ? feedbackTargetId : null
   );
 
-  const openFeedback = useCallback((type: "LINE" | "STOP", targetId: string, targetName: string) => {
-    setFeedbackTargetType(type);
-    setFeedbackTargetId(targetId);
-    setFeedbackTargetName(targetName);
-    setShowFeedbackSheet(true);
-  }, []);
+  const openFeedback = useCallback(
+    (type: "LINE" | "STOP", targetId: string, targetName: string) => {
+      setFeedbackTargetType(type);
+      setFeedbackTargetId(targetId);
+      setFeedbackTargetName(targetName);
+      setShowFeedbackSheet(true);
+    },
+    []
+  );
 
-  const handleFeedbackSuccess = useCallback((_feedback: FeedbackItem) => {
-    // Revalidate summaries
-    if (feedbackTargetType === "STOP") mutateStopSummaries();
-    else mutateLineSummaries();
-  }, [feedbackTargetType, mutateStopSummaries, mutateLineSummaries]);
+  const handleFeedbackSuccess = useCallback(
+    (_feedback: FeedbackItem) => {
+      // Revalidate summaries
+      if (feedbackTargetType === "STOP") mutateStopSummaries();
+      else mutateLineSummaries();
+    },
+    [feedbackTargetType, mutateStopSummaries, mutateLineSummaries]
+  );
 
   // Live countdown tick
   const [now, setNow] = useState(() => Date.now());
@@ -86,9 +96,15 @@ function SearchStation() {
 
   const getDepartureDisplay = (minutes: number) => {
     if (minutes <= 0) return { text: t.station.alreadyLeft, color: "text-content-muted" };
-    if (minutes <= 2) return { text: `${minutes} min`, color: "text-red-600 dark:text-red-400 font-bold" };
-    if (minutes <= 5) return { text: `${minutes} min`, color: "text-orange-600 dark:text-orange-400 font-semibold" };
-    if (minutes <= 10) return { text: `${minutes} min`, color: "text-blue-600 dark:text-blue-400 font-semibold" };
+    if (minutes <= 2)
+      return { text: `${minutes} min`, color: "text-red-600 dark:text-red-400 font-bold" };
+    if (minutes <= 5)
+      return {
+        text: `${minutes} min`,
+        color: "text-orange-600 dark:text-orange-400 font-semibold",
+      };
+    if (minutes <= 10)
+      return { text: `${minutes} min`, color: "text-blue-600 dark:text-blue-400 font-semibold" };
     return { text: "", color: "text-content-secondary" };
   };
 
@@ -133,8 +149,8 @@ function SearchStation() {
       <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10 transition-colors">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
-            <Link 
-              href="/stations" 
+            <Link
+              href="/stations"
               className="inline-flex items-center text-accent hover:text-accent-hover font-medium text-sm transition-colors"
             >
               <span className="mr-2">←</span>
@@ -147,8 +163,18 @@ function SearchStation() {
               aria-label={t.nav.settings}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
               </svg>
             </button>
           </div>
@@ -201,13 +227,15 @@ function SearchStation() {
         <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-start gap-3">
           <span className="text-2xl">ℹ️</span>
           <div className="flex-1">
-            <p className="text-blue-900 dark:text-blue-200 text-sm font-medium">{t.station.realtimeDepartures}</p>
+            <p className="text-blue-900 dark:text-blue-200 text-sm font-medium">
+              {t.station.realtimeDepartures}
+            </p>
             <p className="text-blue-700 dark:text-blue-300 text-xs mt-1">
               {t.station.updatesEvery30s}
             </p>
           </div>
           <div className="text-xs text-blue-600 dark:text-blue-300 font-mono bg-blue-100 dark:bg-blue-900/50 px-2 py-1 rounded">
-            {new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+            {new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}
           </div>
         </div>
 
@@ -223,10 +251,10 @@ function SearchStation() {
                 <div
                   key={index}
                   className={`bg-surface-raised rounded-lg shadow-md hover:shadow-lg transition-all p-4 border-l-4 ${
-                    isLeaving 
-                      ? "border-red-500 dark:border-red-400 animate-pulse" 
-                      : isRealtime 
-                        ? "border-green-500 dark:border-green-400" 
+                    isLeaving
+                      ? "border-red-500 dark:border-red-400 animate-pulse"
+                      : isRealtime
+                        ? "border-green-500 dark:border-green-400"
                         : "border-gray-300 dark:border-gray-600"
                   }`}
                 >
@@ -240,7 +268,13 @@ function SearchStation() {
                       <div className="mt-1 flex justify-center">
                         <FeedbackSummary
                           summary={lineSummaries?.[item.trip.route.shortName]}
-                          onClick={() => openFeedback("LINE", item.trip.route.shortName, `Linha ${item.trip.route.shortName}`)}
+                          onClick={() =>
+                            openFeedback(
+                              "LINE",
+                              item.trip.route.shortName,
+                              `Linha ${item.trip.route.shortName}`
+                            )
+                          }
                           compact
                         />
                       </div>
@@ -278,19 +312,27 @@ function SearchStation() {
                         </div>
                       )}
                       {diff <= 0 && (
-                        <div className="text-xs text-content-muted mt-1">
-                          {t.station.departed}
-                        </div>
+                        <div className="text-xs text-content-muted mt-1">{t.station.departed}</div>
                       )}
                     </div>
                   </div>
 
                   {diff > 0 && (
                     <div className="mt-3 pt-3 border-t border-border-strong flex items-center justify-between text-xs text-content-muted">
-                      <span>{t.station.scheduledTime}: {convertToTime(item.serviceDay, item.scheduledDeparture)}</span>
+                      <span>
+                        {t.station.scheduledTime}:{" "}
+                        {convertToTime(item.serviceDay, item.scheduledDeparture)}
+                      </span>
                       {item.departureDelay !== 0 && (
-                        <span className={item.departureDelay > 0 ? "text-orange-600 dark:text-orange-400" : "text-green-600 dark:text-green-400"}>
-                          {item.departureDelay > 0 ? '+' : ''}{Math.floor(item.departureDelay / 60)} min
+                        <span
+                          className={
+                            item.departureDelay > 0
+                              ? "text-orange-600 dark:text-orange-400"
+                              : "text-green-600 dark:text-green-400"
+                          }
+                        >
+                          {item.departureDelay > 0 ? "+" : ""}
+                          {Math.floor(item.departureDelay / 60)} min
                         </span>
                       )}
                     </div>
@@ -305,9 +347,7 @@ function SearchStation() {
             <h3 className="text-xl font-semibold text-content mb-2">
               {t.station.unavailableTitle}
             </h3>
-            <p className="text-content-secondary">
-              {t.station.unavailableDesc}
-            </p>
+            <p className="text-content-secondary">{t.station.unavailableDesc}</p>
             <p className="text-sm text-content-muted mt-4">
               {t.station.unavailableHint}{" "}
               <Link href="/" className="text-accent hover:underline">
@@ -320,7 +360,8 @@ function SearchStation() {
 
         {departures.length > 0 && (
           <div className="mt-6 text-center text-xs text-content-muted">
-            {t.station.showing} {departures.length} {departures.length === 1 ? t.station.departure : t.station.departures}
+            {t.station.showing} {departures.length}{" "}
+            {departures.length === 1 ? t.station.departure : t.station.departures}
           </div>
         )}
       </main>
@@ -353,7 +394,8 @@ function SearchStation() {
                   <div key={f.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-yellow-400 text-xs">
-                        {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
+                        {"★".repeat(f.rating)}
+                        {"☆".repeat(5 - f.rating)}
                       </span>
                       <span className="text-xs text-content-muted">
                         {new Date(f.createdAt).toLocaleDateString("pt-PT")}

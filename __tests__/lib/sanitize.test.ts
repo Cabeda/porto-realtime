@@ -46,7 +46,7 @@ describe("escapeHtml", () => {
 
   it("handles multiple special characters together", () => {
     expect(escapeHtml('<img src="x" onerror="alert(1)">')).toBe(
-      '&lt;img src=&quot;x&quot; onerror=&quot;alert(1)&quot;&gt;'
+      "&lt;img src=&quot;x&quot; onerror=&quot;alert(1)&quot;&gt;"
     );
   });
 });

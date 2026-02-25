@@ -1,6 +1,13 @@
 import { storage } from "@/lib/storage";
 import { logger } from "@/lib/logger";
-import type { BusesResponse, StopsResponse, RoutesResponse, BikeParksResponse, BikeLanesResponse, RoutePatternsResponse } from "@/lib/types";
+import type {
+  BusesResponse,
+  StopsResponse,
+  RoutesResponse,
+  BikeParksResponse,
+  BikeLanesResponse,
+  RoutePatternsResponse,
+} from "@/lib/types";
 
 // Fetcher with localStorage fallback for buses (short cache for instant load)
 export const busesFetcher = async (url: string): Promise<BusesResponse> => {

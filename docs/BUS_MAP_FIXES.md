@@ -3,17 +3,21 @@
 ## Issues Fixed
 
 ### 1. Route Number Parsing
+
 **Problem:** Bus markers were showing "Route urn" instead of the actual route number.
 
 **Root Cause:** The FIWARE entity ID has format `urn:ngsi-ld:Vehicle:ROUTE:ID` (e.g., `urn:ngsi-ld:Vehicle:502:123456`), and the code was parsing the wrong part of the URN.
 
 **Solution:** Updated `/pages/api/buses.tsx` to properly extract route numbers from the URN format by:
+
 1. Splitting the URN by colons
 2. Extracting the 4th part (index 3) which contains the actual route number
 3. Falling back to other possible fields if available (routeShortName, route, lineId)
 
 ### 2. CSS Styling for Map Icons
+
 **Added to `/app/globals.css`:**
+
 - Custom bus icon styling (transparent background, no border)
 - Custom location pin styling
 - Removed default Leaflet marker shadows
@@ -27,6 +31,7 @@
 ## URN Format Examples
 
 The FIWARE API returns entity IDs in this format:
+
 ```
 urn:ngsi-ld:Vehicle:502:123456
                      ^^^
@@ -38,6 +43,7 @@ The parser now correctly extracts "502" from position 3 (0-indexed) after splitt
 ## Testing
 
 After these changes:
+
 - ✅ Bus markers show "Route 502", "Route 201", etc. instead of "Route urn"
 - ✅ Bus icons (🚌) display with transparent backgrounds
 - ✅ Location pin (📍) displays correctly
@@ -46,6 +52,7 @@ After these changes:
 ## Next Steps
 
 Restart your development server to see the changes:
+
 ```bash
 npm run dev
 ```

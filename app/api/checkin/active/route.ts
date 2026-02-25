@@ -16,9 +16,11 @@ export async function GET() {
     // Clean up expired check-ins at most once per minute (GDPR data minimization)
     if (Date.now() - lastCleanup > CLEANUP_INTERVAL_MS) {
       lastCleanup = Date.now();
-      prisma.checkIn.deleteMany({
-        where: { expiresAt: { lte: now } },
-      }).catch((err) => console.error("Cleanup error:", err)); // fire-and-forget
+      prisma.checkIn
+        .deleteMany({
+          where: { expiresAt: { lte: now } },
+        })
+        .catch((err) => console.error("Cleanup error:", err)); // fire-and-forget
     }
 
     // Get all active check-ins using raw SQL
@@ -33,7 +35,16 @@ export async function GET() {
     `;
 
     // Aggregate by mode+targetId — show count per target
-    const grouped = new Map<string, { mode: string; targetId: string | null; lat: number | null; lon: number | null; count: number }>();
+    const grouped = new Map<
+      string,
+      {
+        mode: string;
+        targetId: string | null;
+        lat: number | null;
+        lon: number | null;
+        count: number;
+      }
+    >();
     for (const ci of raw) {
       const key = `${ci.mode}:${ci.targetId ?? "_"}`;
       const existing = grouped.get(key);
@@ -68,7 +79,8 @@ export async function GET() {
           // while s-maxage=0 + stale-while-revalidate handles CDN caching.
           // Without no-cache, Firefox may serve stale responses from its HTTP cache
           // even when SWR triggers a new fetch.
-          "Cache-Control": "no-cache, no-store, must-revalidate, public, s-maxage=0, stale-while-revalidate=15",
+          "Cache-Control":
+            "no-cache, no-store, must-revalidate, public, s-maxage=0, stale-while-revalidate=15",
         },
       }
     );

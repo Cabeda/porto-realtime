@@ -10,9 +10,8 @@
  *   App Store:  id1234567890 (Portugal store)
  */
 
- 
 const gplay = require("google-play-scraper");
- 
+
 const appStore = require("app-store-scraper");
 
 export const STCP_PLAY_ID = "pt.stcp.android";
@@ -29,10 +28,7 @@ export interface ScrapedReview {
   reviewedAt: Date;
 }
 
-export async function fetchPlayReviews(
-  appId: string,
-  num = 200
-): Promise<ScrapedReview[]> {
+export async function fetchPlayReviews(appId: string, num = 200): Promise<ScrapedReview[]> {
   try {
     const result = await gplay.reviews({
       appId,
@@ -48,7 +44,7 @@ export async function fetchPlayReviews(
       text: string | null;
       thumbsUp: number;
       date: Date;
-    }[] = Array.isArray(result) ? result : result.data ?? [];
+    }[] = Array.isArray(result) ? result : (result.data ?? []);
 
     return data.map((r) => ({
       id: `play:${r.id}`,
@@ -66,10 +62,7 @@ export async function fetchPlayReviews(
   }
 }
 
-export async function fetchAppStoreReviews(
-  appId: number,
-  num = 200
-): Promise<ScrapedReview[]> {
+export async function fetchAppStoreReviews(appId: number, num = 200): Promise<ScrapedReview[]> {
   try {
     const data: {
       id: string;

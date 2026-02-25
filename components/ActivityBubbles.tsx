@@ -62,17 +62,19 @@ function laneToSegmentPaths(lane: BikeLane): [number, number][][] {
 function cumulativeDistancesMeters(path: [number, number][]): number[] {
   const dists = [0];
   for (let i = 1; i < path.length; i++) {
-    const [lat1, lon1] = path[i - 1];
-    const [lat2, lon2] = path[i];
+    const [lat1, lon1] = path[i - 1]!;
+    const [lat2, lon2] = path[i]!;
     const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    dists.push(dists[i - 1] + R * c);
+    dists.push(dists[i - 1]! + R * c);
   }
   return dists;
 }
@@ -87,19 +89,20 @@ function closestProgressOnPath(
   target: [number, number]
 ): number {
   if (path.length < 2) return 0.5;
-  const totalLen = dists[dists.length - 1];
+  const totalLen = dists[dists.length - 1] ?? 0;
   if (totalLen === 0) return 0.5;
 
   let bestDist = Infinity;
   let bestProgress = 0.5;
 
   for (let i = 0; i < path.length; i++) {
-    const dlat = path[i][0] - target[0];
-    const dlon = path[i][1] - target[1];
+    const pt = path[i]!;
+    const dlat = pt[0] - target[0];
+    const dlon = pt[1] - target[1];
     const d = dlat * dlat + dlon * dlon;
     if (d < bestDist) {
       bestDist = d;
-      bestProgress = dists[i] / totalLen;
+      bestProgress = dists[i]! / totalLen;
     }
   }
 
@@ -113,22 +116,21 @@ function interpolateAlongPath(
   progress: number
 ): [number, number] {
   if (path.length === 0) return [0, 0];
-  if (path.length === 1) return path[0];
+  if (path.length === 1) return path[0]!;
 
-  const totalLen = dists[dists.length - 1];
+  const totalLen = dists[dists.length - 1] ?? 0;
   const target = Math.max(0, Math.min(1, progress)) * totalLen;
 
   for (let i = 1; i < dists.length; i++) {
-    if (dists[i] >= target) {
-      const segLen = dists[i] - dists[i - 1];
-      const t = segLen > 0 ? (target - dists[i - 1]) / segLen : 0;
-      return [
-        path[i - 1][0] + t * (path[i][0] - path[i - 1][0]),
-        path[i - 1][1] + t * (path[i][1] - path[i - 1][1]),
-      ];
+    if (dists[i]! >= target) {
+      const segLen = dists[i]! - dists[i - 1]!;
+      const t = segLen > 0 ? (target - dists[i - 1]!) / segLen : 0;
+      const prev = path[i - 1]!;
+      const curr = path[i]!;
+      return [prev[0] + t * (curr[0] - prev[0]), prev[1] + t * (curr[1] - prev[1])];
     }
   }
-  return path[path.length - 1];
+  return path[path.length - 1]!;
 }
 
 /** Check if a lat/lon point is within bounds (with optional buffer in degrees) */
@@ -136,18 +138,31 @@ function isInBounds(lat: number, lon: number, bounds: LatLngBounds, buffer = 0.0
   const sw = bounds.getSouthWest();
   const ne = bounds.getNorthEast();
   return (
-    lat >= sw.lat - buffer && lat <= ne.lat + buffer &&
-    lon >= sw.lng - buffer && lon <= ne.lng + buffer
+    lat >= sw.lat - buffer &&
+    lat <= ne.lat + buffer &&
+    lon >= sw.lng - buffer &&
+    lon <= ne.lng + buffer
   );
 }
 
 /** Check if any point in a path is within bounds */
-function pathIntersectsBounds(path: [number, number][], bounds: LatLngBounds, buffer = 0.01): boolean {
+function pathIntersectsBounds(
+  path: [number, number][],
+  bounds: LatLngBounds,
+  buffer = 0.01
+): boolean {
   if (path.length === 0) return false;
-  if (isInBounds(path[0][0], path[0][1], bounds, buffer)) return true;
-  if (isInBounds(path[path.length - 1][0], path[path.length - 1][1], bounds, buffer)) return true;
-  for (let i = Math.floor(path.length / 2); i < path.length; i += Math.max(1, Math.floor(path.length / 5))) {
-    if (isInBounds(path[i][0], path[i][1], bounds, buffer)) return true;
+  const first = path[0]!;
+  const last = path[path.length - 1]!;
+  if (isInBounds(first[0], first[1], bounds, buffer)) return true;
+  if (isInBounds(last[0], last[1], bounds, buffer)) return true;
+  for (
+    let i = Math.floor(path.length / 2);
+    i < path.length;
+    i += Math.max(1, Math.floor(path.length / 5))
+  ) {
+    const pt = path[i]!;
+    if (isInBounds(pt[0], pt[1], bounds, buffer)) return true;
   }
   return false;
 }
@@ -164,10 +179,16 @@ function pathIntersectsBounds(path: [number, number][], bounds: LatLngBounds, bu
  * A separate lightweight pass on moveend adds/removes badge markers that
  * enter or leave the viewport without touching bike animations.
  */
-export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCheckIns, userLocation }: ActivityBubblesProps) {
-   
+export function ActivityBubbles({
+  map,
+  show,
+  bikeLanes,
+  animate = true,
+  activeCheckIns,
+  userLocation,
+}: ActivityBubblesProps) {
   const markersRef = useRef<any[]>([]);
-   
+
   const badgeMarkersRef = useRef<any[]>([]);
   const animFrameRef = useRef<number | null>(null);
   // Stable ref for badge data so moveend handler can access latest without re-running main effect
@@ -191,7 +212,13 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
 
     import("leaflet").then((L) => {
       // Remove old badge markers
-      badgeMarkersRef.current.forEach((m) => { try { m.remove(); } catch { /* */ } });
+      badgeMarkersRef.current.forEach((m) => {
+        try {
+          m.remove();
+        } catch {
+          /* */
+        }
+      });
       badgeMarkersRef.current = [];
 
       for (const ci of badges) {
@@ -200,7 +227,8 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
 
         const svg = MODE_SVG[ci.mode];
         const color = MODE_COLORS[ci.mode] || "#6b7280";
-        const countText = ci.count > 1 ? `<span class="activity-mode-badge-count">${ci.count}</span>` : "";
+        const countText =
+          ci.count > 1 ? `<span class="activity-mode-badge-count">${ci.count}</span>` : "";
 
         const html = svg
           ? `<div class="activity-mode-dot" style="--mode-color:${color};">${svg}${countText}</div>`
@@ -233,15 +261,29 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
   useEffect(() => {
     if (!map || !show) return;
     map.on("moveend", renderBadges);
-    return () => { map.off("moveend", renderBadges); };
+    return () => {
+      map.off("moveend", renderBadges);
+    };
   }, [map, show, renderBadges]);
 
   // Main effect: create bike animations (stable across map moves) + compute badge data
   useEffect(() => {
     if (!map || !show) {
-      markersRef.current.forEach((m) => { try { m.remove(); } catch { /* */ } });
+      markersRef.current.forEach((m) => {
+        try {
+          m.remove();
+        } catch {
+          /* */
+        }
+      });
       markersRef.current = [];
-      badgeMarkersRef.current.forEach((m) => { try { m.remove(); } catch { /* */ } });
+      badgeMarkersRef.current.forEach((m) => {
+        try {
+          m.remove();
+        } catch {
+          /* */
+        }
+      });
       badgeMarkersRef.current = [];
       badgeDataRef.current = [];
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -250,14 +292,26 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
 
     import("leaflet").then((L) => {
       // Remove old bike animation markers (NOT badge markers — those are managed separately)
-      markersRef.current.forEach((m) => { try { m.remove(); } catch { /* */ } });
+      markersRef.current.forEach((m) => {
+        try {
+          m.remove();
+        } catch {
+          /* */
+        }
+      });
       markersRef.current = [];
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
 
       if (!data?.checkIns?.length) {
         badgeDataRef.current = [];
         // Clear badges too
-        badgeMarkersRef.current.forEach((m) => { try { m.remove(); } catch { /* */ } });
+        badgeMarkersRef.current.forEach((m) => {
+          try {
+            m.remove();
+          } catch {
+            /* */
+          }
+        });
         badgeMarkersRef.current = [];
         return;
       }
@@ -493,12 +547,13 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
       const bounds = map.getBounds();
       for (const bh of bikeHereMarkers) {
         if (!isInBounds(bh.lat, bh.lon, bounds)) continue;
-        const countBadge = bh.count > 1
-          ? `<div class="activity-bike-badge" style="position:absolute;top:-8px;right:-12px;">
+        const countBadge =
+          bh.count > 1
+            ? `<div class="activity-bike-badge" style="position:absolute;top:-8px;right:-12px;">
               <span class="activity-bike-badge-dot">${BIKE_SVG}</span>
               <span class="activity-bike-badge-count">${bh.count}</span>
             </div>`
-          : "";
+            : "";
         const icon = L.divIcon({
           html: `<div class="activity-bike-here">${BIKE_SVG}${countBadge}</div>`,
           className: "activity-bike-marker",
@@ -527,10 +582,12 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
         const segPaths = laneToSegmentPaths(lane);
         if (segPaths.length === 0) continue;
 
-        const segments = segPaths.map((path) => {
-          const dists = cumulativeDistancesMeters(path);
-          return { path, dists, totalMeters: dists[dists.length - 1] };
-        }).filter((s) => s.totalMeters >= 10);
+        const segments = segPaths
+          .map((path) => {
+            const dists = cumulativeDistancesMeters(path);
+            return { path, dists, totalMeters: dists[dists.length - 1] ?? 0 };
+          })
+          .filter((s) => s.totalMeters >= 10);
 
         if (segments.length === 0) continue;
 
@@ -544,6 +601,7 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
 
           for (let j = 0; j < visibleCount; j++) {
             const seg = segsToUse[j % segsToUse.length];
+            if (!seg) continue;
 
             if (seg.totalMeters < 100) {
               const icon = L.divIcon({
@@ -553,7 +611,11 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
                 iconAnchor: [20, 20],
               });
               const midPos = interpolateAlongPath(seg.path, seg.dists, 0.5);
-              const marker = L.marker(midPos, { icon, interactive: false, zIndexOffset: 900 }).addTo(map);
+              const marker = L.marker(midPos, {
+                icon,
+                interactive: false,
+                zIndexOffset: 900,
+              }).addTo(map);
               markersRef.current.push(marker);
               continue;
             }
@@ -576,7 +638,10 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
               ? closestProgressOnPath(seg.path, seg.dists, userLocation)
               : 0.5;
             const spread = bikesOnThisSeg > 1 ? 0.15 : 0;
-            const startProgress = Math.max(0.01, Math.min(0.99, baseProgress + (indexOnSeg - (bikesOnThisSeg - 1) / 2) * spread));
+            const startProgress = Math.max(
+              0.01,
+              Math.min(0.99, baseProgress + (indexOnSeg - (bikesOnThisSeg - 1) / 2) * spread)
+            );
             const startPos = interpolateAlongPath(seg.path, seg.dists, startProgress);
 
             const marker = L.marker(startPos, {
@@ -598,7 +663,9 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
 
           // Count badge only if there are more check-ins than visible animated bikes
           if (count > visibleCount && segsToUse.length > 0) {
-            const longest = segsToUse.reduce((a, b) => a.totalMeters > b.totalMeters ? a : b);
+            const longest = segsToUse.reduce((a, b) =>
+              (a.totalMeters ?? 0) > (b.totalMeters ?? 0) ? a : b
+            );
             const midPos = interpolateAlongPath(longest.path, longest.dists, 0.5);
             const badgeHtml = `<div class="activity-bike-badge">
               <span class="activity-bike-badge-dot">${BIKE_SVG}</span>
@@ -623,7 +690,9 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
         } else {
           // Not animating — just show a count badge
           if (segsToUse.length > 0) {
-            const longest = segsToUse.reduce((a, b) => a.totalMeters > b.totalMeters ? a : b);
+            const longest = segsToUse.reduce((a, b) =>
+              (a.totalMeters ?? 0) > (b.totalMeters ?? 0) ? a : b
+            );
             const midPos = interpolateAlongPath(longest.path, longest.dists, 0.5);
             const badgeHtml = `<div class="activity-bike-badge">
               <span class="activity-bike-badge-dot">${BIKE_SVG}</span>
@@ -682,9 +751,21 @@ export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCh
     });
 
     return () => {
-      markersRef.current.forEach((m) => { try { m.remove(); } catch { /* */ } });
+      markersRef.current.forEach((m) => {
+        try {
+          m.remove();
+        } catch {
+          /* */
+        }
+      });
       markersRef.current = [];
-      badgeMarkersRef.current.forEach((m) => { try { m.remove(); } catch { /* */ } });
+      badgeMarkersRef.current.forEach((m) => {
+        try {
+          m.remove();
+        } catch {
+          /* */
+        }
+      });
       badgeMarkersRef.current = [];
       badgeDataRef.current = [];
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);

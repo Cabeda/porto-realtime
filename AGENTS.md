@@ -7,6 +7,7 @@ PortoMove is a Next.js 16 web application providing real-time public transit inf
 ## Architecture
 
 ### Framework & Routing
+
 - **Next.js 16** with App Router (all pages and API routes under `/app`)
 - **TypeScript** for type safety
 - **pnpm** as package manager (enforced via `preinstall` script)
@@ -15,6 +16,7 @@ PortoMove is a Next.js 16 web application providing real-time public transit inf
 - Deployed on **Vercel**
 
 ### Database & Auth
+
 - **Neon PostgreSQL** via `@neondatabase/serverless` + Prisma ORM
 - **Neon Auth** (powered by Better Auth) for authentication
   - Email/password sign-up with OTP email verification
@@ -24,6 +26,7 @@ PortoMove is a Next.js 16 web application providing real-time public transit inf
 - Schema in `prisma/schema.prisma`, generated client in `prisma/generated/prisma`
 
 ### Pages Structure
+
 - `/` — Live bus map (homepage) with route filtering, layer chips, onboarding flow
 - `/stations` — Station list with search, favorites, and geolocation
 - `/station?gtfsId={id}` — Individual station page with live departures
@@ -36,7 +39,9 @@ PortoMove is a Next.js 16 web application providing real-time public transit inf
 - `/offline` — Offline fallback page (PWA)
 
 ### API Routes (App Router)
+
 Located in `/app/api/`:
+
 - `buses/route.ts` — Real-time bus positions from FIWARE, enriched with OTP route data
 - `stations/route.ts` — All transit stops from OTP GraphQL (with `vehicleMode`)
 - `station/route.ts` — Real-time departures for a specific station by `gtfsId`
@@ -63,6 +68,7 @@ Located in `/app/api/`:
 - **Vitest** for unit tests, **Playwright** for performance tests
 
 ### Data Fetching
+
 - Bus positions refresh every 30 seconds via SWR
 - Station departures refresh every 30 seconds
 - Stations list cached for 7 days in localStorage
@@ -92,18 +98,21 @@ Key interfaces: `Bus`, `Stop` (with `vehicleMode`), `RouteInfo`, `PatternGeometr
 All transit data originates from **STCP (Sociedade de Transportes Colectivos do Porto)**, officially published on the [Porto Open Data portal](https://opendata.porto.digital/organization/sociedade-de-transportes-colectivos-do-porto-stcp).
 
 ### Porto OpenTripPlanner
+
 - **URL**: `https://otp.portodigital.pt/otp/routers/default/index/graphql`
 - **Protocol**: GraphQL over HTTP POST
 - **Auth**: None (requires `Origin: https://explore.porto.pt` header)
 - **Features**: Real-time departures, stops (with vehicleMode: BUS/SUBWAY), routes, pattern geometries
 
 ### FIWARE Urban Platform (Bus Positions)
+
 - **URL**: `https://broker.fiware.urbanplatform.portodigital.pt/v2/entities?q=vehicleType==bus&limit=1000`
 - **Protocol**: REST (NGSI v2)
 - **Auth**: None
 - Returns real-time GPS positions for STCP buses
 
 ### Explore Porto (Bike Infrastructure)
+
 - **Bike Parks**: `https://portal.api.portodigital.pt/portal/records/1.0/search/?dataset=parques-de-bicicletas`
 - **Bike Lanes**: `https://portal.api.portodigital.pt/portal/records/1.0/search/?dataset=ciclovias`
 - **Auth**: None
@@ -190,6 +199,7 @@ porto-realtime/
 ## Key Features
 
 ### Bus Map (`/`)
+
 - Real-time bus markers with route number + destination labels
 - SVG bus stop icons (teal) and metro stop icons (blue "M" circle)
 - Metro stops visible from zoom 12+, bus stops from zoom 15+
@@ -204,6 +214,7 @@ porto-realtime/
 - Dark mode support
 
 ### Community Reviews
+
 - Star ratings (1-5) + optional comments for lines, stops, vehicles, bike parks, bike lanes
 - Reddit-style upvoting (auto-upvote own reviews, toggle on/off)
 - Sort by most recent or most helpful
@@ -211,17 +222,20 @@ porto-realtime/
 - Reusable ReviewCard component across all 5 review types
 
 ### Authentication
+
 - Email/password sign-up with OTP email verification
 - Google OAuth sign-in (via Neon Auth)
 - Password reset flow
 - Auth modal rendered via React portal (avoids nesting issues)
 
 ### Station Departures (`/station`)
+
 - Live departure times using `serviceDay + departureSeconds`
 - Color-coded urgency (red ≤2min, orange ≤5min, blue ≤10min)
 - Real-time vs scheduled indicator
 
 ### Stations List (`/stations`)
+
 - 5 closest stations via Haversine distance
 - Favorites with localStorage persistence
 - Text search filter
@@ -229,12 +243,14 @@ porto-realtime/
 ## Development Guidelines
 
 ### Setup
+
 1. Clone the repo
 2. Copy `.env.example` to `.env.local` and fill in Neon credentials
 3. `pnpm install`
 4. `pnpm dev` (runs on port 3000 by default)
 
 ### Adding Features
+
 1. **New API endpoints**: Add to `/app/api/` as `route.ts` files
 2. **New pages**: Add to `/app/` directory
 3. **Shared types**: Add to `lib/types.ts`
@@ -244,12 +260,14 @@ porto-realtime/
 7. **Database changes**: Update `prisma/schema.prisma`, run `prisma migrate dev`
 
 ### Testing
+
 - `pnpm test` — Run unit tests (Vitest)
 - `pnpm test:watch` — Watch mode
 - `pnpm test:integration` — OTP API integration tests
 - `pnpm test:perf` — Playwright performance tests
 
 ### Code Patterns
+
 - All modals use `createPortal(…, document.body)` to avoid nesting issues
 - Auth-gated actions show `AuthModal` when unauthenticated
 - API routes use Zod for input validation
@@ -267,6 +285,7 @@ NEON_AUTH_COOKIE_SECRET — Secret for session cookies (min 32 chars)
 Google OAuth is configured in the Neon Console (Settings → Auth → OAuth Providers), not via env vars.
 
 ## Known Issues
+
 - Bus positions (FIWARE) work independently from OTP schedule data
 - LSP may show false positive errors for `AuthUser.name` and `@/lib/auth` imports (stale type cache)
 - Pre-existing LSP errors in `lib/resend.ts` and legacy `app/api/auth/{login,verify,logout,me}/route.ts` files

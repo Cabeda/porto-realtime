@@ -93,18 +93,27 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => (b.ewt ?? 0) - (a.ewt ?? 0));
 
     const allEwts = rankings.filter((r) => r.ewt !== null).map((r) => r.ewt!);
-    const allAdherences = rankings.filter((r) => r.headwayAdherence !== null).map((r) => r.headwayAdherence!);
+    const allAdherences = rankings
+      .filter((r) => r.headwayAdherence !== null)
+      .map((r) => r.headwayAdherence!);
 
-    return NextResponse.json({
-      period: periodLabel,
-      networkEwt: avg(allEwts) !== null ? Math.round(avg(allEwts)!) : null,
-      networkAdherence: avg(allAdherences) !== null ? Math.round(avg(allAdherences)! * 10) / 10 : null,
-      networkBunching: avg(rankings.filter((r) => r.bunching !== null).map((r) => r.bunching!)) !== null
-        ? Math.round(avg(rankings.filter((r) => r.bunching !== null).map((r) => r.bunching!))! * 10) / 10
-        : null,
-      totalRoutes: rankings.length,
-      rankings,
-    }, { headers: CACHE });
+    return NextResponse.json(
+      {
+        period: periodLabel,
+        networkEwt: avg(allEwts) !== null ? Math.round(avg(allEwts)!) : null,
+        networkAdherence:
+          avg(allAdherences) !== null ? Math.round(avg(allAdherences)! * 10) / 10 : null,
+        networkBunching:
+          avg(rankings.filter((r) => r.bunching !== null).map((r) => r.bunching!)) !== null
+            ? Math.round(
+                avg(rankings.filter((r) => r.bunching !== null).map((r) => r.bunching!))! * 10
+              ) / 10
+            : null,
+        totalRoutes: rankings.length,
+        rankings,
+      },
+      { headers: CACHE }
+    );
   } catch (error) {
     console.error("Reliability error:", error);
     return NextResponse.json({ error: "Failed to fetch reliability data" }, { status: 500 });

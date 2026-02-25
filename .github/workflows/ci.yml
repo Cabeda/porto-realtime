@@ -32,6 +32,9 @@ jobs:
       - name: Lint
         run: npx eslint . --max-warnings 147
 
+      - name: Format check
+        run: npx prettier --check .
+
       - name: Typecheck
         run: npx tsc --noEmit
 

@@ -29,10 +29,7 @@ export async function DELETE(request: NextRequest) {
   const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
-    return NextResponse.json(
-      { error: "Authentication required." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
   try {
@@ -61,10 +58,7 @@ export async function DELETE(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Error deleting account:", error);
-    return NextResponse.json(
-      { error: "Failed to delete account" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete account" }, { status: 500 });
   }
 }
 
@@ -74,10 +68,7 @@ export async function GET() {
   const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
-    return NextResponse.json(
-      { error: "Authentication required." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
   // Rate limit data exports
@@ -166,9 +157,6 @@ export async function GET() {
     );
   } catch (error) {
     console.error("Error exporting account data:", error);
-    return NextResponse.json(
-      { error: "Failed to export data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to export data" }, { status: 500 });
   }
 }

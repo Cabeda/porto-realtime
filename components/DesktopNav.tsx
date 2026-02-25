@@ -18,10 +18,7 @@ export function DesktopNav() {
   return (
     <div className="hidden sm:flex items-center gap-1">
       {NAV_ITEMS.map((item) => {
-        const active =
-          item.href === "/"
-            ? pathname === "/"
-            : pathname.startsWith(item.href);
+        const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
         return (
           <Link
             key={item.href}

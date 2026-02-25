@@ -10,9 +10,25 @@ export function BottomNav() {
 
   const links = [
     { href: "/", label: t.nav.map, icon: "🗺️", match: (p: string) => p === "/" },
-    { href: "/stations", label: t.nav.stations, icon: "🚏", match: (p: string) => p.startsWith("/station") },
-    { href: "/analytics", label: t.nav.analytics, icon: "📊", match: (p: string) => p.startsWith("/analytics") },
-    { href: "/community", label: t.nav.community, icon: "🗣️", match: (p: string) => p.startsWith("/community") || p.startsWith("/reviews") || p.startsWith("/proposals") },
+    {
+      href: "/stations",
+      label: t.nav.stations,
+      icon: "🚏",
+      match: (p: string) => p.startsWith("/station"),
+    },
+    {
+      href: "/analytics",
+      label: t.nav.analytics,
+      icon: "📊",
+      match: (p: string) => p.startsWith("/analytics"),
+    },
+    {
+      href: "/community",
+      label: t.nav.community,
+      icon: "🗣️",
+      match: (p: string) =>
+        p.startsWith("/community") || p.startsWith("/reviews") || p.startsWith("/proposals"),
+    },
   ];
 
   return (
@@ -25,9 +41,7 @@ export function BottomNav() {
               key={link.href}
               href={link.href}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium transition-colors ${
-                active
-                  ? "text-accent"
-                  : "text-content-muted hover:text-content-secondary"
+                active ? "text-accent" : "text-content-muted hover:text-content-secondary"
               }`}
             >
               <span className="text-lg leading-none">{link.icon}</span>

@@ -12,7 +12,10 @@ export interface FetchWithRetryOptions {
 
 /** Error subclass for 4xx client errors — never retried. */
 class ClientError extends Error {
-  constructor(message: string, public status: number) {
+  constructor(
+    message: string,
+    public status: number
+  ) {
     super(message);
     this.name = "ClientError";
   }
@@ -48,7 +51,9 @@ export async function fetchWithRetry(
       // Retry on 5xx (server errors)
       if (attempt < maxRetries - 1) {
         const backoffMs = Math.min(1000 * Math.pow(2, attempt), 10000);
-        console.warn(`[fetchWithRetry] Retry ${attempt + 1}/${maxRetries} for ${url} after ${backoffMs}ms`);
+        console.warn(
+          `[fetchWithRetry] Retry ${attempt + 1}/${maxRetries} for ${url} after ${backoffMs}ms`
+        );
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         continue;
       }
@@ -61,7 +66,9 @@ export async function fetchWithRetry(
       }
 
       if (error instanceof Error && error.name === "AbortError") {
-        console.error(`[fetchWithRetry] Timeout (${timeoutMs}ms) on attempt ${attempt + 1} for ${url}`);
+        console.error(
+          `[fetchWithRetry] Timeout (${timeoutMs}ms) on attempt ${attempt + 1} for ${url}`
+        );
       }
 
       if (attempt === maxRetries - 1) {

@@ -27,8 +27,9 @@ describe("fetchWithRetry", () => {
     });
     globalThis.fetch = mockFetch;
 
-    await expect(fetchWithRetry("https://example.com/api", { maxRetries: 3 }))
-      .rejects.toThrow("API returned 404");
+    await expect(fetchWithRetry("https://example.com/api", { maxRetries: 3 })).rejects.toThrow(
+      "API returned 404"
+    );
     // 4xx errors throw ClientError which is caught and re-thrown immediately
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
@@ -49,9 +50,9 @@ describe("fetchWithRetry", () => {
   it("throws after exhausting retries on 5xx", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
 
-    await expect(
-      fetchWithRetry("https://example.com/api", { maxRetries: 2 })
-    ).rejects.toThrow("API returned 500 after 2 attempts");
+    await expect(fetchWithRetry("https://example.com/api", { maxRetries: 2 })).rejects.toThrow(
+      "API returned 500 after 2 attempts"
+    );
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
@@ -71,9 +72,9 @@ describe("fetchWithRetry", () => {
   it("throws after exhausting retries on network errors", async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
-    await expect(
-      fetchWithRetry("https://example.com/api", { maxRetries: 2 })
-    ).rejects.toThrow("Network error");
+    await expect(fetchWithRetry("https://example.com/api", { maxRetries: 2 })).rejects.toThrow(
+      "Network error"
+    );
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 

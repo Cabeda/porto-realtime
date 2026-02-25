@@ -30,20 +30,31 @@ function VehicleReviewsContent() {
   const [showSettings, setShowSettings] = useState(false);
 
   const { data: detail } = useSWR<TargetDetail>(
-    vehicleId ? `/api/feedback/rankings?type=VEHICLE&targetId=${encodeURIComponent(vehicleId)}` : null,
+    vehicleId
+      ? `/api/feedback/rankings?type=VEHICLE&targetId=${encodeURIComponent(vehicleId)}`
+      : null,
     jsonFetcher,
     { revalidateOnFocus: false, dedupingInterval: 30000 }
   );
 
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState<"recent" | "helpful">("recent");
-  const { data: feedbackList, mutate } = useFeedbackList("VEHICLE", vehicleId || null, page, 20, sort);
+  const { data: feedbackList, mutate } = useFeedbackList(
+    "VEHICLE",
+    vehicleId || null,
+    page,
+    20,
+    sort
+  );
 
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
 
-  const handleFeedbackSuccess = useCallback((_feedback: FeedbackItem) => {
-    mutate();
-  }, [mutate]);
+  const handleFeedbackSuccess = useCallback(
+    (_feedback: FeedbackItem) => {
+      mutate();
+    },
+    [mutate]
+  );
 
   if (!vehicleId) {
     return (
@@ -77,8 +88,18 @@ function VehicleReviewsContent() {
                 aria-label={t.nav.settings}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
                 </svg>
               </button>
             </div>
@@ -88,18 +109,19 @@ function VehicleReviewsContent() {
               <span className="text-white text-lg font-bold">{vehicleId}</span>
             </div>
             <div className="flex-1">
-               <h1 className="text-2xl font-bold text-content">
+              <h1 className="text-2xl font-bold text-content">
                 {t.reviews.vehicle} {vehicleId}
               </h1>
               {detail && detail.count > 0 && (
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-yellow-400 text-sm">
-                    {"★".repeat(stars)}{"☆".repeat(5 - stars)}
+                    {"★".repeat(stars)}
+                    {"☆".repeat(5 - stars)}
                   </span>
-                   <span className="text-sm font-semibold text-content-secondary">
+                  <span className="text-sm font-semibold text-content-secondary">
                     {detail.avg.toFixed(1)}
                   </span>
-                   <span className="text-xs text-content-muted">
+                  <span className="text-xs text-content-muted">
                     ({t.feedback.ratings(detail.count)})
                   </span>
                 </div>
@@ -111,7 +133,12 @@ function VehicleReviewsContent() {
               title="View vehicle analytics"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
               </svg>
             </Link>
             <button
@@ -138,13 +165,19 @@ function VehicleReviewsContent() {
               </h2>
               <div className="flex gap-1">
                 <button
-                  onClick={() => { setSort("recent"); setPage(0); }}
+                  onClick={() => {
+                    setSort("recent");
+                    setPage(0);
+                  }}
                   className={`px-2 py-1 text-xs rounded-md transition-colors ${sort === "recent" ? "bg-accent text-white" : "bg-surface-sunken text-content-muted hover:text-content-secondary"}`}
                 >
                   {t.feedback.sortByRecent}
                 </button>
                 <button
-                  onClick={() => { setSort("helpful"); setPage(0); }}
+                  onClick={() => {
+                    setSort("helpful");
+                    setPage(0);
+                  }}
                   className={`px-2 py-1 text-xs rounded-md transition-colors ${sort === "helpful" ? "bg-accent text-white" : "bg-surface-sunken text-content-muted hover:text-content-secondary"}`}
                 >
                   {t.feedback.sortByHelpful}
@@ -155,11 +188,13 @@ function VehicleReviewsContent() {
               <ReviewCard
                 key={f.id}
                 feedback={f}
-                badge={f.metadata?.lineContext ? (
-                  <span className="text-xs text-indigo-500 dark:text-indigo-400 font-medium bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">
-                    {t.reviews.onLine(f.metadata.lineContext)}
-                  </span>
-                ) : undefined}
+                badge={
+                  f.metadata?.lineContext ? (
+                    <span className="text-xs text-indigo-500 dark:text-indigo-400 font-medium bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">
+                      {t.reviews.onLine(f.metadata.lineContext)}
+                    </span>
+                  ) : undefined
+                }
               />
             ))}
 
@@ -188,12 +223,8 @@ function VehicleReviewsContent() {
         ) : feedbackList ? (
           <div className="bg-surface-raised rounded-lg shadow-md p-8 text-center mt-6">
             <div className="text-5xl mb-4">📝</div>
-            <h3 className="text-lg font-semibold text-content mb-2">
-              {t.reviews.noReviews}
-            </h3>
-            <p className="text-content-muted text-sm">
-              {t.reviews.noReviewsDesc}
-            </p>
+            <h3 className="text-lg font-semibold text-content mb-2">{t.reviews.noReviews}</h3>
+            <p className="text-content-muted text-sm">{t.reviews.noReviewsDesc}</p>
           </div>
         ) : (
           <div className="space-y-3 mt-6">

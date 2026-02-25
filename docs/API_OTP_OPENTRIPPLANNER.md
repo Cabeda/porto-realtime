@@ -22,15 +22,15 @@ OpenTripPlanner is an open-source multimodal trip planning engine. It ingests GT
 
 ### Who Maintains It?
 
-| Entity | Role |
-|---|---|
-| **TriMet** (Portland, Oregon) | Founding agency (2009). Continuous contributor. |
-| **OpenPlans** | Original non-profit coordinator (2009–2012). |
-| **Conveyal** | Technical leads for OTP1; created the R5 engine that influenced OTP2. |
-| **IBI Group / Arcadis** | Current commercial maintainers of the original developer team (since 2019). |
-| **Entur** (Norway) | Primary driver and funder of OTP2 architecture. PLC member Thomas Gran. |
-| **HSL / Digitransit** (Finland) | Major contributor to OTP2. PLC member Joel Lappalainen. |
-| **Software Freedom Conservancy** | Non-profit home handling legal and financial governance (since 2013). |
+| Entity                           | Role                                                                        |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| **TriMet** (Portland, Oregon)    | Founding agency (2009). Continuous contributor.                             |
+| **OpenPlans**                    | Original non-profit coordinator (2009–2012).                                |
+| **Conveyal**                     | Technical leads for OTP1; created the R5 engine that influenced OTP2.       |
+| **IBI Group / Arcadis**          | Current commercial maintainers of the original developer team (since 2019). |
+| **Entur** (Norway)               | Primary driver and funder of OTP2 architecture. PLC member Thomas Gran.     |
+| **HSL / Digitransit** (Finland)  | Major contributor to OTP2. PLC member Joel Lappalainen.                     |
+| **Software Freedom Conservancy** | Non-profit home handling legal and financial governance (since 2013).       |
 
 ### Who Hosts the Porto Instance?
 
@@ -44,14 +44,14 @@ OpenTripPlanner is an open-source multimodal trip planning engine. It ingests GT
 
 We use the OTP GraphQL API for **static transit data only** (not trip planning/routing). Our app queries it for:
 
-| Use Case | API Proxy | Query Type | Cache Duration |
-|---|---|---|---|
-| List all stops | `pages/api/stations.tsx` | `stops { id code desc lat lon name gtfsId }` | 30 days |
-| Stop departures (real-time) | `pages/api/station.tsx` | `stop(id) { stoptimesWithoutPatterns { ... } }` | None (real-time) |
-| Route info + stops + geometry | `app/api/line/route.ts` | `routes(name) { patterns { stops, patternGeometry } }` | 1 hour |
-| All route shapes | `pages/api/route-shapes.tsx` | `routes { patterns { patternGeometry } }` | 24 hours |
-| Route destinations (for bus labels) | `pages/api/buses.tsx` | `routes { shortName longName patterns { headsign directionId } }` | 24 hours |
-| Simulated bus polylines | `lib/simulate.ts` | `routes(name) { patterns { patternGeometry } }` | In-memory |
+| Use Case                            | API Proxy                    | Query Type                                                        | Cache Duration   |
+| ----------------------------------- | ---------------------------- | ----------------------------------------------------------------- | ---------------- |
+| List all stops                      | `pages/api/stations.tsx`     | `stops { id code desc lat lon name gtfsId }`                      | 30 days          |
+| Stop departures (real-time)         | `pages/api/station.tsx`      | `stop(id) { stoptimesWithoutPatterns { ... } }`                   | None (real-time) |
+| Route info + stops + geometry       | `app/api/line/route.ts`      | `routes(name) { patterns { stops, patternGeometry } }`            | 1 hour           |
+| All route shapes                    | `pages/api/route-shapes.tsx` | `routes { patterns { patternGeometry } }`                         | 24 hours         |
+| Route destinations (for bus labels) | `pages/api/buses.tsx`        | `routes { shortName longName patterns { headsign directionId } }` | 24 hours         |
+| Simulated bus polylines             | `lib/simulate.ts`            | `routes(name) { patterns { patternGeometry } }`                   | In-memory        |
 
 ---
 
@@ -73,28 +73,28 @@ type Query {
 
 type Stop {
   id: ID!
-  gtfsId: String!          # e.g. "2:BRRS2" (feedId:stopId)
-  name: String!            # e.g. "Boavista - Casa da Música"
-  code: String             # Short code displayed at physical stop
-  desc: String             # Description
+  gtfsId: String! # e.g. "2:BRRS2" (feedId:stopId)
+  name: String! # e.g. "Boavista - Casa da Música"
+  code: String # Short code displayed at physical stop
+  desc: String # Description
   lat: Float!
   lon: Float!
-  routes: [Route]          # Routes serving this stop
-  parentStation: Stop      # Parent station (if grouped)
+  routes: [Route] # Routes serving this stop
+  parentStation: Stop # Parent station (if grouped)
   stoptimesWithoutPatterns(
-    startTime: Long!       # Unix timestamp (seconds)
-    timeRange: Int!        # Seconds to look ahead
+    startTime: Long! # Unix timestamp (seconds)
+    timeRange: Int! # Seconds to look ahead
     numberOfDepartures: Int!
     omitCanceled: Boolean
   ): [Stoptime]
 }
 
 type Route {
-  gtfsId: String!          # e.g. "2:205"
-  shortName: String!       # e.g. "205"
-  longName: String         # e.g. "Campanhã - Castelo do Queijo"
-  mode: String             # e.g. "BUS"
-  color: String            # Hex color for the route
+  gtfsId: String! # e.g. "2:205"
+  shortName: String! # e.g. "205"
+  longName: String # e.g. "Campanhã - Castelo do Queijo"
+  mode: String # e.g. "BUS"
+  color: String # Hex color for the route
   agency: Agency
   patterns: [Pattern]
   alerts: [Alert]
@@ -104,28 +104,28 @@ type Pattern {
   id: ID!
   code: String
   name: String
-  headsign: String         # e.g. "Castelo do Queijo"
-  directionId: Int         # 0 or 1
-  stops: [Stop]            # Ordered list of stops in this pattern
+  headsign: String # e.g. "Castelo do Queijo"
+  directionId: Int # 0 or 1
+  stops: [Stop] # Ordered list of stops in this pattern
   trips: [Trip]
   patternGeometry: Geometry
 }
 
 type Geometry {
-  length: Int              # Number of points
-  points: String           # Google Encoded Polyline string
+  length: Int # Number of points
+  points: String # Google Encoded Polyline string
 }
 
 type Stoptime {
-  realtimeState: String    # "SCHEDULED", "UPDATED", "CANCELED"
-  realtimeDeparture: Int   # Seconds since midnight (real-time adjusted)
-  scheduledDeparture: Int  # Seconds since midnight (scheduled)
+  realtimeState: String # "SCHEDULED", "UPDATED", "CANCELED"
+  realtimeDeparture: Int # Seconds since midnight (real-time adjusted)
+  scheduledDeparture: Int # Seconds since midnight (scheduled)
   realtimeArrival: Int
   scheduledArrival: Int
-  arrivalDelay: Int        # Seconds of delay (positive = late)
+  arrivalDelay: Int # Seconds of delay (positive = late)
   departureDelay: Int
-  realtime: Boolean        # Whether real-time data is available
-  serviceDay: Long         # Unix timestamp of the service day start
+  realtime: Boolean # Whether real-time data is available
+  serviceDay: Long # Unix timestamp of the service day start
   headsign: String
   trip: Trip
 }
@@ -164,6 +164,7 @@ The `patternGeometry.points` field returns a [Google Encoded Polyline](https://d
 ## Example Queries
 
 ### Get all stops
+
 ```graphql
 query {
   stops {
@@ -179,6 +180,7 @@ query {
 ```
 
 ### Get departures for a stop
+
 ```graphql
 query StopDepartures($id: String!, $startTime: Long!, $timeRange: Int!, $numberOfDepartures: Int!) {
   stop(id: $id) {
@@ -199,7 +201,12 @@ query StopDepartures($id: String!, $startTime: Long!, $timeRange: Int!, $numberO
       headsign
       trip {
         gtfsId
-        route { shortName longName mode color }
+        route {
+          shortName
+          longName
+          mode
+          color
+        }
       }
     }
   }
@@ -207,6 +214,7 @@ query StopDepartures($id: String!, $startTime: Long!, $timeRange: Int!, $numberO
 ```
 
 Variables:
+
 ```json
 {
   "id": "2:BRRS2",
@@ -217,6 +225,7 @@ Variables:
 ```
 
 ### Get route info with patterns, stops, and geometry
+
 ```graphql
 query RouteInfo($name: String!) {
   routes(name: $name) {
@@ -244,6 +253,7 @@ query RouteInfo($name: String!) {
 ```
 
 Variables:
+
 ```json
 { "name": "205" }
 ```

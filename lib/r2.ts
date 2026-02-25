@@ -48,9 +48,7 @@ export async function listArchiveDates(): Promise<string[]> {
     const dates: string[] = [];
     for (const obj of result.Contents ?? []) {
       // Key format: positions/YYYY/MM/DD.parquet
-      const match = obj.Key?.match(
-        /^positions\/(\d{4})\/(\d{2})\/(\d{2})\.parquet$/
-      );
+      const match = obj.Key?.match(/^positions\/(\d{4})\/(\d{2})\/(\d{2})\.parquet$/);
       if (match) {
         dates.push(`${match[1]}-${match[2]}-${match[3]}`);
       }
@@ -67,9 +65,7 @@ export async function listArchiveDates(): Promise<string[]> {
  * Generate a presigned URL for a position archive Parquet file.
  * URL is valid for 1 hour. Zero egress cost on R2.
  */
-export async function getArchiveUrl(
-  date: string
-): Promise<string | null> {
+export async function getArchiveUrl(date: string): Promise<string | null> {
   const client = getClient();
   if (!client) return null;
 
@@ -77,11 +73,9 @@ export async function getArchiveUrl(
   const key = `positions/${year}/${month}/${day}.parquet`;
 
   try {
-    const url = await getSignedUrl(
-      client,
-      new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }),
-      { expiresIn: 3600 }
-    );
+    const url = await getSignedUrl(client, new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }), {
+      expiresIn: 3600,
+    });
     return url;
   } catch (error) {
     console.error("R2 presign error:", error);

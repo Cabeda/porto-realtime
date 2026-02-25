@@ -8,23 +8,31 @@ import { DesktopNav } from "@/components/DesktopNav";
 type ExportType = "positions" | "route-performance" | "segments";
 type ExportFormat = "json" | "csv" | "geojson" | "parquet";
 
-const EXPORT_TYPES: { value: ExportType; label: string; description: string; formats: ExportFormat[] }[] = [
+const EXPORT_TYPES: {
+  value: ExportType;
+  label: string;
+  description: string;
+  formats: ExportFormat[];
+}[] = [
   {
     value: "positions",
     label: "Bus Positions",
-    description: "Raw GPS positions collected every 30 seconds from FIWARE. Today's data from the database (JSON/CSV); older days archived as Parquet on R2.",
+    description:
+      "Raw GPS positions collected every 30 seconds from FIWARE. Today's data from the database (JSON/CSV); older days archived as Parquet on R2.",
     formats: ["json", "csv", "parquet"],
   },
   {
     value: "route-performance",
     label: "Route Performance",
-    description: "Daily aggregated metrics per route: headway, EWT, adherence, speed, bunching, gapping. Supports date range filtering.",
+    description:
+      "Daily aggregated metrics per route: headway, EWT, adherence, speed, bunching, gapping. Supports date range filtering.",
     formats: ["json", "csv"],
   },
   {
     value: "segments",
     label: "Route Segments",
-    description: "~200m road segments with geometry for each route pattern. Useful for GIS analysis and mapping.",
+    description:
+      "~200m road segments with geometry for each route pattern. Useful for GIS analysis and mapping.",
     formats: ["json", "geojson"],
   },
 ];
@@ -40,9 +48,7 @@ export default function DataPage() {
   const [type, setType] = useState<ExportType>("route-performance");
   const [format, setFormat] = useState<ExportFormat>("csv");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [from, setFrom] = useState(
-    new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
-  );
+  const [from, setFrom] = useState(new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [route, setRoute] = useState("");
   const [downloading, setDownloading] = useState(false);
@@ -61,7 +67,7 @@ export default function DataPage() {
     setType(newType);
     const newTypeConfig = EXPORT_TYPES.find((t) => t.value === newType)!;
     if (!newTypeConfig.formats.includes(format)) {
-      setFormat(newTypeConfig.formats[0]);
+      setFormat(newTypeConfig.formats[0]!);
     }
   }
 
@@ -120,7 +126,9 @@ export default function DataPage() {
       <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">&larr;</Link>
+            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">
+              &larr;
+            </Link>
             <h1 className="text-xl font-bold text-content">Download Data</h1>
           </div>
           <DesktopNav />
@@ -217,9 +225,7 @@ export default function DataPage() {
           {/* Route filter */}
           {type !== "segments" && (
             <div>
-              <label className="text-sm font-medium block mb-1">
-                Route (optional)
-              </label>
+              <label className="text-sm font-medium block mb-1">Route (optional)</label>
               <input
                 type="text"
                 value={route}
@@ -245,7 +251,8 @@ export default function DataPage() {
           <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
             <div className="text-sm font-medium mb-1">Position Archives</div>
             <p className="text-sm text-[var(--color-content-secondary)] mb-3">
-              Historical bus positions archived as Parquet files. Zero egress cost via Cloudflare R2.
+              Historical bus positions archived as Parquet files. Zero egress cost via Cloudflare
+              R2.
             </p>
             <div className="flex flex-wrap gap-2">
               {archives.dates.map((d) => (

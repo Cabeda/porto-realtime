@@ -61,7 +61,8 @@ export function ReviewCard({ feedback: f, badge, targetName }: ReviewCardProps) 
     <div className="bg-surface-raised rounded-lg shadow-md p-4">
       <div className="flex items-center gap-2 mb-2">
         <span className="text-yellow-400 text-sm">
-          {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
+          {"★".repeat(f.rating)}
+          {"☆".repeat(5 - f.rating)}
         </span>
         {badge}
         {/* Author badges */}
@@ -106,17 +107,19 @@ export function ReviewCard({ feedback: f, badge, targetName }: ReviewCardProps) 
         </div>
       )}
 
-      {f.comment && (
-        <p className="text-sm text-content-secondary mb-2">{f.comment}</p>
-      )}
+      {f.comment && <p className="text-sm text-content-secondary mb-2">{f.comment}</p>}
 
       {/* Operator response */}
       {f.operatorResponse && (
         <div className="mt-2 mb-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] p-3">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-xs font-semibold text-[var(--color-content)]">🏢 Official response</span>
+            <span className="text-xs font-semibold text-[var(--color-content)]">
+              🏢 Official response
+            </span>
             {f.operatorResponse.status !== "OPEN" && (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_COLOR[f.operatorResponse.status]}`}>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_COLOR[f.operatorResponse.status]}`}
+              >
                 {STATUS_LABEL[f.operatorResponse.status]}
               </span>
             )}
@@ -128,7 +131,9 @@ export function ReviewCard({ feedback: f, badge, targetName }: ReviewCardProps) 
               })}
             </span>
           </div>
-          <p className="text-xs text-[var(--color-content-secondary)]">{f.operatorResponse.message}</p>
+          <p className="text-xs text-[var(--color-content-secondary)]">
+            {f.operatorResponse.message}
+          </p>
         </div>
       )}
 

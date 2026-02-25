@@ -4,7 +4,13 @@
  * Rating distribution bar chart — shows count per star level.
  * Expects `distribution` as [1star, 2star, 3star, 4star, 5star] from the API.
  */
-export function RatingDistribution({ distribution, total }: { distribution: number[]; total: number }) {
+export function RatingDistribution({
+  distribution,
+  total,
+}: {
+  distribution: number[];
+  total: number;
+}) {
   const maxCount = Math.max(...distribution, 1);
 
   return (
@@ -20,11 +26,11 @@ export function RatingDistribution({ distribution, total }: { distribution: numb
             <div className="flex-1 h-2 bg-surface-sunken rounded-full overflow-hidden">
               <div
                 className="h-full bg-yellow-400 rounded-full transition-all"
-                style={{ width: `${(distribution[star - 1] / maxCount) * 100}%` }}
+                style={{ width: `${((distribution[star - 1] ?? 0) / maxCount) * 100}%` }}
               />
             </div>
             <span className="text-xs text-content-muted w-6 text-right">
-              {distribution[star - 1]}
+              {distribution[star - 1] ?? 0}
             </span>
           </div>
         ))}

@@ -67,5 +67,9 @@ export async function GET(request: Request) {
     upserted += batch.length;
   }
 
-  return NextResponse.json({ upserted, play: playReviews.length, appstore: appStoreReviews.length });
+  return NextResponse.json({
+    upserted,
+    play: playReviews.length,
+    appstore: appStoreReviews.length,
+  });
 }

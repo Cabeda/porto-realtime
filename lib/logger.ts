@@ -1,7 +1,7 @@
 // Environment-aware logging utility
 export const logger = {
   log: (...args: any[]) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       console.log(...args);
     }
   },
@@ -10,7 +10,7 @@ export const logger = {
     console.error(...args);
   },
   warn: (...args: any[]) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       console.warn(...args);
     }
   },

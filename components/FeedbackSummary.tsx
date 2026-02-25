@@ -40,11 +40,7 @@ export function FeedbackSummary({ summary, onClick, compact }: FeedbackSummaryPr
         {"☆".repeat(5 - stars)}
       </span>
       <span className="font-semibold">{displayAvg}</span>
-      {!compact && (
-        <span className="text-content-muted">
-          ({t.ratings(summary.count)})
-        </span>
-      )}
+      {!compact && <span className="text-content-muted">({t.ratings(summary.count)})</span>}
     </>
   );
 

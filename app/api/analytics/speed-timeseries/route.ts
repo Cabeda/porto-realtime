@@ -18,9 +18,7 @@ function buildHourlyTimeseries(hourly: Map<number, number[]>) {
       hour: h,
       label: `${h.toString().padStart(2, "0")}:00`,
       avgSpeed: speeds
-        ? Math.round(
-            (speeds.reduce((a, b) => a + b, 0) / speeds.length) * 10
-          ) / 10
+        ? Math.round((speeds.reduce((a, b) => a + b, 0) / speeds.length) * 10) / 10
         : null,
       samples: speeds?.length ?? 0,
     });
@@ -56,7 +54,10 @@ export async function GET(request: NextRequest) {
         hourly.get(h)!.push(p.speed!);
       }
 
-      return NextResponse.json({ period: "today", timeseries: buildHourlyTimeseries(hourly) }, { headers: NO_CACHE });
+      return NextResponse.json(
+        { period: "today", timeseries: buildHourlyTimeseries(hourly) },
+        { headers: NO_CACHE }
+      );
     }
 
     if (filter.mode === "date") {
@@ -80,7 +81,10 @@ export async function GET(request: NextRequest) {
           if (!hourly.has(h)) hourly.set(h, []);
           hourly.get(h)!.push(p.speed!);
         }
-        return NextResponse.json({ period: filter.dateStr, timeseries: buildHourlyTimeseries(hourly) }, { headers: CACHE });
+        return NextResponse.json(
+          { period: filter.dateStr, timeseries: buildHourlyTimeseries(hourly) },
+          { headers: CACHE }
+        );
       }
 
       // Fall back to SegmentSpeedHourly for this date
@@ -105,9 +109,7 @@ export async function GET(request: NextRequest) {
         timeseries.push({
           hour: h,
           label: `${h.toString().padStart(2, "0")}:00`,
-          avgSpeed: agg && agg.count > 0
-            ? Math.round((agg.total / agg.count) * 10) / 10
-            : null,
+          avgSpeed: agg && agg.count > 0 ? Math.round((agg.total / agg.count) * 10) / 10 : null,
           samples: agg?.count ?? 0,
         });
       }
@@ -137,9 +139,7 @@ export async function GET(request: NextRequest) {
       timeseries.push({
         hour: h,
         label: `${h.toString().padStart(2, "0")}:00`,
-        avgSpeed: agg && agg.count > 0
-          ? Math.round((agg.total / agg.count) * 10) / 10
-          : null,
+        avgSpeed: agg && agg.count > 0 ? Math.round((agg.total / agg.count) * 10) / 10 : null,
         samples: agg?.count ?? 0,
       });
     }
@@ -147,9 +147,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ period: filter.period, timeseries }, { headers: CACHE });
   } catch (error) {
     console.error("Speed timeseries error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch speed timeseries" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch speed timeseries" }, { status: 500 });
   }
 }

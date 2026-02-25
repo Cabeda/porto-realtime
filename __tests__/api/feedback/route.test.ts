@@ -33,7 +33,11 @@ function mockAuthenticatedSession() {
   });
   mockPrisma.user.upsert.mockResolvedValue({ id: "user1", email: "test@example.com" });
   // Auto-upvote mock (added by tags/moderation feature)
-  mockPrisma.feedbackVote.upsert.mockResolvedValue({ id: "vote1", userId: "user1", feedbackId: "fb1" });
+  mockPrisma.feedbackVote.upsert.mockResolvedValue({
+    id: "vote1",
+    userId: "user1",
+    feedbackId: "fb1",
+  });
 }
 
 describe("GET /api/feedback", () => {
@@ -223,7 +227,7 @@ describe("POST /api/feedback", () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
 
-    const upsertCall = mockPrisma.feedback.upsert.mock.calls[0][0];
+    const upsertCall = mockPrisma.feedback.upsert.mock.calls[0]![0];
     expect(upsertCall.create.comment.length).toBeLessThanOrEqual(500);
   });
 
@@ -261,7 +265,7 @@ describe("POST /api/feedback", () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
 
-    const upsertCall = mockPrisma.feedback.upsert.mock.calls[0][0];
+    const upsertCall = mockPrisma.feedback.upsert.mock.calls[0]![0];
     expect(upsertCall.create.comment).not.toContain("<");
     expect(upsertCall.create.comment).toContain("Hello");
   });
@@ -341,7 +345,7 @@ describe("POST /api/feedback", () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
 
-    const upsertCall = mockPrisma.feedback.upsert.mock.calls[0][0];
+    const upsertCall = mockPrisma.feedback.upsert.mock.calls[0]![0];
     expect(upsertCall.create.metadata).toEqual({ lineContext: "205" });
   });
 });

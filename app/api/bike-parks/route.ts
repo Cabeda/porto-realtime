@@ -51,16 +51,25 @@ export async function GET() {
     const raw = await response.json();
     const stations = raw?.data?.bikeRentalStations || [];
 
-    const parks = stations.map((station: { id: string; name?: string; lat: number; lon: number; spacesAvailable?: number; bikesAvailable?: number }) => ({
-      id: station.id,
-      name: station.name || "Parque desconhecido",
-      lat: station.lat,
-      lon: station.lon,
-      capacity: (station.spacesAvailable || 0) + (station.bikesAvailable || 0),
-      occupied: station.bikesAvailable || 0,
-      available: station.spacesAvailable || 0,
-      lastUpdated: new Date().toISOString(),
-    }));
+    const parks = stations.map(
+      (station: {
+        id: string;
+        name?: string;
+        lat: number;
+        lon: number;
+        spacesAvailable?: number;
+        bikesAvailable?: number;
+      }) => ({
+        id: station.id,
+        name: station.name || "Parque desconhecido",
+        lat: station.lat,
+        lon: station.lon,
+        capacity: (station.spacesAvailable || 0) + (station.bikesAvailable || 0),
+        occupied: station.bikesAvailable || 0,
+        available: station.spacesAvailable || 0,
+        lastUpdated: new Date().toISOString(),
+      })
+    );
 
     const data: BikeParkData = { parks };
     staleCache.set(data);

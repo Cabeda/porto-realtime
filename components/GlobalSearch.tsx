@@ -101,7 +101,10 @@ export function GlobalSearch({ availableRoutes }: { availableRoutes?: RouteInfo[
 
     // Search stops
     const matchingStops = stops.filter(
-      (s) => s.name.toLowerCase().includes(q) || s.code?.toLowerCase().includes(q) || s.gtfsId.toLowerCase().includes(q)
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.code?.toLowerCase().includes(q) ||
+        s.gtfsId.toLowerCase().includes(q)
     );
     for (const s of matchingStops.slice(0, 8)) {
       items.push({
@@ -164,9 +167,7 @@ export function GlobalSearch({ availableRoutes }: { availableRoutes?: RouteInfo[
                   {item.type === "line" ? "🚌" : "🚏"}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-content truncate">
-                    {item.label}
-                  </div>
+                  <div className="text-sm font-medium text-content truncate">{item.label}</div>
                   {item.sublabel && (
                     <div className="text-xs text-content-muted">{item.sublabel}</div>
                   )}
