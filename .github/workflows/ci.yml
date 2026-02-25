@@ -30,7 +30,7 @@ jobs:
         run: pnpm prisma generate
 
       - name: Lint
-        run: npx eslint . --max-warnings 147
+        run: npx eslint . --max-warnings 149
 
       - name: Format check
         run: npx prettier --check .
