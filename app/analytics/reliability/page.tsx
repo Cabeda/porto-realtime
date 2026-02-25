@@ -3,7 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
-import { computeGrade } from "@/lib/analytics/metrics";
+import { computeGrade as _computeGrade } from "@/lib/analytics/metrics";
 import {
   BarChart,
   Bar,

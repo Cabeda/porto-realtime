@@ -49,7 +49,7 @@ interface LineInfo {
 const jsonFetcher = (url: string) => fetch(url).then((r) => r.json());
 
 // Lightweight route map — renders polylines + stop markers via Leaflet
-function RouteMap({ patterns, stops, lineId }: { patterns: LinePattern[]; stops: LineStop[]; lineId: string }) {
+function RouteMap({ patterns, stops, lineId: _lineId }: { patterns: LinePattern[]; stops: LineStop[]; lineId: string }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("leaflet").Map | null>(null);
   const [selectedDirection, setSelectedDirection] = useState(0);

@@ -65,6 +65,7 @@ describe("GET /api/feedback", () => {
     const mockFeedbacks = [
       {
         id: "fb1",
+        userId: "user1",
         type: "STOP",
         targetId: "2:BRRS2",
         rating: 4,
@@ -79,6 +80,9 @@ describe("GET /api/feedback", () => {
 
     mockPrisma.feedback.findMany.mockResolvedValue(mockFeedbacks);
     mockPrisma.feedback.count.mockResolvedValue(1);
+    // Badge computation mocks
+    mockPrisma.feedback.groupBy.mockResolvedValue([]);
+    mockPrisma.feedbackVote.groupBy.mockResolvedValue([]);
 
     const req = makeGetRequest({ type: "STOP", targetId: "2:BRRS2" });
     const res = await GET(req);

@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, Suspense, useCallback } from "react";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import Link from "next/link";
 import "leaflet/dist/leaflet.css";
 import { useTranslations } from "@/lib/hooks/useTranslations";
@@ -78,7 +79,7 @@ function MapPageContent() {
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [, setHasCompletedOnboarding] = useState(false);
   const [showLocationSuccess, setShowLocationSuccess] = useState(false);
   const [degradedDismissed, setDegradedDismissed] = useState(false);
   const [mapStyle, setMapStyle] = useState(() => {
@@ -102,7 +103,7 @@ function MapPageContent() {
     }
     return true;
   });
-  const [busNumberFilter, setBusNumberFilter] = useState("");
+  const [_busNumberFilter, _setBusNumberFilter] = useState("");
 
   // Feedback state for bottom sheet (triggered by bus popup custom event)
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
@@ -418,7 +419,7 @@ function MapPageContent() {
   useEffect(() => { localStorage.setItem("showActivity", JSON.stringify(showActivity)); }, [showActivity]);
   useEffect(() => { localStorage.setItem("showAnimations", JSON.stringify(showAnimations)); }, [showAnimations]);
 
-  const handleRateLine = useCallback((route: string) => {
+  const _handleRateLine = useCallback((route: string) => {
     setFeedbackLineId(route);
     setFeedbackLineName(`${t.reviews.line} ${route}`);
     setShowFeedbackSheet(true);
@@ -469,13 +470,13 @@ function MapPageContent() {
     );
   };
 
-  const toggleBikeLane = (laneId: string) => {
+  const _toggleBikeLane = (laneId: string) => {
     setSelectedBikeLanes(prev =>
       prev.includes(laneId) ? prev.filter(id => id !== laneId) : [...prev, laneId]
     );
   };
 
-  const clearBikeLaneFilters = () => {
+  const _clearBikeLaneFilters = () => {
     setSelectedBikeLanes([]);
   };
 

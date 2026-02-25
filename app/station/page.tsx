@@ -67,7 +67,7 @@ function SearchStation() {
   }, [feedbackTargetType, mutateStopSummaries, mutateLineSummaries]);
 
   // Live countdown tick
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(id);

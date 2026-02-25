@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import Link from "next/link";
 import { DesktopNav } from "@/components/DesktopNav";
-import { BADGES, type BadgeId } from "@/lib/badges";
+import { BADGES } from "@/lib/badges";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 

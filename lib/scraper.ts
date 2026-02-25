@@ -10,9 +10,9 @@
  *   App Store:  id1234567890 (Portugal store)
  */
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const gplay = require("google-play-scraper");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const appStore = require("app-store-scraper");
 
 export const STCP_PLAY_ID = "pt.stcp.android";

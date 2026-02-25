@@ -165,9 +165,9 @@ function pathIntersectsBounds(path: [number, number][], bounds: LatLngBounds, bu
  * enter or leave the viewport without touching bike animations.
  */
 export function ActivityBubbles({ map, show, bikeLanes, animate = true, activeCheckIns, userLocation }: ActivityBubblesProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const markersRef = useRef<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const badgeMarkersRef = useRef<any[]>([]);
   const animFrameRef = useRef<number | null>(null);
   // Stable ref for badge data so moveend handler can access latest without re-running main effect

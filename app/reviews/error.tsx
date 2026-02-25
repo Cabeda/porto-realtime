@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 export default function ReviewsError({
-  error,
+  error: _error,
   reset,
 }: {
   error: Error & { digest?: string };

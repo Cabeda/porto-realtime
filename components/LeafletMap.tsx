@@ -957,16 +957,16 @@ export function LeafletMap({
         const laneRiders = checkInCounts.get(`BIKE:${lane.name}`) || 0;
 
         // Compute a midpoint from the lane's first segment for fallback check-in location
-        let midLat = '';
-        let midLon = '';
+        let _midLat = '';
+        let _midLon = '';
         if (Array.isArray(lane.segments) && lane.segments.length > 0) {
           const seg = lane.segments[0];
           if (Array.isArray(seg) && seg.length >= 2) {
             const midIdx = Math.floor(seg.length / 2);
             const coord = seg[midIdx];
             if (Array.isArray(coord) && coord.length >= 2) {
-              midLat = String(Number(coord[1]));
-              midLon = String(Number(coord[0]));
+              const _midLat = String(Number(coord[1]));
+              const _midLon = String(Number(coord[0]));
             }
           }
         }

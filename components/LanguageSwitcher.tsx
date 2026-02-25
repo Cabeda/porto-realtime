@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale, type Locale } from "@/lib/i18n";
+import { useLocale } from "@/lib/i18n";
 
 export function LanguageSwitcher() {
   const { locale, setLocale } = useLocale();

@@ -70,7 +70,7 @@ interface PatternGeometry {
 }
 
 export default function HistoryPage() {
-  const today = new Date().toISOString().slice(0, 10);
+  const _today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
 
   const [date, setDate] = useState(yesterday);
@@ -246,7 +246,7 @@ export default function HistoryPage() {
   const totalMs = replayData
     ? replayData.dayEndMs - replayData.dayStartMs
     : 1;
-  const progressPct = replayData
+  const _progressPct = replayData
     ? ((currentMs - replayData.dayStartMs) / totalMs) * 100
     : 0;
 

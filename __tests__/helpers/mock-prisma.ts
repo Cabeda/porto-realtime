@@ -16,6 +16,7 @@ export const mockPrisma = {
   },
   feedbackVote: {
     upsert: vi.fn(),
+    groupBy: vi.fn(),
   },
   report: {
     create: vi.fn(),
