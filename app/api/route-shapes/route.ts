@@ -5,6 +5,7 @@ import { OTPRouteShapesResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 import { toTitleCase } from "@/lib/strings";
 import { readFallback } from "@/lib/fallback";
+import { logger } from "@/lib/logger";
 
 interface PatternGeometry {
   patternId: string;
@@ -40,7 +41,7 @@ export async function GET() {
   }
 
   try {
-    console.log("Fetching route shapes from OTP...");
+    logger.log("Fetching route shapes from OTP...");
 
     const response = await fetchWithRetry(
       "https://otp.portodigital.pt/otp/routers/default/index/graphql",
@@ -86,7 +87,7 @@ export async function GET() {
     }
 
     const routes = parsed.success ? parsed.data.data.routes : raw.data.routes;
-    console.log(`Received ${routes.length} routes from OTP`);
+    logger.log(`Received ${routes.length} routes from OTP`);
 
     const allPatterns: PatternGeometry[] = [];
 
@@ -130,7 +131,7 @@ export async function GET() {
       }
     );
 
-    console.log(`Fetched ${allPatterns.length} route patterns with geometry`);
+    logger.log(`Fetched ${allPatterns.length} route patterns with geometry`);
 
     staleCache.set(allPatterns);
 
@@ -149,7 +150,7 @@ export async function GET() {
     console.error("Error fetching route shapes:", error);
 
     if (cached) {
-      console.log("Returning stale route shapes from cache");
+      logger.log("Returning stale route shapes from cache");
       return NextResponse.json(
         { patterns: cached.data },
         { headers: { "X-Cache-Status": "STALE" } }
@@ -159,7 +160,7 @@ export async function GET() {
     // Layer 4: static fallback from public/fallback/route-shapes.json
     const fallback = await readFallback<{ patterns: PatternGeometry[] }>("route-shapes.json");
     if (fallback?.patterns?.length) {
-      console.log("Returning static fallback for route shapes");
+      logger.log("Returning static fallback for route shapes");
       return NextResponse.json(fallback, {
         headers: { "X-Cache-Status": "FALLBACK" },
       });

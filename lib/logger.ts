@@ -1,16 +1,31 @@
-// Environment-aware logging utility
+/* eslint-disable no-console */
+// Environment-aware structured logging utility
+//
+// Server-side (API routes, cron jobs): always logs — these run in Node.js
+// where stdout is captured by the platform (Vercel, Docker, etc.).
+//
+// Client-side (components): only logs in development to keep the browser
+// console clean in production.
+
+const isServer = typeof window === "undefined";
+
 export const logger = {
-  log: (...args: any[]) => {
-    if (process.env.NODE_ENV === "development") {
+  log: (...args: unknown[]) => {
+    if (isServer || process.env.NODE_ENV === "development") {
       console.log(...args);
     }
   },
-  error: (...args: any[]) => {
+  info: (...args: unknown[]) => {
+    if (isServer || process.env.NODE_ENV === "development") {
+      console.info(...args);
+    }
+  },
+  error: (...args: unknown[]) => {
     // Always log errors
     console.error(...args);
   },
-  warn: (...args: any[]) => {
-    if (process.env.NODE_ENV === "development") {
+  warn: (...args: unknown[]) => {
+    if (isServer || process.env.NODE_ENV === "development") {
       console.warn(...args);
     }
   },

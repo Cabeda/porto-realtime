@@ -1008,10 +1008,6 @@ const locales = { pt, en } as const;
 
 export type TranslationsType = typeof pt;
 
-// Default export for backward compatibility — returns PT translations
-// Components should use useTranslations() hook instead
-export const translations = pt;
-
 export function getTranslations(locale: Locale): TranslationsType {
   return locales[locale];
 }

@@ -194,6 +194,3 @@ export const bikeLanesFetcher = async (url: string): Promise<BikeLanesResponse> 
   storage.set("cachedBikeLanes", data, 7);
   return data;
 };
-
-// Simple JSON fetcher
-export const fetcher = (url: string) => fetch(url).then((res) => res.json());

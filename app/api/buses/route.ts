@@ -10,6 +10,7 @@ import {
 } from "@/lib/schemas/fiware";
 import { OTPRoutesResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry } from "@/lib/api-fetch";
+import { logger } from "@/lib/logger";
 
 interface Bus {
   id: string;
@@ -116,7 +117,7 @@ async function fetchRouteDestinations(): Promise<Map<string, RouteDirectionMap>>
     routeDestinationsCache = routeMap;
     cacheTimestamp = now;
 
-    console.log(`Cached destinations for ${routeMap.size} routes`);
+    logger.log(`Cached destinations for ${routeMap.size} routes`);
     return routeMap;
   } catch (error) {
     console.error("Error fetching route destinations:", error);
@@ -359,7 +360,7 @@ export async function GET(request: NextRequest) {
 
     const now = Date.now();
     if (lastSuccessfulBusData && now - lastSuccessfulTimestamp < STALE_DATA_THRESHOLD) {
-      console.log("Returning stale bus data from cache");
+      logger.log("Returning stale bus data from cache");
       return NextResponse.json(
         { buses: lastSuccessfulBusData, stale: true },
         {

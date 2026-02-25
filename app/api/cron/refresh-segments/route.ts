@@ -13,6 +13,7 @@ import { splitIntoSegments } from "@/lib/analytics/segments";
 import { fetchWithRetry } from "@/lib/api-fetch";
 // @ts-ignore - No types available for @mapbox/polyline
 import polyline from "@mapbox/polyline";
+import { logger } from "@/lib/logger";
 
 const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 
@@ -121,7 +122,7 @@ export async function GET(request: Request) {
     }
 
     const elapsed = Date.now() - startTime;
-    console.log(
+    logger.log(
       `Segment refresh: ${totalSegments} segments from ${routes.length} routes in ${elapsed}ms`
     );
 

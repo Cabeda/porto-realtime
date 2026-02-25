@@ -13,7 +13,7 @@
  * Schedule adherence was 94.8% in 2024.
  * Source: https://expresso.pt/sociedade/2024-09-19-vias-bus-estagnaram-em-lisboa-e-no-porto-velocidade-de-circulacao-de-autocarros-em-minimos-historicos-cd8d31a5
  */
-export const STCP_BASELINES = {
+const STCP_BASELINES = {
   /** Network commercial speed 2024 — historic low (km/h) */
   commercialSpeedKmh: 15.4,
   /** Schedule adherence 2024 (%) */

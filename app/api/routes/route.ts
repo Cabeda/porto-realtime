@@ -4,6 +4,7 @@ import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 import { toTitleCase } from "@/lib/strings";
 import { readFallback } from "@/lib/fallback";
 import type { RouteInfo } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 const staleCache = new StaleCache<RouteInfo[]>(24 * 60 * 60 * 1000); // 24 hours
 
@@ -104,7 +105,7 @@ export async function GET() {
     // Layer 4: static fallback from public/fallback/routes.json
     const fallback = await readFallback<{ routes: RouteInfo[] }>("routes.json");
     if (fallback?.routes?.length) {
-      console.log("Returning static fallback for routes");
+      logger.log("Returning static fallback for routes");
       return NextResponse.json(fallback, {
         headers: { "X-Cache-Status": "FALLBACK" },
       });

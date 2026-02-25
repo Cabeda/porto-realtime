@@ -30,7 +30,7 @@ jobs:
         run: pnpm prisma generate
 
       - name: Lint
-        run: npx eslint . --max-warnings 149
+        run: npx eslint . --max-warnings 141
 
       - name: Format check
         run: npx prettier --check .
@@ -40,3 +40,6 @@ jobs:
 
       - name: Test with coverage
         run: pnpm vitest run --coverage
+
+      - name: Security audit
+        run: pnpm audit --audit-level=critical

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 import { readFallback } from "@/lib/fallback";
+import { logger } from "@/lib/logger";
 
 const CACHE_DURATION = 7 * 24 * 60 * 60; // 7 days in seconds
 
@@ -161,7 +162,7 @@ export async function GET() {
     // Layer 4: static fallback from public/fallback/bike-lanes.json
     const fallback = await readFallback<BikeLaneData>("bike-lanes.json");
     if (fallback?.lanes?.length) {
-      console.log("Returning static fallback for bike lanes");
+      logger.log("Returning static fallback for bike lanes");
       return NextResponse.json(fallback, {
         headers: { "X-Cache-Status": "FALLBACK" },
       });

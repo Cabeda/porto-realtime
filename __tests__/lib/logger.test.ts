@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 describe("logger", () => {
   let consoleSpy: {
     log: ReturnType<typeof vi.spyOn>;
+    info: ReturnType<typeof vi.spyOn>;
     error: ReturnType<typeof vi.spyOn>;
     warn: ReturnType<typeof vi.spyOn>;
   };
@@ -11,6 +12,7 @@ describe("logger", () => {
   beforeEach(() => {
     consoleSpy = {
       log: vi.spyOn(console, "log").mockImplementation(() => {}),
+      info: vi.spyOn(console, "info").mockImplementation(() => {}),
       error: vi.spyOn(console, "error").mockImplementation(() => {}),
       warn: vi.spyOn(console, "warn").mockImplementation(() => {}),
     };
@@ -27,10 +29,12 @@ describe("logger", () => {
     vi.unstubAllEnvs();
   });
 
-  it("does not log in production mode", () => {
+  it("logs on server side in production (typeof window === 'undefined')", () => {
+    // Vitest runs in Node.js where typeof window === "undefined" (server-side)
+    // The logger should always log server-side, even in production
     vi.stubEnv("NODE_ENV", "production");
-    logger.log("test message");
-    expect(consoleSpy.log).not.toHaveBeenCalled();
+    logger.log("server log");
+    expect(consoleSpy.log).toHaveBeenCalledWith("server log");
     vi.unstubAllEnvs();
   });
 
@@ -48,10 +52,17 @@ describe("logger", () => {
     vi.unstubAllEnvs();
   });
 
-  it("does not warn in production mode", () => {
+  it("warns on server side in production", () => {
     vi.stubEnv("NODE_ENV", "production");
-    logger.warn("warning message");
-    expect(consoleSpy.warn).not.toHaveBeenCalled();
+    logger.warn("server warning");
+    expect(consoleSpy.warn).toHaveBeenCalledWith("server warning");
+    vi.unstubAllEnvs();
+  });
+
+  it("supports info level", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    logger.info("info message");
+    expect(consoleSpy.info).toHaveBeenCalledWith("info message");
     vi.unstubAllEnvs();
   });
 

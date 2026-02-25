@@ -17,7 +17,7 @@ import type {
 } from "@/lib/types";
 
 // Color palette for routes (vibrant colors that work in light and dark mode)
-export const ROUTE_COLORS = [
+const ROUTE_COLORS = [
   "#3b82f6",
   "#ef4444",
   "#10b981",
@@ -30,7 +30,7 @@ export const ROUTE_COLORS = [
   "#84cc16",
 ];
 
-export const getRouteColor = (
+const getRouteColor = (
   routeShortName: string,
   selectedRoutes: string[],
   routeInfos?: RouteInfo[]

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -20,11 +21,11 @@ export function PWAInstallPrompt() {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/" })
         .then((registration) => {
-          console.log("[PWA] Service Worker registered:", registration.scope);
+          logger.log("[PWA] Service Worker registered:", registration.scope);
 
           // More aggressive update checking - every 30 seconds
           setInterval(() => {
-            console.log("[PWA] Checking for updates...");
+            logger.log("[PWA] Checking for updates...");
             registration.update();
           }, 30000);
 
@@ -33,13 +34,13 @@ export function PWAInstallPrompt() {
             const newWorker = registration.installing;
             if (!newWorker) return;
 
-            console.log("[PWA] Update found, new worker installing...");
+            logger.log("[PWA] Update found, new worker installing...");
 
             newWorker.addEventListener("statechange", () => {
-              console.log("[PWA] New worker state:", newWorker.state);
+              logger.log("[PWA] New worker state:", newWorker.state);
               if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
                 // New service worker available
-                console.log("[PWA] New version available - showing update prompt");
+                logger.log("[PWA] New version available - showing update prompt");
                 setUpdateAvailable(true);
                 setShowUpdatePrompt(true);
               }
@@ -56,7 +57,7 @@ export function PWAInstallPrompt() {
       // Listen for messages from service worker
       navigator.serviceWorker.addEventListener("message", (event) => {
         if (event.data && event.data.type === "SW_UPDATED") {
-          console.log("[PWA] Service Worker updated to version:", event.data.version);
+          logger.log("[PWA] Service Worker updated to version:", event.data.version);
           setCurrentVersion(event.data.version || "");
           // Show update notification
           setUpdateAvailable(true);
@@ -66,7 +67,7 @@ export function PWAInstallPrompt() {
 
       // Listen for controller change (new SW activated)
       navigator.serviceWorker.addEventListener("controllerchange", () => {
-        console.log("[PWA] New Service Worker activated, reloading page...");
+        logger.log("[PWA] New Service Worker activated, reloading page...");
         // Reload the page to get the latest content
         window.location.reload();
       });
@@ -105,7 +106,7 @@ export function PWAInstallPrompt() {
 
     // Wait for the user's response
     const { outcome } = await deferredPrompt.userChoice;
-    console.log("[PWA] User choice:", outcome);
+    logger.log("[PWA] User choice:", outcome);
 
     // Clear the prompt
     setDeferredPrompt(null);
@@ -124,11 +125,11 @@ export function PWAInstallPrompt() {
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.getRegistration().then((registration) => {
         if (registration?.waiting) {
-          console.log("[PWA] Telling waiting worker to skip waiting...");
+          logger.log("[PWA] Telling waiting worker to skip waiting...");
           registration.waiting.postMessage({ type: "SKIP_WAITING" });
         } else {
           // If no waiting worker, just reload
-          console.log("[PWA] No waiting worker, forcing reload...");
+          logger.log("[PWA] No waiting worker, forcing reload...");
           window.location.reload();
         }
       });

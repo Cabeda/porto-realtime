@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { reconstructTrips, computeHeadwayMetrics, percentile } from "@/lib/analytics/metrics";
 import { snapToSegment, type SegmentDef } from "@/lib/analytics/segments";
+import { logger } from "@/lib/logger";
 
 export const maxDuration = 60; // Cron jobs run on Fly.io; this route is a manual trigger only
 
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
   today.setUTCDate(today.getUTCDate() + 1);
 
   const dateStr = yesterday.toISOString().slice(0, 10);
-  console.log(`Aggregation starting for ${dateStr}`);
+  logger.log(`Aggregation starting for ${dateStr}`);
 
   try {
     // 1. Fetch all positions for yesterday
@@ -47,11 +48,11 @@ export async function GET(request: Request) {
     });
 
     if (positions.length === 0) {
-      console.log(`No positions found for ${dateStr}`);
+      logger.log(`No positions found for ${dateStr}`);
       return NextResponse.json({ date: dateStr, positions: 0, trips: 0 });
     }
 
-    console.log(`Processing ${positions.length} positions for ${dateStr}`);
+    logger.log(`Processing ${positions.length} positions for ${dateStr}`);
 
     // 2. Group positions by vehicle + route + direction
     const groups = new Map<string, typeof positions>();
@@ -103,7 +104,7 @@ export async function GET(request: Request) {
       });
     }
 
-    console.log(`Reconstructed ${allTrips.length} trips`);
+    logger.log(`Reconstructed ${allTrips.length} trips`);
 
     // 5. Segment speed aggregation
     const segments = await prisma.routeSegment.findMany();
@@ -179,7 +180,7 @@ export async function GET(request: Request) {
         }
       }
 
-      console.log(`Computed ${segSpeedRows.length} segment speed aggregates`);
+      logger.log(`Computed ${segSpeedRows.length} segment speed aggregates`);
     }
 
     // 6. Route performance daily
@@ -233,7 +234,7 @@ export async function GET(request: Request) {
       });
     }
 
-    console.log(`Computed performance for ${routePerfRows.length} route-directions`);
+    logger.log(`Computed performance for ${routePerfRows.length} route-directions`);
 
     // 7. Network summary
     const uniqueVehicles = new Set(positions.map((p) => p.vehicleId)).size;
@@ -285,7 +286,7 @@ export async function GET(request: Request) {
     });
 
     const elapsed = Date.now() - startTime;
-    console.log(
+    logger.log(
       `Aggregation complete for ${dateStr}: ${positions.length} positions, ${allTrips.length} trips in ${elapsed}ms`
     );
 

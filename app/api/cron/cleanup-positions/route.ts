@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 /**
  * Cron job: Delete raw bus positions older than 1 day.
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
     });
 
     const elapsed = Date.now() - startTime;
-    console.log(
+    logger.log(
       `Cleanup: deleted ${result.count} positions older than ${cutoff.toISOString()} in ${elapsed}ms`
     );
 
