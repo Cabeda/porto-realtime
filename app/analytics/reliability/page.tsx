@@ -3,7 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
-import { computeGrade } from "@/lib/analytics/metrics";
+import { computeGrade as _computeGrade } from "@/lib/analytics/metrics";
 import {
   BarChart,
   Bar,
@@ -54,14 +54,35 @@ function GradeBadge({ grade }: { grade: string }) {
   );
 }
 
-function StopHeadwayTooltip({ active, payload }: { active?: boolean; payload?: { payload: { stopName: string | null; stopId: string; avgHeadwaySecs: number | null; headwayStdDev: number | null; observations: number } }[] }) {
+function StopHeadwayTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: {
+    payload: {
+      stopName: string | null;
+      stopId: string;
+      avgHeadwaySecs: number | null;
+      headwayStdDev: number | null;
+      observations: number;
+    };
+  }[];
+}) {
   if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
+  const d = payload[0]!.payload;
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs shadow-lg">
       <div className="font-semibold mb-1">{d.stopName ?? d.stopId}</div>
-      <div>Avg headway: {d.avgHeadwaySecs !== null ? `${Math.round(d.avgHeadwaySecs / 60)}m ${d.avgHeadwaySecs % 60}s` : "—"}</div>
-      <div>Std dev: {d.headwayStdDev !== null ? `${(d.headwayStdDev / 60).toFixed(1)} min` : "—"}</div>
+      <div>
+        Avg headway:{" "}
+        {d.avgHeadwaySecs !== null
+          ? `${Math.round(d.avgHeadwaySecs / 60)}m ${d.avgHeadwaySecs % 60}s`
+          : "—"}
+      </div>
+      <div>
+        Std dev: {d.headwayStdDev !== null ? `${(d.headwayStdDev / 60).toFixed(1)} min` : "—"}
+      </div>
       <div>Arrivals: {d.observations}</div>
     </div>
   );
@@ -72,29 +93,35 @@ export default function ReliabilityPage() {
   const [stopRoute, setStopRoute] = useState("");
   const [stopDirection, setStopDirection] = useState("0");
 
-  const { data } = useSWR(
-    buildApiUrl("/api/analytics/reliability", period),
-    fetcher
-  );
+  const { data } = useSWR(buildApiUrl("/api/analytics/reliability", period), fetcher);
 
-  const stopHeadwayUrl =
-    stopRoute
-      ? `${buildApiUrl("/api/analytics/stop-headways", period)}&route=${stopRoute}&direction=${stopDirection}`
-      : null;
+  const stopHeadwayUrl = stopRoute
+    ? `${buildApiUrl("/api/analytics/stop-headways", period)}&route=${stopRoute}&direction=${stopDirection}`
+    : null;
   const { data: stopData } = useSWR(stopHeadwayUrl, fetcher);
 
-  const chartData = stopData?.stops?.map((s: { stopName: string | null; stopId: string; headwayStdDev: number | null; avgHeadwaySecs: number | null; observations: number }) => ({
-    ...s,
-    label: s.stopName ?? s.stopId,
-    stdDevMins: s.headwayStdDev !== null ? s.headwayStdDev / 60 : 0,
-  }));
+  const chartData = stopData?.stops?.map(
+    (s: {
+      stopName: string | null;
+      stopId: string;
+      headwayStdDev: number | null;
+      avgHeadwaySecs: number | null;
+      observations: number;
+    }) => ({
+      ...s,
+      label: s.stopName ?? s.stopId,
+      stdDevMins: s.headwayStdDev !== null ? s.headwayStdDev / 60 : 0,
+    })
+  );
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
       <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">&larr;</Link>
+            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">
+              &larr;
+            </Link>
             <h1 className="text-xl font-bold text-content">Service Reliability</h1>
           </div>
           <DesktopNav />
@@ -105,11 +132,7 @@ export default function ReliabilityPage() {
           <p className="text-sm text-[var(--color-content-secondary)]">
             Route rankings by headway adherence and excess wait time
           </p>
-          <PeriodSelector
-            value={period}
-            onChange={setPeriod}
-            presets={["7d", "30d"]}
-          />
+          <PeriodSelector value={period} onChange={setPeriod} presets={["7d", "30d"]} />
         </div>
 
         {/* Network KPIs */}
@@ -132,9 +155,7 @@ export default function ReliabilityPage() {
                 <MetricTooltip text={METRIC_TIPS.headwayAdherence} />
               </div>
               <div className="text-2xl font-bold mt-1">
-                {data.networkAdherence !== null
-                  ? `${data.networkAdherence}%`
-                  : "—"}
+                {data.networkAdherence !== null ? `${data.networkAdherence}%` : "—"}
               </div>
             </div>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
@@ -143,18 +164,14 @@ export default function ReliabilityPage() {
                 <MetricTooltip text={METRIC_TIPS.bunching} />
               </div>
               <div className="text-2xl font-bold mt-1">
-                {data.networkBunching !== null
-                  ? `${data.networkBunching}%`
-                  : "—"}
+                {data.networkBunching !== null ? `${data.networkBunching}%` : "—"}
               </div>
             </div>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
               <div className="text-xs text-[var(--color-content-secondary)] uppercase">
                 Routes Tracked
               </div>
-              <div className="text-2xl font-bold mt-1">
-                {data.totalRoutes ?? "—"}
-              </div>
+              <div className="text-2xl font-bold mt-1">{data.totalRoutes ?? "—"}</div>
             </div>
           </div>
         )}
@@ -163,29 +180,43 @@ export default function ReliabilityPage() {
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden mb-8">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-                <thead>
+              <thead>
                 <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-sunken)]">
                   <th className="text-left px-4 py-3 font-medium">Route</th>
                   <th className="text-left px-4 py-3 font-medium">
-                    <span className="inline-flex items-center gap-1">Grade <MetricTooltip text={METRIC_TIPS.grade} /></span>
+                    <span className="inline-flex items-center gap-1">
+                      Grade <MetricTooltip text={METRIC_TIPS.grade} />
+                    </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
-                    <span className="inline-flex items-center justify-end gap-1">EWT <MetricTooltip text={METRIC_TIPS.ewt} /></span>
+                    <span className="inline-flex items-center justify-end gap-1">
+                      EWT <MetricTooltip text={METRIC_TIPS.ewt} />
+                    </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
-                    <span className="inline-flex items-center justify-end gap-1">Adherence <MetricTooltip text={METRIC_TIPS.headwayAdherence} /></span>
+                    <span className="inline-flex items-center justify-end gap-1">
+                      Adherence <MetricTooltip text={METRIC_TIPS.headwayAdherence} />
+                    </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
-                    <span className="inline-flex items-center justify-end gap-1">Speed <MetricTooltip text={METRIC_TIPS.speed} /></span>
+                    <span className="inline-flex items-center justify-end gap-1">
+                      Speed <MetricTooltip text={METRIC_TIPS.speed} />
+                    </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
-                    <span className="inline-flex items-center justify-end gap-1">Bunching <MetricTooltip text={METRIC_TIPS.bunching} /></span>
+                    <span className="inline-flex items-center justify-end gap-1">
+                      Bunching <MetricTooltip text={METRIC_TIPS.bunching} />
+                    </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
-                    <span className="inline-flex items-center justify-end gap-1">Gapping <MetricTooltip text={METRIC_TIPS.gapping} /></span>
+                    <span className="inline-flex items-center justify-end gap-1">
+                      Gapping <MetricTooltip text={METRIC_TIPS.gapping} />
+                    </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
-                    <span className="inline-flex items-center justify-end gap-1">Trips <MetricTooltip text={METRIC_TIPS.trips} /></span>
+                    <span className="inline-flex items-center justify-end gap-1">
+                      Trips <MetricTooltip text={METRIC_TIPS.trips} />
+                    </span>
                   </th>
                 </tr>
               </thead>
@@ -217,14 +248,10 @@ export default function ReliabilityPage() {
                         <GradeBadge grade={r.grade} />
                       </td>
                       <td className="text-right px-4 py-3">
-                        {r.ewt !== null
-                          ? `${Math.floor(r.ewt / 60)}m ${r.ewt % 60}s`
-                          : "—"}
+                        {r.ewt !== null ? `${Math.floor(r.ewt / 60)}m ${r.ewt % 60}s` : "—"}
                       </td>
                       <td className="text-right px-4 py-3">
-                        {r.headwayAdherence !== null
-                          ? `${r.headwayAdherence}%`
-                          : "—"}
+                        {r.headwayAdherence !== null ? `${r.headwayAdherence}%` : "—"}
                       </td>
                       <td className="text-right px-4 py-3">
                         {r.avgSpeed !== null ? `${r.avgSpeed} km/h` : "—"}
@@ -241,15 +268,22 @@ export default function ReliabilityPage() {
                 )}
                 {!data && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-content-secondary)]">
+                    <td
+                      colSpan={8}
+                      className="px-4 py-8 text-center text-[var(--color-content-secondary)]"
+                    >
                       Loading...
                     </td>
                   </tr>
                 )}
                 {data?.rankings?.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-content-secondary)]">
-                      No data available yet. Reliability metrics will appear after the first day of aggregation.
+                    <td
+                      colSpan={8}
+                      className="px-4 py-8 text-center text-[var(--color-content-secondary)]"
+                    >
+                      No data available yet. Reliability metrics will appear after the first day of
+                      aggregation.
                     </td>
                   </tr>
                 )}
@@ -283,9 +317,15 @@ export default function ReliabilityPage() {
 
           {/* Legend */}
           <div className="flex items-center gap-4 mb-4 text-xs text-[var(--color-content-secondary)]">
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-green-500" /> &lt;2 min</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-amber-400" /> 2–5 min</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-red-500" /> &gt;5 min</span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-3 rounded-sm bg-green-500" /> &lt;2 min
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-3 rounded-sm bg-amber-400" /> 2–5 min
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-3 rounded-sm bg-red-500" /> &gt;5 min
+            </span>
             <span className="ml-2">Std dev of headways between consecutive buses</span>
           </div>
 
@@ -296,12 +336,15 @@ export default function ReliabilityPage() {
           )}
 
           {stopRoute && !stopData && (
-            <p className="text-sm text-[var(--color-content-secondary)] py-8 text-center">Loading...</p>
+            <p className="text-sm text-[var(--color-content-secondary)] py-8 text-center">
+              Loading...
+            </p>
           )}
 
           {stopData && stopData.stops?.length === 0 && (
             <p className="text-sm text-[var(--color-content-secondary)] py-8 text-center">
-              No stop data yet for route {stopRoute}. Data will appear the day after the worker runs with the updated schema.
+              No stop data yet for route {stopRoute}. Data will appear the day after the worker runs
+              with the updated schema.
             </p>
           )}
 
@@ -319,7 +362,13 @@ export default function ReliabilityPage() {
                 <YAxis
                   tick={{ fontSize: 11, fill: "var(--color-content-secondary)" }}
                   tickFormatter={(v: number) => `${v.toFixed(1)}m`}
-                  label={{ value: "Std dev (min)", angle: -90, position: "insideLeft", fontSize: 11, fill: "var(--color-content-secondary)" }}
+                  label={{
+                    value: "Std dev (min)",
+                    angle: -90,
+                    position: "insideLeft",
+                    fontSize: 11,
+                    fill: "var(--color-content-secondary)",
+                  }}
                 />
                 <Tooltip content={<StopHeadwayTooltip />} />
                 <Bar dataKey="stdDevMins" radius={[3, 3, 0, 0]}>
@@ -335,4 +384,3 @@ export default function ReliabilityPage() {
     </div>
   );
 }
-

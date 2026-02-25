@@ -16,10 +16,7 @@ export async function GET(request: NextRequest) {
   const targetId = searchParams.get("targetId"); // optional: single target detail
 
   if (!type) {
-    return NextResponse.json(
-      { error: "Missing required parameter: type" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing required parameter: type" }, { status: 400 });
   }
 
   if (!VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
@@ -82,50 +79,52 @@ export async function GET(request: NextRequest) {
       where: { type: feedbackType },
       _avg: { rating: true },
       _count: { rating: true },
-      orderBy: sort === "avg"
-        ? { _avg: { rating: order === "asc" ? "asc" : "desc" } }
-        : { _count: { rating: order === "asc" ? "asc" : "desc" } },
+      orderBy:
+        sort === "avg"
+          ? { _avg: { rating: order === "asc" ? "asc" : "desc" } }
+          : { _count: { rating: order === "asc" ? "asc" : "desc" } },
       take: limit,
     });
 
     // Get recent comments for each target (last 3 with comments)
     const targetIds = summaries.map((s: { targetId: string }) => s.targetId);
-    const recentComments = targetIds.length > 0
-      ? await prisma.feedback.findMany({
-          where: {
-            type: feedbackType,
-            targetId: { in: targetIds },
-            comment: { not: null },
-          },
-          orderBy: { createdAt: "desc" },
-          take: targetIds.length * 3, // up to 3 per target
-          select: {
-            targetId: true,
-            rating: true,
-            comment: true,
-            metadata: true,
-            createdAt: true,
-          },
-        })
-      : [];
+    const recentComments =
+      targetIds.length > 0
+        ? await prisma.feedback.findMany({
+            where: {
+              type: feedbackType,
+              targetId: { in: targetIds },
+              comment: { not: null },
+            },
+            orderBy: { createdAt: "desc" },
+            take: targetIds.length * 3, // up to 3 per target
+            select: {
+              targetId: true,
+              rating: true,
+              comment: true,
+              metadata: true,
+              createdAt: true,
+            },
+          })
+        : [];
 
     // Group comments by targetId (max 3 each)
     const commentsByTarget: Record<string, typeof recentComments> = {};
     for (const c of recentComments) {
       if (!commentsByTarget[c.targetId]) commentsByTarget[c.targetId] = [];
-      if (commentsByTarget[c.targetId].length < 3) {
-        commentsByTarget[c.targetId].push(c);
-      }
+      commentsByTarget[c.targetId]!.length < 3 && commentsByTarget[c.targetId]!.push(c);
     }
 
     const totalTargets = summaries.length;
 
-    const rankings = summaries.map((s: { targetId: string; _avg: { rating: number | null }; _count: { rating: number } }) => ({
-      targetId: s.targetId,
-      avg: Math.round((s._avg.rating ?? 0) * 10) / 10,
-      count: s._count.rating,
-      recentComments: commentsByTarget[s.targetId] || [],
-    }));
+    const rankings = summaries.map(
+      (s: { targetId: string; _avg: { rating: number | null }; _count: { rating: number } }) => ({
+        targetId: s.targetId,
+        avg: Math.round((s._avg.rating ?? 0) * 10) / 10,
+        count: s._count.rating,
+        recentComments: commentsByTarget[s.targetId] || [],
+      })
+    );
 
     return NextResponse.json(
       { rankings, totalTargets },
@@ -137,9 +136,6 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("Error fetching feedback rankings:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch feedback rankings" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch feedback rankings" }, { status: 500 });
   }
 }

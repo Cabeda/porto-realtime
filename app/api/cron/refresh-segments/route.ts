@@ -13,9 +13,9 @@ import { splitIntoSegments } from "@/lib/analytics/segments";
 import { fetchWithRetry } from "@/lib/api-fetch";
 // @ts-ignore - No types available for @mapbox/polyline
 import polyline from "@mapbox/polyline";
+import { logger } from "@/lib/logger";
 
-const OTP_URL =
-  "https://otp.portodigital.pt/otp/routers/default/index/graphql";
+const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -53,10 +53,7 @@ export async function GET(request: Request) {
     const raw = await response.json();
     const routes = raw?.data?.routes;
     if (!Array.isArray(routes)) {
-      return NextResponse.json(
-        { error: "Invalid OTP response" },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "Invalid OTP response" }, { status: 502 });
     }
 
     let totalSegments = 0;
@@ -69,13 +66,12 @@ export async function GET(request: Request) {
         if (!pattern.patternGeometry?.points) continue;
 
         try {
-          const decoded: [number, number][] = polyline.decode(
-            pattern.patternGeometry.points
-          );
+          const decoded: [number, number][] = polyline.decode(pattern.patternGeometry.points);
           // polyline.decode returns [lat, lon], we need [lon, lat]
-          const coordinates: [number, number][] = decoded.map(
-            (c: [number, number]) => [c[1], c[0]]
-          );
+          const coordinates: [number, number][] = decoded.map((c: [number, number]) => [
+            c[1],
+            c[0],
+          ]);
 
           const segments = splitIntoSegments(
             route.shortName,
@@ -126,7 +122,7 @@ export async function GET(request: Request) {
     }
 
     const elapsed = Date.now() - startTime;
-    console.log(
+    logger.log(
       `Segment refresh: ${totalSegments} segments from ${routes.length} routes in ${elapsed}ms`
     );
 
@@ -137,9 +133,6 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Segment refresh failed:", error);
-    return NextResponse.json(
-      { error: "Segment refresh failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Segment refresh failed" }, { status: 500 });
   }
 }

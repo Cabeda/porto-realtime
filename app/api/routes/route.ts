@@ -4,6 +4,7 @@ import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 import { toTitleCase } from "@/lib/strings";
 import { readFallback } from "@/lib/fallback";
 import type { RouteInfo } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 const staleCache = new StaleCache<RouteInfo[]>(24 * 60 * 60 * 1000); // 24 hours
 
@@ -54,13 +55,21 @@ export async function GET() {
     const validatedRoutes = parsed.success ? parsed.data.data.routes : raw.data.routes;
 
     const routes: RouteInfo[] = validatedRoutes
-      .map((r: { shortName: string; longName: string; mode: string; gtfsId: string; color?: string | null }) => ({
-        shortName: r.shortName,
-        longName: toTitleCase(r.longName ?? ""),
-        mode: r.mode as RouteInfo["mode"],
-        gtfsId: r.gtfsId,
-        color: r.color || null,
-      }))
+      .map(
+        (r: {
+          shortName: string;
+          longName: string;
+          mode: string;
+          gtfsId: string;
+          color?: string | null;
+        }) => ({
+          shortName: r.shortName,
+          longName: toTitleCase(r.longName ?? ""),
+          mode: r.mode as RouteInfo["mode"],
+          gtfsId: r.gtfsId,
+          color: r.color || null,
+        })
+      )
       .sort((a: RouteInfo, b: RouteInfo) => {
         if (a.mode !== b.mode) {
           if (a.mode === "BUS") return -1;
@@ -90,24 +99,18 @@ export async function GET() {
     console.error("Error fetching routes:", error);
 
     if (cached) {
-      return NextResponse.json(
-        { routes: cached.data },
-        { headers: { "X-Cache-Status": "STALE" } }
-      );
+      return NextResponse.json({ routes: cached.data }, { headers: { "X-Cache-Status": "STALE" } });
     }
 
     // Layer 4: static fallback from public/fallback/routes.json
     const fallback = await readFallback<{ routes: RouteInfo[] }>("routes.json");
     if (fallback?.routes?.length) {
-      console.log("Returning static fallback for routes");
+      logger.log("Returning static fallback for routes");
       return NextResponse.json(fallback, {
         headers: { "X-Cache-Status": "FALLBACK" },
       });
     }
 
-    return NextResponse.json(
-      { error: "Failed to fetch routes", routes: [] },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch routes", routes: [] }, { status: 500 });
   }
 }

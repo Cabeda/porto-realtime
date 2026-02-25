@@ -15,7 +15,7 @@ const MAX_TARGET_ID_LENGTH = 100;
 const PORTO_BOUNDS = {
   minLat: 40.95,
   maxLat: 41.35,
-  minLon: -8.80,
+  minLon: -8.8,
   maxLon: -8.45,
 };
 
@@ -28,21 +28,28 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 /** Check if coordinates are within the Porto metropolitan area */
 function isWithinPortoBounds(lat: number, lon: number): boolean {
-  return lat >= PORTO_BOUNDS.minLat && lat <= PORTO_BOUNDS.maxLat
-    && lon >= PORTO_BOUNDS.minLon && lon <= PORTO_BOUNDS.maxLon;
+  return (
+    lat >= PORTO_BOUNDS.minLat &&
+    lat <= PORTO_BOUNDS.maxLat &&
+    lon >= PORTO_BOUNDS.minLon &&
+    lon <= PORTO_BOUNDS.maxLon
+  );
 }
 
 /** Hash IP + User-Agent for anonymous rate limiting. Never stored — used in-memory only. */
 function anonFingerprint(request: NextRequest): string {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip")
-    || "unknown";
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
   const ua = request.headers.get("user-agent") || "";
   return createHash("sha256").update(`${ip}:${ua}`).digest("hex");
 }
@@ -89,10 +96,7 @@ export async function POST(request: NextRequest) {
 
   // Anti-spoofing: reject coordinates outside Porto metropolitan area
   if (checkinLat !== null && checkinLon !== null && !isWithinPortoBounds(checkinLat, checkinLon)) {
-    return NextResponse.json(
-      { error: "Coordinates outside service area" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Coordinates outside service area" }, { status: 400 });
   }
 
   const transitMode = mode as "BUS" | "METRO" | "BIKE";
@@ -113,12 +117,12 @@ export async function POST(request: NextRequest) {
           select: { id: true },
         });
         if (user) {
-          prevCheckIn = await prisma.checkIn.findMany({
+          prevCheckIn = (await prisma.checkIn.findMany({
             where: { userId: user.id },
             select: { lat: true, lon: true, createdAt: true },
             orderBy: { createdAt: "desc" },
             take: 1,
-          }) as { lat: number; lon: number; createdAt: Date }[];
+          })) as { lat: number; lon: number; createdAt: Date }[];
         }
       } else if (fingerprintShort) {
         prevCheckIn = await prisma.$queryRaw<{ lat: number; lon: number; createdAt: Date }[]>`
@@ -128,10 +132,16 @@ export async function POST(request: NextRequest) {
         `;
       }
 
-      if (prevCheckIn.length > 0 && prevCheckIn[0].lat != null && prevCheckIn[0].lon != null) {
-        const prev = prevCheckIn[0];
-        const distKm = haversineKm(prev.lat, prev.lon, checkinLat, checkinLon);
-        const timeDiffHours = (now.getTime() - new Date(prev.createdAt).getTime()) / (1000 * 60 * 60);
+      const prevRecord = prevCheckIn[0];
+      if (
+        prevCheckIn.length > 0 &&
+        prevRecord &&
+        prevRecord.lat != null &&
+        prevRecord.lon != null
+      ) {
+        const distKm = haversineKm(prevRecord.lat, prevRecord.lon, checkinLat, checkinLon);
+        const timeDiffHours =
+          (now.getTime() - new Date(prevRecord.createdAt).getTime()) / (1000 * 60 * 60);
         if (timeDiffHours > 0 && distKm / timeDiffHours > MAX_SPEED_KMH) {
           return NextResponse.json(
             { error: "Location change too fast. Please try again later." },
@@ -186,11 +196,15 @@ export async function POST(request: NextRequest) {
         WHERE "userId" IS NULL
           AND "anonHash" = ${fingerprintShort}
           AND "expiresAt" > ${now}
-      `.then(rows => Number(rows[0].count));
+      `.then((rows) => Number(rows[0].count));
 
       if (existingActive > 0) {
         return NextResponse.json(
-          { error: "ALREADY_CHECKED_IN", message: "You already have an active check-in. Wait for it to expire or sign in to change it." },
+          {
+            error: "ALREADY_CHECKED_IN",
+            message:
+              "You already have an active check-in. Wait for it to expire or sign in to change it.",
+          },
           { status: 409 }
         );
       }
@@ -201,7 +215,7 @@ export async function POST(request: NextRequest) {
         WHERE "userId" IS NULL
           AND "anonHash" = ${fingerprintShort}
           AND "createdAt" >= ${windowStart}
-      `.then(rows => Number(rows[0].count));
+      `.then((rows) => Number(rows[0].count));
 
       if (recentCount >= ANON_RATE_LIMIT_PER_IP) {
         return NextResponse.json(
@@ -220,7 +234,13 @@ export async function POST(request: NextRequest) {
         VALUES (${id}, ${transitMode}::"TransitMode", ${targetId || null}, ${checkinLat}, ${checkinLon}, ${expiresAt}, ${now}, ${fingerprintShort})
       `;
 
-      const checkIn = { id, mode: transitMode, targetId: targetId || null, createdAt: now.toISOString(), expiresAt: expiresAt.toISOString() };
+      const checkIn = {
+        id,
+        mode: transitMode,
+        targetId: targetId || null,
+        createdAt: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+      };
 
       // Set a cookie with the fingerprint hash so we can loosely track
       // "this browser's check-in" without storing any personal data
@@ -236,10 +256,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("Error creating check-in:", error);
-    return NextResponse.json(
-      { error: "Failed to create check-in" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create check-in" }, { status: 500 });
   }
 }
 
@@ -251,10 +268,7 @@ export async function DELETE(request: NextRequest) {
   const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
-    return NextResponse.json(
-      { error: "Authentication required." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
   try {
@@ -274,10 +288,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ deleted: true });
   } catch (error) {
     console.error("Error deleting check-in:", error);
-    return NextResponse.json(
-      { error: "Failed to delete check-in" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete check-in" }, { status: 500 });
   }
 }
 

@@ -35,7 +35,7 @@ export function UserMenu() {
     );
   }
 
-  const initial = (user.name?.[0] || user.email[0]).toUpperCase();
+  const initial = (user.name?.[0] || user.email[0] || "?").toUpperCase();
 
   return (
     <div className="relative">
@@ -51,10 +51,7 @@ export function UserMenu() {
       {showDropdown && (
         <>
           {/* Backdrop to close dropdown */}
-          <div
-            className="fixed inset-0 z-20"
-            onClick={() => setShowDropdown(false)}
-          />
+          <div className="fixed inset-0 z-20" onClick={() => setShowDropdown(false)} />
           <div className="absolute right-0 top-10 z-30 bg-surface-raised rounded-lg shadow-xl border border-border py-2 min-w-[200px]">
             <div className="px-3 py-2 border-b border-border">
               {user.name && (

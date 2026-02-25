@@ -10,6 +10,7 @@ import {
 } from "@/lib/schemas/fiware";
 import { OTPRoutesResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry } from "@/lib/api-fetch";
+import { logger } from "@/lib/logger";
 
 interface Bus {
   id: string;
@@ -42,7 +43,10 @@ const STALE_DATA_THRESHOLD = 5 * 60 * 1000; // 5 minutes
 // fetchWithRetry is now imported from @/lib/api-fetch
 
 export function buildRouteDestinationMap(
-  routes: Array<{ shortName: string; patterns: Array<{ headsign?: string | null; directionId: number }> }>
+  routes: Array<{
+    shortName: string;
+    patterns: Array<{ headsign?: string | null; directionId: number }>;
+  }>
 ): Map<string, RouteDirectionMap> {
   const routeMap = new Map<string, RouteDirectionMap>();
 
@@ -72,9 +76,7 @@ export function buildRouteDestinationMap(
   return routeMap;
 }
 
-async function fetchRouteDestinations(): Promise<
-  Map<string, RouteDirectionMap>
-> {
+async function fetchRouteDestinations(): Promise<Map<string, RouteDirectionMap>> {
   const now = Date.now();
 
   // Return cached data if still valid
@@ -115,7 +117,7 @@ async function fetchRouteDestinations(): Promise<
     routeDestinationsCache = routeMap;
     cacheTimestamp = now;
 
-    console.log(`Cached destinations for ${routeMap.size} routes`);
+    logger.log(`Cached destinations for ${routeMap.size} routes`);
     return routeMap;
   } catch (error) {
     console.error("Error fetching route destinations:", error);
@@ -262,11 +264,7 @@ export async function GET(request: NextRequest) {
 
             if (routeShortName === "Unknown" && parts.length >= 4) {
               const candidate = parts[parts.length - 2];
-              if (
-                candidate &&
-                candidate !== "Vehicle" &&
-                candidate !== "stcp"
-              ) {
+              if (candidate && candidate !== "Vehicle" && candidate !== "stcp") {
                 routeShortName = candidate;
               }
             }
@@ -275,9 +273,7 @@ export async function GET(request: NextRequest) {
 
         // Extract direction from FIWARE annotations
         // STCP uses 1-indexed sentido (1, 2), OTP uses 0-indexed directionId (0, 1)
-        const { directionId, tripId } = parseAnnotations(
-          unwrapAnnotations(entity.annotations)
-        );
+        const { directionId, tripId } = parseAnnotations(unwrapAnnotations(entity.annotations));
 
         // Get destination from cache based on route number and direction
         let routeLongName =
@@ -294,11 +290,8 @@ export async function GET(request: NextRequest) {
 
           // Prefer the headsign for the known direction; fall back to direction 0
           const resolvedDirection =
-            directionId !== null && routeData.directionHeadsigns.has(directionId)
-              ? directionId
-              : 0;
-          const directionHeadsigns =
-            routeData.directionHeadsigns.get(resolvedDirection);
+            directionId !== null && routeData.directionHeadsigns.has(directionId) ? directionId : 0;
+          const directionHeadsigns = routeData.directionHeadsigns.get(resolvedDirection);
           routeLongName = directionHeadsigns?.[0] || "";
         }
 
@@ -314,9 +307,9 @@ export async function GET(request: NextRequest) {
         if (typeof vehicleNumber === "string") {
           const parts = vehicleNumber.trim().split(/\s+/);
           if (parts.length > 0) {
-            const lastPart = parts[parts.length - 1];
+            const lastPart = parts[parts.length - 1]!;
             if (/^\d+$/.test(lastPart)) {
-              cleanVehicleNumber = lastPart;
+              cleanVehicleNumber = lastPart as string;
             }
           }
         }
@@ -324,9 +317,7 @@ export async function GET(request: NextRequest) {
         const heading = unwrap(entity.heading) || unwrap(entity.bearing) || 0;
         const speed = unwrap(entity.speed) || 0;
         const lastUpdated =
-          unwrap(entity.dateModified) ||
-          unwrap(entity.timestamp) ||
-          new Date().toISOString();
+          unwrap(entity.dateModified) || unwrap(entity.timestamp) || new Date().toISOString();
 
         return {
           id: entity.id,
@@ -359,8 +350,7 @@ export async function GET(request: NextRequest) {
       { buses },
       {
         headers: {
-          "Cache-Control":
-            "public, s-maxage=10, stale-while-revalidate=60",
+          "Cache-Control": "public, s-maxage=10, stale-while-revalidate=60",
           "X-Response-Time": `${responseTime}ms`,
         },
       }
@@ -369,11 +359,8 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching buses:", error);
 
     const now = Date.now();
-    if (
-      lastSuccessfulBusData &&
-      now - lastSuccessfulTimestamp < STALE_DATA_THRESHOLD
-    ) {
-      console.log("Returning stale bus data from cache");
+    if (lastSuccessfulBusData && now - lastSuccessfulTimestamp < STALE_DATA_THRESHOLD) {
+      logger.log("Returning stale bus data from cache");
       return NextResponse.json(
         { buses: lastSuccessfulBusData, stale: true },
         {

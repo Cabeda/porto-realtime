@@ -21,8 +21,7 @@ export const PORTAL_QUEIXA_URL =
   "https://portaldaqueixa.com/brands/stcp-sociedade-de-transportes-colectivos-do-porto-s-a";
 
 /** Livro de Reclamações online form */
-export const LIVRO_RECLAMACOES_URL =
-  "https://www.livroreclamacoes.pt/Pedido/Reclamacao";
+export const LIVRO_RECLAMACOES_URL = "https://www.livroreclamacoes.pt/Pedido/Reclamacao";
 
 /**
  * Build a pre-filled complaint context string users can paste into external forms.
@@ -54,8 +53,7 @@ export function buildComplaintContext(opts: {
     year: "numeric",
   });
 
-  const tagStr =
-    opts.tags.length > 0 ? `Issues reported: ${opts.tags.join(", ")}. ` : "";
+  const tagStr = opts.tags.length > 0 ? `Issues reported: ${opts.tags.join(", ")}. ` : "";
 
   const commentStr = opts.comment ? `"${opts.comment}" ` : "";
 

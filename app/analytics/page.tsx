@@ -55,22 +55,13 @@ function KpiCard({
         {tooltip && <MetricTooltip text={tooltip} />}
       </div>
       <div className="mt-1 flex items-baseline gap-1">
-        <span
-          className="text-2xl font-bold"
-          style={color ? { color } : undefined}
-        >
+        <span className="text-2xl font-bold" style={color ? { color } : undefined}>
           {value ?? "—"}
         </span>
-        {unit && (
-          <span className="text-sm text-[var(--color-content-secondary)]">
-            {unit}
-          </span>
-        )}
+        {unit && <span className="text-sm text-[var(--color-content-secondary)]">{unit}</span>}
       </div>
       {subtitle && (
-        <div className="mt-1 text-xs text-[var(--color-content-secondary)]">
-          {subtitle}
-        </div>
+        <div className="mt-1 text-xs text-[var(--color-content-secondary)]">{subtitle}</div>
       )}
     </div>
   );
@@ -87,24 +78,21 @@ export default function AnalyticsDashboard() {
     return selectedRoute ? `${url}&route=${encodeURIComponent(selectedRoute)}` : url;
   }
 
-  const { data: summary } = useSWR(
-    buildApiUrl("/api/analytics/network-summary", period),
-    fetcher,
-    { refreshInterval: period === "today" ? 300000 : 0 }
-  );
+  const { data: summary } = useSWR(buildApiUrl("/api/analytics/network-summary", period), fetcher, {
+    refreshInterval: period === "today" ? 300000 : 0,
+  });
 
-  const { data: speedTs } = useSWR(
-    buildUrl("/api/analytics/speed-timeseries"),
-    fetcher
-  );
+  const { data: speedTs } = useSWR(buildUrl("/api/analytics/speed-timeseries"), fetcher);
 
-  const { data: fleet } = useSWR(
-    buildUrl("/api/analytics/fleet-activity"),
-    fetcher,
-    { refreshInterval: period === "today" ? 300000 : 0 }
-  );
+  const { data: fleet } = useSWR(buildUrl("/api/analytics/fleet-activity"), fetcher, {
+    refreshInterval: period === "today" ? 300000 : 0,
+  });
 
-  const periodLabel = isDateStr(period) ? period : period === "today" ? "right now" : `over ${period}`;
+  const periodLabel = isDateStr(period)
+    ? period
+    : period === "today"
+      ? "right now"
+      : `over ${period}`;
 
   // For "today", null-out trailing hours with no data so the chart stops
   // at the current hour rather than misleadingly sloping to zero.
@@ -114,8 +102,11 @@ export default function AnalyticsDashboard() {
     if (period !== "today") return ts;
     let last = ts.length - 1;
     while (last > 0 && ts[last].totalVehicles === 0) last--;
-    return ts.map((entry: { hour: number; label: string; totalVehicles: number; routes: unknown[] }, i: number) =>
-      i > last ? { ...entry, totalVehicles: null } : entry
+    return ts.map(
+      (
+        entry: { hour: number; label: string; totalVehicles: number; routes: unknown[] },
+        i: number
+      ) => (i > last ? { ...entry, totalVehicles: null } : entry)
     );
   })();
 
@@ -158,8 +149,8 @@ export default function AnalyticsDashboard() {
               summary?.activeVehicles != null
                 ? summary.activeVehicles
                 : summary?.days != null
-                ? `${summary.days} days`
-                : null
+                  ? `${summary.days} days`
+                  : null
             }
             subtitle={periodLabel}
             tooltip={METRIC_TIPS.activeBuses}
@@ -173,8 +164,8 @@ export default function AnalyticsDashboard() {
                 ? summary.avgSpeed > 15
                   ? "#22c55e"
                   : summary.avgSpeed > 10
-                  ? "#eab308"
-                  : "#ef4444"
+                    ? "#eab308"
+                    : "#ef4444"
                 : undefined
             }
             tooltip={METRIC_TIPS.networkSpeed}
@@ -196,8 +187,8 @@ export default function AnalyticsDashboard() {
                 ? summary.ewt < 120
                   ? "#22c55e"
                   : summary.ewt < 240
-                  ? "#eab308"
-                  : "#ef4444"
+                    ? "#eab308"
+                    : "#ef4444"
                 : undefined
             }
             tooltip={METRIC_TIPS.ewt}
@@ -256,9 +247,7 @@ export default function AnalyticsDashboard() {
 
         {/* Speed Over Time Chart */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
-          <h2 className="text-lg font-semibold mb-4">
-            Average Speed by Hour
-          </h2>
+          <h2 className="text-lg font-semibold mb-4">Average Speed by Hour</h2>
           {speedTs?.timeseries ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={speedTs.timeseries}>
@@ -288,22 +277,42 @@ export default function AnalyticsDashboard() {
                   dot={false}
                   name="Avg Speed"
                 />
-                <ReferenceLine y={18} stroke="#22c55e" strokeDasharray="4 3" label={{ value: "Meta EU 18", fill: "#22c55e", fontSize: 11, position: "insideTopRight" }} />
-                <ReferenceLine y={12} stroke="#eab308" strokeDasharray="4 3" label={{ value: "Mínimo 12", fill: "#eab308", fontSize: 11, position: "insideTopRight" }} />
+                <ReferenceLine
+                  y={18}
+                  stroke="#22c55e"
+                  strokeDasharray="4 3"
+                  label={{
+                    value: "Meta EU 18",
+                    fill: "#22c55e",
+                    fontSize: 11,
+                    position: "insideTopRight",
+                  }}
+                />
+                <ReferenceLine
+                  y={12}
+                  stroke="#eab308"
+                  strokeDasharray="4 3"
+                  label={{
+                    value: "Mínimo 12",
+                    fill: "#eab308",
+                    fontSize: 11,
+                    position: "insideTopRight",
+                  }}
+                />
               </LineChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-[300px] flex items-center justify-center text-[var(--color-content-secondary)]">
-              {speedTs === undefined ? "Loading..." : "No data available yet. Data will appear after the first day of collection."}
+              {speedTs === undefined
+                ? "Loading..."
+                : "No data available yet. Data will appear after the first day of collection."}
             </div>
           )}
         </div>
 
         {/* Fleet Activity Chart */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-          <h2 className="text-lg font-semibold mb-4">
-            Active Buses by Hour
-          </h2>
+          <h2 className="text-lg font-semibold mb-4">Active Buses by Hour</h2>
           {fleetTimeseries ? (
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={fleetTimeseries}>
@@ -313,9 +322,7 @@ export default function AnalyticsDashboard() {
                   tick={{ fontSize: 12, fill: "var(--color-content-secondary)" }}
                   interval={2}
                 />
-                <YAxis
-                  tick={{ fontSize: 12, fill: "var(--color-content-secondary)" }}
-                />
+                <YAxis tick={{ fontSize: 12, fill: "var(--color-content-secondary)" }} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "var(--color-surface)",
@@ -338,7 +345,8 @@ export default function AnalyticsDashboard() {
             <div className="h-[300px] flex items-center justify-center text-[var(--color-content-secondary)]">
               {fleet === undefined ? "Loading..." : "No data available yet."}
             </div>
-          )}        </div>
+          )}{" "}
+        </div>
       </div>
     </div>
   );

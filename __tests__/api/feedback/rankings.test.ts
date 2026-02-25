@@ -60,9 +60,7 @@ describe("GET /api/feedback/rankings", () => {
 
   it("returns single-target detail with distribution", async () => {
     mockPrisma.feedback.groupBy
-      .mockResolvedValueOnce([
-        { targetId: "205", _avg: { rating: 4.0 }, _count: { rating: 50 } },
-      ])
+      .mockResolvedValueOnce([{ targetId: "205", _avg: { rating: 4.0 }, _count: { rating: 50 } }])
       .mockResolvedValueOnce([
         { rating: 1, _count: { rating: 2 } },
         { rating: 2, _count: { rating: 3 } },

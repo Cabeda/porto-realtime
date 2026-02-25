@@ -10,7 +10,8 @@ const pt = {
     refreshTitle: "Clique para atualizar autocarros e localização",
     centerMapTitle: "Centrar mapa na minha localização",
     geolocationNotSupported: "Geolocalização não é suportada pelo seu navegador",
-    locationPermissionDenied: "Permissão de localização negada - usando localização padrão do Porto",
+    locationPermissionDenied:
+      "Permissão de localização negada - usando localização padrão do Porto",
     unableToGetLocation: "Não foi possível obter a sua localização",
     locationRefreshFailed: "Atualização da localização falhou, mantendo localização atual",
     route: "Rota",
@@ -18,13 +19,15 @@ const pt = {
     speed: "Velocidade",
     lastUpdated: "Última atualização",
     kmh: "km/h",
-    errorLoadingBuses: "Falha ao carregar dados de autocarros. Por favor, tente novamente mais tarde.",
+    errorLoadingBuses:
+      "Falha ao carregar dados de autocarros. Por favor, tente novamente mais tarde.",
     stopsUnavailableError: "Paragens de autocarro indisponíveis. O mapa mostra apenas autocarros.",
     loadingBusLocations: "A carregar localizações de autocarros...",
     filterRoutes: "Filtrar linhas",
     allRoutes: "Todas as linhas",
     clearFilters: "Limpar filtros",
-    routesSelected: (count: number) => `${count} linha${count !== 1 ? "s" : ""} selecionada${count !== 1 ? "s" : ""}`,
+    routesSelected: (count: number) =>
+      `${count} linha${count !== 1 ? "s" : ""} selecionada${count !== 1 ? "s" : ""}`,
     busLines: "Autocarros",
     metroLines: "Metro",
     live: "Em tempo real",
@@ -128,13 +131,14 @@ const pt = {
     thisMonth: "Este mês",
     allTime: "Sempre",
     stats: "Resumo",
-    totalReviews: (n: number) => n === 1 ? "1 avaliação" : `${n} avaliações`,
-    totalVotes: (n: number) => n === 1 ? "1 voto" : `${n} votos`,
-    activeReviewers: (n: number) => n === 1 ? "1 avaliador" : `${n} avaliadores`,
+    totalReviews: (n: number) => (n === 1 ? "1 avaliação" : `${n} avaliações`),
+    totalVotes: (n: number) => (n === 1 ? "1 voto" : `${n} votos`),
+    activeReviewers: (n: number) => (n === 1 ? "1 avaliador" : `${n} avaliadores`),
     topTags: "Temas mais reportados",
     noData: "Sem dados suficientes",
-    noDataDesc: "Ainda não há avaliações suficientes para mostrar tendências. Seja o primeiro a avaliar!",
-    votes: (n: number) => n === 1 ? "1 voto" : `${n} votos`,
+    noDataDesc:
+      "Ainda não há avaliações suficientes para mostrar tendências. Seja o primeiro a avaliar!",
+    votes: (n: number) => (n === 1 ? "1 voto" : `${n} votos`),
   },
   feedback: {
     rate: "Avaliar",
@@ -150,7 +154,7 @@ const pt = {
     error: "Erro ao enviar. Tente novamente.",
     rateLimited: "Pode avaliar novamente em alguns minutos",
     noRatingsYet: "Seja o primeiro a avaliar!",
-    ratings: (count: number) => count === 1 ? "1 avaliação" : `${count} avaliações`,
+    ratings: (count: number) => (count === 1 ? "1 avaliação" : `${count} avaliações`),
     recentComments: "Comentários recentes",
     showMore: "Ver mais",
     rateThisStop: "Avaliar esta paragem",
@@ -164,7 +168,8 @@ const pt = {
     vehicleOnLine: (line: string) => `A operar na linha ${line}`,
     characters: (count: number, max: number) => `${count}/${max}`,
     helpful: "Útil",
-    helpfulCount: (count: number) => count === 1 ? "1 pessoa achou útil" : `${count} pessoas acharam útil`,
+    helpfulCount: (count: number) =>
+      count === 1 ? "1 pessoa achou útil" : `${count} pessoas acharam útil`,
     sortByRecent: "Mais recentes",
     sortByHelpful: "Mais úteis",
     loginToVote: "Inicie sessão para votar",
@@ -210,7 +215,8 @@ const pt = {
     sortByCount: "Mais avaliações",
     noReviews: "Ainda sem avaliações",
     noReviewsDesc: "Seja o primeiro a avaliar no mapa ou nas estações!",
-    totalReviews: (count: number) => `${count} ${count === 1 ? "avaliação" : "avaliações"} no total`,
+    totalReviews: (count: number) =>
+      `${count} ${count === 1 ? "avaliação" : "avaliações"} no total`,
     totalTargets: (count: number) => `${count} ${count === 1 ? "avaliado" : "avaliados"}`,
     seeAll: "Ver todas",
     backToReviews: "Voltar à comunidade",
@@ -256,15 +262,16 @@ const pt = {
     targetPlaceholder: "Ex: nome da linha, paragem ou ciclovia",
     linkLabel: "Link de referência (opcional)",
     linkPlaceholder: "Ex: https://www.cm-porto.pt/...",
-    linkHelp: "Links permitidos: porto.pt, stcp.pt, metrodoporto.pt, Google Maps, Wikipedia, OpenStreetMap",
+    linkHelp:
+      "Links permitidos: porto.pt, stcp.pt, metrodoporto.pt, Google Maps, Wikipedia, OpenStreetMap",
     submit: "Submeter proposta",
     submitting: "A submeter...",
     success: "Proposta submetida com sucesso!",
     error: "Erro ao submeter. Tente novamente.",
     rateLimited: "Limite de propostas atingido. Tente mais tarde.",
     loginRequired: "Inicie sessão para criar propostas",
-    voteCount: (count: number) => count === 1 ? "1 voto" : `${count} votos`,
-    supporters: (count: number) => count === 1 ? "1 pessoa apoia" : `${count} pessoas apoiam`,
+    voteCount: (count: number) => (count === 1 ? "1 voto" : `${count} votos`),
+    supporters: (count: number) => (count === 1 ? "1 pessoa apoia" : `${count} pessoas apoiam`),
     statusOpen: "Aberta",
     statusUnderReview: "Em análise",
     statusClosed: "Fechada",
@@ -280,10 +287,13 @@ const pt = {
     totalProposals: (count: number) => `${count} ${count === 1 ? "proposta" : "propostas"}`,
     previous: "Anterior",
     next: "Seguinte",
-    underReviewBanner: "Esta proposta atingiu votos suficientes e está a ser analisada pela equipa do PortoMove.",
-    progressLabel: (current: number, threshold: number) => `${current}/${threshold} votos para ser considerada`,
+    underReviewBanner:
+      "Esta proposta atingiu votos suficientes e está a ser analisada pela equipa do PortoMove.",
+    progressLabel: (current: number, threshold: number) =>
+      `${current}/${threshold} votos para ser considerada`,
     progressComplete: "Meta atingida!",
-    howVotingWorks: "Propostas com 25+ votos passam a \"Em análise\" e são partilhadas com as entidades responsáveis.",
+    howVotingWorks:
+      'Propostas com 25+ votos passam a "Em análise" e são partilhadas com as entidades responsáveis.',
     showMore: "Ler mais",
     showLess: "Ler menos",
     myProposals: "As minhas",
@@ -306,7 +316,8 @@ const pt = {
     mapPreview: "Pré-visualização do mapa",
     // Route stop editor
     editStops: "Editar paragens",
-    editStopsHelp: "Arraste paragens para as mover. Clique no mapa para adicionar uma nova. Clique numa paragem para a remover.",
+    editStopsHelp:
+      "Arraste paragens para as mover. Clique no mapa para adicionar uma nova. Clique numa paragem para a remover.",
     addedStop: "Nova paragem",
     existingStop: "Paragem existente",
     stopCount: (count: number) => `${count} ${count === 1 ? "paragem" : "paragens"}`,
@@ -333,8 +344,10 @@ const pt = {
     viewStations: "Ver paragens",
     viewMap: "Ver mapa",
     aboutProject: "Sobre o projeto",
-    aboutDescription: "PortoMove é uma aplicação web que fornece informações de transportes públicos em tempo real para o Porto, Portugal.",
-    missionStatement: "A nossa missão é dar voz a quem usa transportes públicos e opções de micro-mobilidade no Porto. A tua opinião ajuda a melhorar a mobilidade para todos.",
+    aboutDescription:
+      "PortoMove é uma aplicação web que fornece informações de transportes públicos em tempo real para o Porto, Portugal.",
+    missionStatement:
+      "A nossa missão é dar voz a quem usa transportes públicos e opções de micro-mobilidade no Porto. A tua opinião ajuda a melhorar a mobilidade para todos.",
     ctaFeedback: "Avalia linhas, paragens e veículos",
     ctaBugsFeatures: "Reportar bugs ou sugerir funcionalidades",
     suggestFeature: "Abrir issue no GitHub",
@@ -415,7 +428,8 @@ const pt = {
     continueWithGoogle: "Continuar com Google",
     orDivider: "ou",
     deleteAccount: "Eliminar conta",
-    deleteAccountConfirm: "Tem a certeza? Todos os seus dados serão permanentemente eliminados. Esta ação não pode ser revertida.",
+    deleteAccountConfirm:
+      "Tem a certeza? Todos os seus dados serão permanentemente eliminados. Esta ação não pode ser revertida.",
     deleteAccountSuccess: "Conta eliminada com sucesso.",
     deleteAccountError: "Erro ao eliminar conta. Tente novamente.",
     exportData: "Exportar os meus dados",
@@ -446,7 +460,8 @@ const pt = {
     signInToChange: "Inicie sessão para alterar o check-in",
   },
   pulse: {
-    peopleUsing: (count: number) => `${count} ${count === 1 ? "pessoa a usar" : "pessoas a usar"} transportes agora`,
+    peopleUsing: (count: number) =>
+      `${count} ${count === 1 ? "pessoa a usar" : "pessoas a usar"} transportes agora`,
     beFirst: "Seja o primeiro a fazer check-in hoje!",
     todayTotal: (count: number) => `Hoje: ${count} ${count === 1 ? "utilizador" : "utilizadores"}`,
   },
@@ -459,13 +474,15 @@ const pt = {
     collectFeedback: "Avaliações e comentários — associados à sua conta",
     collectCheckin: "Check-ins de transporte — modo e linha (anónimo, sem dados pessoais)",
     locationTitle: "Dados de localização",
-    locationDesc: "Não armazenamos a sua localização pessoal. Quando faz check-in a partir de um ponto no mapa (paragem, ciclovia, parque de bicicletas), guardamos apenas as coordenadas dessa infraestrutura pública — nunca a sua posição GPS. Os check-ins são totalmente anónimos e não requerem conta.",
+    locationDesc:
+      "Não armazenamos a sua localização pessoal. Quando faz check-in a partir de um ponto no mapa (paragem, ciclovia, parque de bicicletas), guardamos apenas as coordenadas dessa infraestrutura pública — nunca a sua posição GPS. Os check-ins são totalmente anónimos e não requerem conta.",
     howWeUseTitle: "Como usamos os seus dados",
     useAuth: "Autenticação — para gerir a sua sessão e conta",
     useFeedback: "Avaliações — para mostrar feedback da comunidade sobre transportes",
     useActivity: "Check-ins — para mostrar atividade de trânsito agregada e anónima no mapa",
     dataRetentionTitle: "Retenção de dados",
-    dataRetentionDesc: "As avaliações são mantidas enquanto a sua conta existir. Os check-ins anónimos expiram automaticamente após 30 minutos (1 hora para utilizadores autenticados) e são eliminados. Pode eliminar a sua conta e todos os dados associados a qualquer momento nas Definições.",
+    dataRetentionDesc:
+      "As avaliações são mantidas enquanto a sua conta existir. Os check-ins anónimos expiram automaticamente após 30 minutos (1 hora para utilizadores autenticados) e são eliminados. Pode eliminar a sua conta e todos os dados associados a qualquer momento nas Definições.",
     yourRightsTitle: "Os seus direitos (RGPD)",
     rightAccess: "Direito de acesso — pode exportar todos os seus dados nas Definições",
     rightExport: "Direito à portabilidade — exportação em formato JSON",
@@ -473,13 +490,17 @@ const pt = {
     rightRectification: "Direito à retificação — pode editar as suas avaliações a qualquer momento",
     rightsHow: "Pode exercer estes direitos na secção Conta das Definições da aplicação.",
     localStorageTitle: "Armazenamento local",
-    localStorageDesc: "Usamos localStorage do navegador para guardar preferências (tema, idioma, filtros de mapa). Estes dados nunca saem do seu dispositivo e não contêm informação pessoal.",
+    localStorageDesc:
+      "Usamos localStorage do navegador para guardar preferências (tema, idioma, filtros de mapa). Estes dados nunca saem do seu dispositivo e não contêm informação pessoal.",
     cookiesTitle: "Cookies",
-    cookiesDesc: "Usamos cookies estritamente necessários: um cookie de sessão para autenticação (se iniciar sessão) e um cookie temporário (anon_checkin) para check-ins anónimos que expira automaticamente. Não usamos cookies de rastreamento, publicidade ou análise.",
+    cookiesDesc:
+      "Usamos cookies estritamente necessários: um cookie de sessão para autenticação (se iniciar sessão) e um cookie temporário (anon_checkin) para check-ins anónimos que expira automaticamente. Não usamos cookies de rastreamento, publicidade ou análise.",
     thirdPartyTitle: "Serviços de terceiros",
-    thirdPartyDesc: "Usamos Neon (PostgreSQL) para a base de dados, OpenStreetMap para mapas e a API OpenTripPlanner do Porto para dados de transportes. A autenticação Google é opcional e processada pela Neon Auth.",
+    thirdPartyDesc:
+      "Usamos Neon (PostgreSQL) para a base de dados, OpenStreetMap para mapas e a API OpenTripPlanner do Porto para dados de transportes. A autenticação Google é opcional e processada pela Neon Auth.",
     contactTitle: "Contacto",
-    contactDesc: "Para questões de privacidade, contacte-nos através do repositório GitHub do projeto.",
+    contactDesc:
+      "Para questões de privacidade, contacte-nos através do repositório GitHub do projeto.",
   },
 };
 
@@ -611,13 +632,13 @@ const en: typeof pt = {
     thisMonth: "This month",
     allTime: "All time",
     stats: "Summary",
-    totalReviews: (n: number) => n === 1 ? "1 review" : `${n} reviews`,
-    totalVotes: (n: number) => n === 1 ? "1 vote" : `${n} votes`,
-    activeReviewers: (n: number) => n === 1 ? "1 reviewer" : `${n} reviewers`,
+    totalReviews: (n: number) => (n === 1 ? "1 review" : `${n} reviews`),
+    totalVotes: (n: number) => (n === 1 ? "1 vote" : `${n} votes`),
+    activeReviewers: (n: number) => (n === 1 ? "1 reviewer" : `${n} reviewers`),
     topTags: "Most reported issues",
     noData: "Not enough data",
     noDataDesc: "There aren't enough reviews yet to show trends. Be the first to review!",
-    votes: (n: number) => n === 1 ? "1 vote" : `${n} votes`,
+    votes: (n: number) => (n === 1 ? "1 vote" : `${n} votes`),
   },
   feedback: {
     rate: "Rate",
@@ -633,7 +654,7 @@ const en: typeof pt = {
     error: "Error submitting. Try again.",
     rateLimited: "You can rate again in a few minutes",
     noRatingsYet: "Be the first to rate!",
-    ratings: (count: number) => count === 1 ? "1 rating" : `${count} ratings`,
+    ratings: (count: number) => (count === 1 ? "1 rating" : `${count} ratings`),
     recentComments: "Recent comments",
     showMore: "Show more",
     rateThisStop: "Rate this stop",
@@ -647,7 +668,8 @@ const en: typeof pt = {
     vehicleOnLine: (line: string) => `Operating on line ${line}`,
     characters: (count: number, max: number) => `${count}/${max}`,
     helpful: "Helpful",
-    helpfulCount: (count: number) => count === 1 ? "1 person found this helpful" : `${count} people found this helpful`,
+    helpfulCount: (count: number) =>
+      count === 1 ? "1 person found this helpful" : `${count} people found this helpful`,
     sortByRecent: "Most recent",
     sortByHelpful: "Most helpful",
     loginToVote: "Sign in to vote",
@@ -739,15 +761,17 @@ const en: typeof pt = {
     targetPlaceholder: "E.g. line name, stop, or bike lane",
     linkLabel: "Reference link (optional)",
     linkPlaceholder: "E.g. https://www.cm-porto.pt/...",
-    linkHelp: "Allowed links: porto.pt, stcp.pt, metrodoporto.pt, Google Maps, Wikipedia, OpenStreetMap",
+    linkHelp:
+      "Allowed links: porto.pt, stcp.pt, metrodoporto.pt, Google Maps, Wikipedia, OpenStreetMap",
     submit: "Submit proposal",
     submitting: "Submitting...",
     success: "Proposal submitted successfully!",
     error: "Error submitting. Try again.",
     rateLimited: "Proposal limit reached. Try again later.",
     loginRequired: "Sign in to create proposals",
-    voteCount: (count: number) => count === 1 ? "1 vote" : `${count} votes`,
-    supporters: (count: number) => count === 1 ? "1 person supports this" : `${count} people support this`,
+    voteCount: (count: number) => (count === 1 ? "1 vote" : `${count} votes`),
+    supporters: (count: number) =>
+      count === 1 ? "1 person supports this" : `${count} people support this`,
     statusOpen: "Open",
     statusUnderReview: "Under review",
     statusClosed: "Closed",
@@ -763,10 +787,13 @@ const en: typeof pt = {
     totalProposals: (count: number) => `${count} ${count === 1 ? "proposal" : "proposals"}`,
     previous: "Previous",
     next: "Next",
-    underReviewBanner: "This proposal has reached enough votes and is being reviewed by the PortoMove team.",
-    progressLabel: (current: number, threshold: number) => `${current}/${threshold} votes to be considered`,
+    underReviewBanner:
+      "This proposal has reached enough votes and is being reviewed by the PortoMove team.",
+    progressLabel: (current: number, threshold: number) =>
+      `${current}/${threshold} votes to be considered`,
     progressComplete: "Goal reached!",
-    howVotingWorks: "Proposals with 25+ votes move to \"Under review\" and are shared with the responsible authorities.",
+    howVotingWorks:
+      'Proposals with 25+ votes move to "Under review" and are shared with the responsible authorities.',
     showMore: "Read more",
     showLess: "Read less",
     myProposals: "My proposals",
@@ -789,7 +816,8 @@ const en: typeof pt = {
     mapPreview: "Map preview",
     // Route stop editor
     editStops: "Edit stops",
-    editStopsHelp: "Drag stops to move them. Click the map to add a new stop. Click a stop to remove it.",
+    editStopsHelp:
+      "Drag stops to move them. Click the map to add a new stop. Click a stop to remove it.",
     addedStop: "New stop",
     existingStop: "Existing stop",
     stopCount: (count: number) => `${count} ${count === 1 ? "stop" : "stops"}`,
@@ -816,8 +844,10 @@ const en: typeof pt = {
     viewStations: "View stops",
     viewMap: "View map",
     aboutProject: "About the project",
-    aboutDescription: "PortoMove is a web app that provides real-time public transport information for Porto, Portugal.",
-    missionStatement: "Our mission is to give a voice to those using public transportation and micro-mobility options in Porto. Your feedback helps improve mobility for everyone.",
+    aboutDescription:
+      "PortoMove is a web app that provides real-time public transport information for Porto, Portugal.",
+    missionStatement:
+      "Our mission is to give a voice to those using public transportation and micro-mobility options in Porto. Your feedback helps improve mobility for everyone.",
     ctaFeedback: "Rate lines, stops, and vehicles",
     ctaBugsFeatures: "Report bugs or suggest features",
     suggestFeature: "Open issue on GitHub",
@@ -898,7 +928,8 @@ const en: typeof pt = {
     continueWithGoogle: "Continue with Google",
     orDivider: "or",
     deleteAccount: "Delete account",
-    deleteAccountConfirm: "Are you sure? All your data will be permanently deleted. This action cannot be undone.",
+    deleteAccountConfirm:
+      "Are you sure? All your data will be permanently deleted. This action cannot be undone.",
     deleteAccountSuccess: "Account deleted successfully.",
     deleteAccountError: "Error deleting account. Try again.",
     exportData: "Export my data",
@@ -925,11 +956,13 @@ const en: typeof pt = {
     noNearbyTarget: "No nearby infrastructure found",
     pickTarget: "Pick a location",
     back: "Back",
-    alreadyCheckedIn: "You already have an active check-in. Wait for it to expire or sign in to change it.",
+    alreadyCheckedIn:
+      "You already have an active check-in. Wait for it to expire or sign in to change it.",
     signInToChange: "Sign in to change your check-in",
   },
   pulse: {
-    peopleUsing: (count: number) => `${count} ${count === 1 ? "person using" : "people using"} transit now`,
+    peopleUsing: (count: number) =>
+      `${count} ${count === 1 ? "person using" : "people using"} transit now`,
     beFirst: "Be the first to check in today!",
     todayTotal: (count: number) => `Today: ${count} ${count === 1 ? "rider" : "riders"}`,
   },
@@ -942,13 +975,15 @@ const en: typeof pt = {
     collectFeedback: "Reviews and comments — associated with your account",
     collectCheckin: "Transit check-ins — mode and line (anonymous, no personal data)",
     locationTitle: "Location data",
-    locationDesc: "We never store your personal location. When you check in from a point on the map (bus stop, bike lane, bike park), we only store the coordinates of that public infrastructure — never your GPS position. Check-ins are fully anonymous and do not require an account.",
+    locationDesc:
+      "We never store your personal location. When you check in from a point on the map (bus stop, bike lane, bike park), we only store the coordinates of that public infrastructure — never your GPS position. Check-ins are fully anonymous and do not require an account.",
     howWeUseTitle: "How we use your data",
     useAuth: "Authentication — to manage your session and account",
     useFeedback: "Reviews — to show community feedback on transit",
     useActivity: "Check-ins — to show aggregated, anonymous transit activity on the map",
     dataRetentionTitle: "Data retention",
-    dataRetentionDesc: "Reviews are kept as long as your account exists. Anonymous check-ins automatically expire after 30 minutes (1 hour for authenticated users) and are deleted. You can delete your account and all associated data at any time from Settings.",
+    dataRetentionDesc:
+      "Reviews are kept as long as your account exists. Anonymous check-ins automatically expire after 30 minutes (1 hour for authenticated users) and are deleted. You can delete your account and all associated data at any time from Settings.",
     yourRightsTitle: "Your rights (GDPR)",
     rightAccess: "Right of access — you can export all your data from Settings",
     rightExport: "Right to data portability — export in JSON format",
@@ -956,11 +991,14 @@ const en: typeof pt = {
     rightRectification: "Right to rectification — you can edit your reviews at any time",
     rightsHow: "You can exercise these rights in the Account section of the app Settings.",
     localStorageTitle: "Local storage",
-    localStorageDesc: "We use browser localStorage to save preferences (theme, language, map filters). This data never leaves your device and contains no personal information.",
+    localStorageDesc:
+      "We use browser localStorage to save preferences (theme, language, map filters). This data never leaves your device and contains no personal information.",
     cookiesTitle: "Cookies",
-    cookiesDesc: "We use strictly necessary cookies only: a session cookie for authentication (if you sign in) and a temporary cookie (anon_checkin) for anonymous check-ins that expires automatically. We do not use tracking, advertising, or analytics cookies.",
+    cookiesDesc:
+      "We use strictly necessary cookies only: a session cookie for authentication (if you sign in) and a temporary cookie (anon_checkin) for anonymous check-ins that expires automatically. We do not use tracking, advertising, or analytics cookies.",
     thirdPartyTitle: "Third-party services",
-    thirdPartyDesc: "We use Neon (PostgreSQL) for the database, OpenStreetMap for maps, and Porto's OpenTripPlanner API for transit data. Google authentication is optional and handled by Neon Auth.",
+    thirdPartyDesc:
+      "We use Neon (PostgreSQL) for the database, OpenStreetMap for maps, and Porto's OpenTripPlanner API for transit data. Google authentication is optional and handled by Neon Auth.",
     contactTitle: "Contact",
     contactDesc: "For privacy questions, contact us through the project's GitHub repository.",
   },
@@ -969,10 +1007,6 @@ const en: typeof pt = {
 const locales = { pt, en } as const;
 
 export type TranslationsType = typeof pt;
-
-// Default export for backward compatibility — returns PT translations
-// Components should use useTranslations() hook instead
-export const translations = pt;
 
 export function getTranslations(locale: Locale): TranslationsType {
   return locales[locale];

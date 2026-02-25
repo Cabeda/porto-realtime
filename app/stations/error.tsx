@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 export default function StationsError({
-  error,
+  error: _error,
   reset,
 }: {
   error: Error & { digest?: string };

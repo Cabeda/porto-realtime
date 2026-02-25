@@ -12,12 +12,9 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import {
-  reconstructTrips,
-  computeHeadwayMetrics,
-  percentile,
-} from "@/lib/analytics/metrics";
+import { reconstructTrips, computeHeadwayMetrics, percentile } from "@/lib/analytics/metrics";
 import { snapToSegment, type SegmentDef } from "@/lib/analytics/segments";
+import { logger } from "@/lib/logger";
 
 export const maxDuration = 60; // Cron jobs run on Fly.io; this route is a manual trigger only
 
@@ -38,7 +35,7 @@ export async function GET(request: Request) {
   today.setUTCDate(today.getUTCDate() + 1);
 
   const dateStr = yesterday.toISOString().slice(0, 10);
-  console.log(`Aggregation starting for ${dateStr}`);
+  logger.log(`Aggregation starting for ${dateStr}`);
 
   try {
     // 1. Fetch all positions for yesterday
@@ -51,17 +48,14 @@ export async function GET(request: Request) {
     });
 
     if (positions.length === 0) {
-      console.log(`No positions found for ${dateStr}`);
+      logger.log(`No positions found for ${dateStr}`);
       return NextResponse.json({ date: dateStr, positions: 0, trips: 0 });
     }
 
-    console.log(`Processing ${positions.length} positions for ${dateStr}`);
+    logger.log(`Processing ${positions.length} positions for ${dateStr}`);
 
     // 2. Group positions by vehicle + route + direction
-    const groups = new Map<
-      string,
-      typeof positions
-    >();
+    const groups = new Map<string, typeof positions>();
     for (const pos of positions) {
       const key = `${pos.vehicleId}:${pos.route}:${pos.directionId ?? "x"}`;
       if (!groups.has(key)) groups.set(key, []);
@@ -110,7 +104,7 @@ export async function GET(request: Request) {
       });
     }
 
-    console.log(`Reconstructed ${allTrips.length} trips`);
+    logger.log(`Reconstructed ${allTrips.length} trips`);
 
     // 5. Segment speed aggregation
     const segments = await prisma.routeSegment.findMany();
@@ -136,13 +130,7 @@ export async function GET(request: Request) {
       for (const pos of positions) {
         if (!pos.route || pos.speed === null || pos.speed <= 0) continue;
 
-        const segId = snapToSegment(
-          pos.lat,
-          pos.lon,
-          pos.route,
-          pos.directionId,
-          segDefs
-        );
+        const segId = snapToSegment(pos.lat, pos.lon, pos.route, pos.directionId, segDefs);
         if (!segId) continue;
 
         const hour = new Date(pos.recordedAt);
@@ -164,7 +152,7 @@ export async function GET(request: Request) {
       const segSpeedRows = [];
       for (const [key, speeds] of hourlySegmentSpeeds) {
         if (speeds.length < 2) continue;
-        const [segId, hourISO] = key.split(/:(.+)/);
+        const [segId, hourISO] = key.split(/:(.+)/) as [string, string];
         const seg = segDefs.find((s) => s.id === segId);
         if (!seg) continue;
 
@@ -173,7 +161,9 @@ export async function GET(request: Request) {
           route: seg.route,
           directionId: seg.directionId,
           hourStart: new Date(hourISO),
-          avgSpeed: Math.round((speeds.reduce((a: number, b: number) => a + b, 0) / speeds.length) * 10) / 10,
+          avgSpeed:
+            Math.round((speeds.reduce((a: number, b: number) => a + b, 0) / speeds.length) * 10) /
+            10,
           medianSpeed: Math.round(percentile(speeds, 50) * 10) / 10,
           p10Speed: Math.round(percentile(speeds, 10) * 10) / 10,
           p90Speed: Math.round(percentile(speeds, 90) * 10) / 10,
@@ -190,7 +180,7 @@ export async function GET(request: Request) {
         }
       }
 
-      console.log(`Computed ${segSpeedRows.length} segment speed aggregates`);
+      logger.log(`Computed ${segSpeedRows.length} segment speed aggregates`);
     }
 
     // 6. Route performance daily
@@ -208,30 +198,20 @@ export async function GET(request: Request) {
 
     const routePerfRows = [];
     for (const [key, trips] of routeTrips) {
-      const [route, dirStr] = key.split(":");
+      const [route, dirStr] = key.split(":") as [string, string];
       const directionId = dirStr === "x" ? null : parseInt(dirStr);
 
-      const startTimes = trips
-        .map((t) => t.startedAt.getTime())
-        .sort((a, b) => a - b);
+      const startTimes = trips.map((t) => t.startedAt.getTime()).sort((a, b) => a - b);
 
       const headwayMetrics = computeHeadwayMetrics(startTimes, null);
 
-      const runtimes = trips
-        .filter((t) => t.runtimeSecs > 60)
-        .map((t) => t.runtimeSecs);
+      const runtimes = trips.filter((t) => t.runtimeSecs > 60).map((t) => t.runtimeSecs);
       const avgRuntime =
-        runtimes.length > 0
-          ? runtimes.reduce((a, b) => a + b, 0) / runtimes.length
-          : null;
+        runtimes.length > 0 ? runtimes.reduce((a, b) => a + b, 0) / runtimes.length : null;
 
-      const speeds = trips
-        .filter((t) => t.avgSpeed > 0)
-        .map((t) => t.avgSpeed);
+      const speeds = trips.filter((t) => t.avgSpeed > 0).map((t) => t.avgSpeed);
       const avgCommercialSpeed =
-        speeds.length > 0
-          ? speeds.reduce((a, b) => a + b, 0) / speeds.length
-          : null;
+        speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : null;
 
       routePerfRows.push({
         date: yesterday,
@@ -242,9 +222,7 @@ export async function GET(request: Request) {
         headwayAdherencePct: headwayMetrics?.headwayAdherencePct ?? null,
         excessWaitTimeSecs: headwayMetrics?.excessWaitTimeSecs ?? null,
         avgRuntimeSecs: avgRuntime ? Math.round(avgRuntime) : null,
-        avgCommercialSpeed: avgCommercialSpeed
-          ? Math.round(avgCommercialSpeed * 10) / 10
-          : null,
+        avgCommercialSpeed: avgCommercialSpeed ? Math.round(avgCommercialSpeed * 10) / 10 : null,
         bunchingPct: headwayMetrics?.bunchingPct ?? null,
         gappingPct: headwayMetrics?.gappingPct ?? null,
       });
@@ -256,7 +234,7 @@ export async function GET(request: Request) {
       });
     }
 
-    console.log(`Computed performance for ${routePerfRows.length} route-directions`);
+    logger.log(`Computed performance for ${routePerfRows.length} route-directions`);
 
     // 7. Network summary
     const uniqueVehicles = new Set(positions.map((p) => p.vehicleId)).size;
@@ -264,17 +242,13 @@ export async function GET(request: Request) {
       .filter((r) => r.avgCommercialSpeed !== null)
       .map((r) => r.avgCommercialSpeed!);
     const networkAvgSpeed =
-      allSpeeds.length > 0
-        ? allSpeeds.reduce((a, b) => a + b, 0) / allSpeeds.length
-        : null;
+      allSpeeds.length > 0 ? allSpeeds.reduce((a, b) => a + b, 0) / allSpeeds.length : null;
 
     const allEwt = routePerfRows
       .filter((r) => r.excessWaitTimeSecs !== null)
       .map((r) => r.excessWaitTimeSecs!);
     const networkAvgEwt =
-      allEwt.length > 0
-        ? allEwt.reduce((a, b) => a + b, 0) / allEwt.length
-        : null;
+      allEwt.length > 0 ? allEwt.reduce((a, b) => a + b, 0) / allEwt.length : null;
 
     // Find worst route by EWT
     let worstRoute: string | null = null;
@@ -283,7 +257,7 @@ export async function GET(request: Request) {
       if (r.excessWaitTimeSecs !== null) {
         if (worstEwt === null || r.excessWaitTimeSecs > worstEwt) {
           worstEwt = r.excessWaitTimeSecs;
-          worstRoute = r.route;
+          worstRoute = r.route ?? null;
         }
       }
     }
@@ -294,12 +268,8 @@ export async function GET(request: Request) {
         date: yesterday,
         activeVehicles: uniqueVehicles,
         totalTrips: allTrips.length,
-        avgCommercialSpeed: networkAvgSpeed
-          ? Math.round(networkAvgSpeed * 10) / 10
-          : null,
-        avgExcessWaitTime: networkAvgEwt
-          ? Math.round(networkAvgEwt)
-          : null,
+        avgCommercialSpeed: networkAvgSpeed ? Math.round(networkAvgSpeed * 10) / 10 : null,
+        avgExcessWaitTime: networkAvgEwt ? Math.round(networkAvgEwt) : null,
         worstRoute,
         worstRouteEwt: worstEwt,
         positionsCollected: BigInt(positions.length),
@@ -307,12 +277,8 @@ export async function GET(request: Request) {
       update: {
         activeVehicles: uniqueVehicles,
         totalTrips: allTrips.length,
-        avgCommercialSpeed: networkAvgSpeed
-          ? Math.round(networkAvgSpeed * 10) / 10
-          : null,
-        avgExcessWaitTime: networkAvgEwt
-          ? Math.round(networkAvgEwt)
-          : null,
+        avgCommercialSpeed: networkAvgSpeed ? Math.round(networkAvgSpeed * 10) / 10 : null,
+        avgExcessWaitTime: networkAvgEwt ? Math.round(networkAvgEwt) : null,
         worstRoute,
         worstRouteEwt: worstEwt,
         positionsCollected: BigInt(positions.length),
@@ -320,7 +286,7 @@ export async function GET(request: Request) {
     });
 
     const elapsed = Date.now() - startTime;
-    console.log(
+    logger.log(
       `Aggregation complete for ${dateStr}: ${positions.length} positions, ${allTrips.length} trips in ${elapsed}ms`
     );
 
@@ -333,9 +299,6 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Aggregation failed:", error);
-    return NextResponse.json(
-      { error: "Aggregation failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Aggregation failed" }, { status: 500 });
   }
 }

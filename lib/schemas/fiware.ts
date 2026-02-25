@@ -16,7 +16,7 @@ const fiwareValue = <T extends z.ZodType>(schema: T) =>
  * Extract the actual value from a FIWARE field that may be wrapped in { value: T }.
  * Usage: unwrap(entity.speed) → number | undefined
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export function unwrap<T>(val: T | { value: T } | undefined | null): T | undefined {
   if (val === undefined || val === null) return undefined;
   if (typeof val === "object" && val !== null && "value" in val) {
@@ -28,7 +28,7 @@ export function unwrap<T>(val: T | { value: T } | undefined | null): T | undefin
 /**
  * Extract annotations array from FIWARE entity.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export function unwrapAnnotations(val: any): string[] | undefined {
   if (!val) return undefined;
   if (Array.isArray(val)) return val;
@@ -54,9 +54,7 @@ const FiwareLocationSchema = z.union([
 /**
  * Extract coordinates from a validated FIWARE location field.
  */
-export function unwrapLocation(
-  loc: z.infer<typeof FiwareLocationSchema>
-): [number, number] {
+export function unwrapLocation(loc: z.infer<typeof FiwareLocationSchema>): [number, number] {
   if ("value" in loc) return loc.value.coordinates;
   return loc.coordinates;
 }

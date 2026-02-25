@@ -18,16 +18,11 @@ export async function GET(request: NextRequest) {
   const dateParam = request.nextUrl.searchParams.get("date");
 
   if (!route) {
-    return NextResponse.json(
-      { error: "route parameter required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "route parameter required" }, { status: 400 });
   }
 
   const directionId =
-    directionParam !== null && directionParam !== ""
-      ? parseInt(directionParam)
-      : null;
+    directionParam !== null && directionParam !== "" ? parseInt(directionParam) : null;
 
   try {
     const filter = parseDateFilter(period || "7d", dateParam);
@@ -92,15 +87,11 @@ export async function GET(request: NextRequest) {
         stopSequence: s.stopSequence,
         avgHeadwaySecs:
           s.avgHeadways.length > 0
-            ? Math.round(
-                s.avgHeadways.reduce((a, b) => a + b, 0) / s.avgHeadways.length
-              )
+            ? Math.round(s.avgHeadways.reduce((a, b) => a + b, 0) / s.avgHeadways.length)
             : null,
         headwayStdDev:
           s.stdDevs.length > 0
-            ? Math.round(
-                (s.stdDevs.reduce((a, b) => a + b, 0) / s.stdDevs.length) * 10
-              ) / 10
+            ? Math.round((s.stdDevs.reduce((a, b) => a + b, 0) / s.stdDevs.length) * 10) / 10
             : null,
         observations: s.totalObs,
       }));

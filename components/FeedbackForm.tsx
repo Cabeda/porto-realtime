@@ -121,8 +121,16 @@ export function FeedbackForm({
     <div className="space-y-4">
       {/* Target label */}
       <div className="text-sm text-content-muted">
-        {type === "LINE" ? tf.rateThisLine : type === "VEHICLE" ? tf.rateThisVehicle : type === "BIKE_PARK" ? tf.rateThisBikePark : type === "BIKE_LANE" ? tf.rateThisBikeLane : tf.rateThisStop}:{" "}
-        <span className="font-semibold text-content">{targetName}</span>
+        {type === "LINE"
+          ? tf.rateThisLine
+          : type === "VEHICLE"
+            ? tf.rateThisVehicle
+            : type === "BIKE_PARK"
+              ? tf.rateThisBikePark
+              : type === "BIKE_LANE"
+                ? tf.rateThisBikeLane
+                : tf.rateThisStop}
+        : <span className="font-semibold text-content">{targetName}</span>
         {type === "VEHICLE" && metadata?.lineContext && (
           <div className="text-xs text-content-muted mt-0.5">
             {tf.vehicleOnLine(metadata.lineContext)}
@@ -143,19 +151,13 @@ export function FeedbackForm({
             aria-label={`${star} estrela${star > 1 ? "s" : ""}`}
           >
             <span
-              className={
-                star <= (hoverRating || rating)
-                  ? "text-yellow-400"
-                  : "text-content-muted"
-              }
+              className={star <= (hoverRating || rating) ? "text-yellow-400" : "text-content-muted"}
             >
               ★
             </span>
           </button>
         ))}
-        {rating > 0 && (
-          <span className="ml-2 text-sm text-content-muted">{rating}/5</span>
-        )}
+        {rating > 0 && <span className="ml-2 text-sm text-content-muted">{rating}/5</span>}
       </div>
 
       {/* Comment */}
@@ -177,9 +179,7 @@ export function FeedbackForm({
 
       {/* Auth hint for unauthenticated users */}
       {!isAuthenticated && rating > 0 && (
-        <p className="text-xs text-content-muted text-center">
-          {t.auth.loginToSubmit}
-        </p>
+        <p className="text-xs text-content-muted text-center">{t.auth.loginToSubmit}</p>
       )}
 
       {/* Submit button */}
@@ -205,13 +205,11 @@ export function FeedbackForm({
       )}
 
       {/* Auth modal — shown when unauthenticated user tries to submit */}
-      {showAuthModal && createPortal(
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={handleAuthSuccess}
-        />,
-        document.body
-      )}
+      {showAuthModal &&
+        createPortal(
+          <AuthModal onClose={() => setShowAuthModal(false)} onSuccess={handleAuthSuccess} />,
+          document.body
+        )}
     </div>
   );
 }

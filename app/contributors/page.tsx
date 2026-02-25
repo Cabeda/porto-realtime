@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import Link from "next/link";
 import { DesktopNav } from "@/components/DesktopNav";
-import { BADGES, type BadgeId } from "@/lib/badges";
+import { BADGES } from "@/lib/badges";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -55,9 +55,7 @@ export default function ContributorsPage() {
                 <span className="text-lg leading-none">{b.emoji}</span>
                 <div>
                   <span className="font-medium">{b.label}</span>
-                  <p className="text-xs text-[var(--color-content-secondary)]">
-                    {b.description}
-                  </p>
+                  <p className="text-xs text-[var(--color-content-secondary)]">{b.description}</p>
                 </div>
               </div>
             ))}
@@ -127,8 +125,8 @@ export default function ContributorsPage() {
         )}
 
         <p className="mt-4 text-xs text-[var(--color-content-secondary)]">
-          Rankings update hourly. Badges are awarded automatically based on review activity.
-          User identities are kept anonymous.
+          Rankings update hourly. Badges are awarded automatically based on review activity. User
+          identities are kept anonymous.
         </p>
       </div>
     </div>

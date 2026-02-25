@@ -23,6 +23,7 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
       requestAnimationFrame(() => {
         requestAnimationFrame(() => setIsAnimating(true));
       });
+      return undefined;
     } else {
       setIsAnimating(false);
       const timeout = setTimeout(() => setIsVisible(false), 300);
@@ -72,7 +73,7 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
   const currentTranslateY = useRef(0);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
+    touchStartY.current = e.touches[0]!.clientY;
     currentTranslateY.current = 0;
     if (sheetRef.current) {
       sheetRef.current.style.transition = "none";
@@ -80,7 +81,7 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const diff = e.touches[0].clientY - touchStartY.current;
+    const diff = e.touches[0]!.clientY - touchStartY.current;
     if (diff > 0) {
       currentTranslateY.current = diff;
       if (sheetRef.current) {
@@ -136,7 +137,9 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-          <h2 id="bottom-sheet-title" className="text-lg font-bold text-content">{title}</h2>
+          <h2 id="bottom-sheet-title" className="text-lg font-bold text-content">
+            {title}
+          </h2>
           <button
             type="button"
             onClick={onClose}

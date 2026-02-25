@@ -11,6 +11,7 @@ Added visual representation of bus routes on the interactive map, allowing users
 **Purpose**: Fetch and decode route geometries from OpenTripPlanner GraphQL API
 
 **Features**:
+
 - Fetches pattern geometries from OTP using GraphQL
 - Decodes polylines using `@mapbox/polyline` library
 - Transforms coordinates from [lat, lon] to [lon, lat] for GeoJSON standard
@@ -18,6 +19,7 @@ Added visual representation of bus routes on the interactive map, allowing users
 - Returns 251 route patterns for Porto
 
 **Response Format**:
+
 ```json
 {
   "patterns": [
@@ -41,14 +43,17 @@ Added visual representation of bus routes on the interactive map, allowing users
 **File**: `app/page.tsx`
 
 **New State**:
+
 - `showRoutes`: Boolean to toggle route visualization (default: true)
 
 **New Props to LeafletMap**:
+
 - `routePatterns`: Array of pattern geometries
 - `selectedRoutes`: Currently filtered routes
 - `showRoutes`: Toggle visibility
 
 **New UI Element**:
+
 - "Mostrar/Esconder Caminhos" toggle button (🛣️ icon)
 - Located in the right-side control panel
 - Disabled when no routes are selected
@@ -57,12 +62,14 @@ Added visual representation of bus routes on the interactive map, allowing users
 ### Map Visualization
 
 **Rendering**:
+
 - Polylines drawn using Leaflet `L.polyline`
 - Routes are rendered **below** bus and stop markers (`bringToBack()`)
 - Each polyline is interactive with click-to-popup functionality
 
 **Color Scheme**:
 10 vibrant colors cycling through selected routes:
+
 - Blue (#3b82f6)
 - Red (#ef4444)
 - Green (#10b981)
@@ -75,12 +82,14 @@ Added visual representation of bus routes on the interactive map, allowing users
 - Lime (#84cc16)
 
 **Polyline Style**:
+
 - Weight: 4px
 - Opacity: 0.7
 - Smooth Factor: 1
 - Color: Based on route number
 
 **Popup Content**:
+
 ```
 Linha {routeShortName}
 → {headsign}
@@ -118,11 +127,13 @@ Linha {routeShortName}
 ### Caching Strategy
 
 **Server-Side**:
+
 - In-memory cache with 24-hour expiration
 - Stale-while-revalidate pattern
 - Fallback to cached data on API errors
 
 **Client-Side** (SWR):
+
 - 24-hour deduplication interval
 - No revalidation on focus/reconnect
 - Reduces API calls and improves performance
@@ -130,11 +141,13 @@ Linha {routeShortName}
 ### Performance
 
 **Initial Load**:
+
 - API call: ~40-60 seconds (first time, cached after)
 - 251 patterns with full geometry
 - Response size: ~500KB-1MB (compressed with gzip)
 
 **Rendering**:
+
 - Instant (once data is cached)
 - Efficient Leaflet polyline rendering
 - No performance impact on marker updates
@@ -142,6 +155,7 @@ Linha {routeShortName}
 ### API Integration
 
 **OpenTripPlanner GraphQL Query**:
+
 ```graphql
 query {
   routes {
@@ -154,7 +168,7 @@ query {
       directionId
       patternGeometry {
         length
-        points  # Encoded polyline
+        points # Encoded polyline
       }
     }
   }
@@ -177,7 +191,6 @@ query {
 
 1. **Initial Load Time**: First API call takes 40-60s due to large dataset
    - **Mitigation**: 24-hour cache prevents repeated slow loads
-   
 2. **OTP API Timeout**: Sometimes returns 500 on large queries
    - **Mitigation**: Stale cache fallback ensures availability
 
@@ -231,6 +244,7 @@ query {
 ### Browser Compatibility
 
 Tested on:
+
 - Chrome 90+ ✅
 - Firefox 88+ ✅
 - Safari 14+ ✅
@@ -246,6 +260,7 @@ Tested on:
 ## Documentation
 
 Related files:
+
 - `AGENTS.md` - Agent guide (updated to mention route visualization)
 - `SESSION_CONTINUATION.md` - Development session summary
 - `COMPLETE_SESSION_SUMMARY.md` - Full feature list

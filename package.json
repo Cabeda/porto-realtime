@@ -15,32 +15,33 @@
     "start": "next start",
     "deploy": "vercel build && vercel deploy --prebuilt",
     "deploy:prod": "vercel build --prod && vercel deploy --prebuilt --prod",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test:integration": "node --test tests/integration/otp.test.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:perf": "playwright test tests/performance",
-    "test:perf:ui": "playwright test tests/performance --ui"
+    "test:perf:ui": "playwright test tests/performance --ui",
+    "prepare": "husky",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "knip": "knip",
+    "mutation": "stryker run"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",
     "@aws-sdk/s3-request-presigner": "^3.995.0",
     "@mapbox/polyline": "^1.2.1",
     "@neondatabase/auth": "0.2.0-beta.1",
-    "@neondatabase/auth-ui": "0.1.0-alpha.11",
     "@neondatabase/serverless": "^1.0.2",
     "@prisma/adapter-neon": "^7.4.1",
     "@prisma/client": "^7.4.1",
-    "@tmcw/togeojson": "^7.1.2",
     "app-store-scraper": "^0.18.0",
     "dotenv": "^17.3.1",
     "google-play-scraper": "^10.1.2",
-    "graphql": "^16.8.1",
     "leaflet": "^1.9.4",
     "next": "16.1.6",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-leaflet": "^4.2.1",
     "recharts": "^3.7.0",
     "swr": "^2.2.5",
     "zod": "^4.3.6"
@@ -48,14 +49,21 @@
   "devDependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
     "@playwright/test": "^1.58.2",
+    "@stryker-mutator/core": "^9.5.1",
+    "@stryker-mutator/vitest-runner": "^9.5.1",
     "@types/leaflet": "^1.9.8",
     "@types/node": "^20",
     "@types/react": "19.2.13",
     "@types/react-dom": "19.2.3",
+    "@vitest/coverage-v8": "^4.0.18",
     "autoprefixer": "^10.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "husky": "^9.1.7",
+    "knip": "^5.85.0",
+    "lint-staged": "^16.2.7",
     "postcss": "^8",
+    "prettier": "^3.8.1",
     "prisma": "^7.4.1",
     "tailwindcss": "^3.3.0",
     "typescript": "^5",
@@ -64,5 +72,21 @@
   "overrides": {
     "@types/react": "19.2.13",
     "@types/react-dom": "19.2.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "form-data": ">=2.5.4",
+      "qs": ">=6.14.1",
+      "minimatch": ">=10.2.1"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --no-warn-ignored",
+      "prettier --write"
+    ],
+    "*.{js,mjs,cjs,json,css,md}": [
+      "prettier --write"
+    ]
   }
 }

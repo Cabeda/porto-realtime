@@ -13,7 +13,7 @@
  * Schedule adherence was 94.8% in 2024.
  * Source: https://expresso.pt/sociedade/2024-09-19-vias-bus-estagnaram-em-lisboa-e-no-porto-velocidade-de-circulacao-de-autocarros-em-minimos-historicos-cd8d31a5
  */
-export const STCP_BASELINES = {
+const STCP_BASELINES = {
   /** Network commercial speed 2024 — historic low (km/h) */
   commercialSpeedKmh: 15.4,
   /** Schedule adherence 2024 (%) */
@@ -60,11 +60,11 @@ export function reconstructTrips(
   if (points.length < 2) return [];
 
   const trips: ReconstructedTrip[] = [];
-  let tripPoints: PositionPoint[] = [points[0]];
+  let tripPoints: PositionPoint[] = [points[0]!];
 
   for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
+    const prev = points[i - 1]!;
+    const curr = points[i]!;
     const gapMs = curr.recordedAt.getTime() - prev.recordedAt.getTime();
     const gapMinutes = gapMs / 60000;
 
@@ -91,17 +91,12 @@ export function reconstructTrips(
 }
 
 function finalizeTrip(points: PositionPoint[]): ReconstructedTrip {
-  const first = points[0];
-  const last = points[points.length - 1];
-  const runtimeSecs = Math.round(
-    (last.recordedAt.getTime() - first.recordedAt.getTime()) / 1000
-  );
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  const runtimeSecs = Math.round((last.recordedAt.getTime() - first.recordedAt.getTime()) / 1000);
 
-  const speeds = points
-    .map((p) => p.speed)
-    .filter((s): s is number => s !== null && s >= 0);
-  const avgSpeed =
-    speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
+  const speeds = points.map((p) => p.speed).filter((s): s is number => s !== null && s >= 0);
+  const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
 
   return {
     vehicleId: first.vehicleId,
@@ -144,7 +139,7 @@ export function computeHeadwayMetrics(
   // Compute actual headways
   const headways: number[] = [];
   for (let i = 1; i < observedStartTimes.length; i++) {
-    headways.push((observedStartTimes[i] - observedStartTimes[i - 1]) / 1000);
+    headways.push((observedStartTimes[i]! - observedStartTimes[i - 1]!) / 1000);
   }
 
   const avgHeadway = headways.reduce((a, b) => a + b, 0) / headways.length;
@@ -171,20 +166,16 @@ export function computeHeadwayMetrics(
     headwayAdherence = (adherent / headways.length) * 100;
 
     // Bunching: headway < 50% of scheduled
-    const bunched = headways.filter(
-      (h) => h < scheduledHeadwaySecs * 0.5
-    ).length;
+    const bunched = headways.filter((h) => h < scheduledHeadwaySecs * 0.5).length;
     bunchingPct = (bunched / headways.length) * 100;
 
     // Gapping: headway > 150% of scheduled
-    const gapped = headways.filter(
-      (h) => h > scheduledHeadwaySecs * 1.5
-    ).length;
+    const gapped = headways.filter((h) => h > scheduledHeadwaySecs * 1.5).length;
     gappingPct = (gapped / headways.length) * 100;
   } else {
     // Without scheduled headway, use median as reference
     const sorted = [...headways].sort((a, b) => a - b);
-    const median = sorted[Math.floor(sorted.length / 2)];
+    const median = sorted[Math.floor(sorted.length / 2)]!;
     const swt = median / 2;
     ewt = Math.max(0, awt - swt);
 
@@ -217,8 +208,8 @@ export function percentile(arr: number[], p: number): number {
   const idx = (p / 100) * (sorted.length - 1);
   const lower = Math.floor(idx);
   const upper = Math.ceil(idx);
-  if (lower === upper) return sorted[lower];
-  return sorted[lower] + (sorted[upper] - sorted[lower]) * (idx - lower);
+  if (lower === upper) return sorted[lower]!;
+  return sorted[lower]! + (sorted[upper]! - sorted[lower]!) * (idx - lower);
 }
 
 /**
@@ -248,11 +239,11 @@ export function computeGrade(
     if (speed < baseline * 0.65) {
       // < ~10 km/h: severe congestion, cap at D
       const idx = Math.max(ORDER.indexOf(grade), ORDER.indexOf("D"));
-      grade = ORDER[idx];
+      grade = ORDER[idx] ?? grade;
     } else if (speed < baseline * 0.85) {
       // < ~13 km/h: below baseline, cap at C
       const idx = Math.max(ORDER.indexOf(grade), ORDER.indexOf("C"));
-      grade = ORDER[idx];
+      grade = ORDER[idx] ?? grade;
     }
   }
 

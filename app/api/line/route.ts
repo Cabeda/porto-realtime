@@ -42,10 +42,7 @@ export async function GET(request: NextRequest) {
   const lineId = searchParams.get("id");
 
   if (!lineId) {
-    return NextResponse.json(
-      { error: "Missing required parameter: id" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing required parameter: id" }, { status: 400 });
   }
 
   try {
@@ -75,15 +72,10 @@ export async function GET(request: NextRequest) {
     const routes = parsed.success ? parsed.data.data.routes : raw?.data?.routes;
 
     if (!routes || routes.length === 0) {
-      return NextResponse.json(
-        { error: "Line not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Line not found" }, { status: 404 });
     }
 
-    const route = routes.find(
-      (r: { shortName: string }) => r.shortName === lineId
-    ) || routes[0];
+    const route = routes.find((r: { shortName: string }) => r.shortName === lineId) || routes[0];
 
     const patterns = (route.patterns || []).map(
       (p: {
@@ -146,12 +138,9 @@ export async function GET(request: NextRequest) {
 
     const cached = staleCache.get(lineId);
     if (cached) {
-      return NextResponse.json({ ...cached.data as object, stale: true });
+      return NextResponse.json({ ...(cached.data as object), stale: true });
     }
 
-    return NextResponse.json(
-      { error: "Failed to fetch line info" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch line info" }, { status: 500 });
   }
 }

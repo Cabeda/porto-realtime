@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { validateOrigin, safeGetSession } from "@/lib/security";
+import { logger } from "@/lib/logger";
 
 const EXPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const EXPORT_RATE_LIMIT_MAX = 5; // max 5 exports per 15 min window
@@ -29,10 +30,7 @@ export async function DELETE(request: NextRequest) {
   const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
-    return NextResponse.json(
-      { error: "Authentication required." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
   try {
@@ -52,7 +50,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     // Audit log (no PII — just the event)
-    console.info(`[AUDIT] Account deleted: userId=${user.id}`);
+    logger.info(`[AUDIT] Account deleted: userId=${user.id}`);
 
     // Invalidate session by clearing auth cookies
     const response = NextResponse.json({ deleted: true });
@@ -61,10 +59,7 @@ export async function DELETE(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Error deleting account:", error);
-    return NextResponse.json(
-      { error: "Failed to delete account" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete account" }, { status: 500 });
   }
 }
 
@@ -74,10 +69,7 @@ export async function GET() {
   const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
-    return NextResponse.json(
-      { error: "Authentication required." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
   // Rate limit data exports
@@ -141,7 +133,7 @@ export async function GET() {
     }
 
     // Audit log (no PII — just the event)
-    console.info(`[AUDIT] Data exported: userId=${user.id}`);
+    logger.info(`[AUDIT] Data exported: userId=${user.id}`);
 
     return NextResponse.json(
       {
@@ -166,9 +158,6 @@ export async function GET() {
     );
   } catch (error) {
     console.error("Error exporting account data:", error);
-    return NextResponse.json(
-      { error: "Failed to export data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to export data" }, { status: 500 });
   }
 }

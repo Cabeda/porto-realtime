@@ -6,7 +6,16 @@ import { validateOrigin, safeGetSession } from "@/lib/security";
 import { batchComputeBadges } from "@/lib/badges";
 
 const VALID_TYPES = ["LINE", "STOP", "VEHICLE", "BIKE_PARK", "BIKE_LANE"] as const;
-const VALID_TAGS = ["OVERCROWDED", "LATE", "DIRTY", "ACCESSIBILITY", "SAFETY", "BROKEN_INFRASTRUCTURE", "FREQUENCY", "ROUTE_COVERAGE"] as const;
+const VALID_TAGS = [
+  "OVERCROWDED",
+  "LATE",
+  "DIRTY",
+  "ACCESSIBILITY",
+  "SAFETY",
+  "BROKEN_INFRASTRUCTURE",
+  "FREQUENCY",
+  "ROUTE_COVERAGE",
+] as const;
 const MAX_COMMENT_LENGTH = 500;
 const MAX_TARGET_ID_LENGTH = 100;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -96,9 +105,10 @@ export async function GET(request: NextRequest) {
     const [feedbacks, total, userFeedback] = await Promise.all([
       prisma.feedback.findMany({
         where,
-        orderBy: sort === "helpful"
-          ? { votes: { _count: "desc" as const } }
-          : { createdAt: "desc" as const },
+        orderBy:
+          sort === "helpful"
+            ? { votes: { _count: "desc" as const } }
+            : { createdAt: "desc" as const },
         skip: page * limit,
         take: limit,
         select: {
@@ -169,16 +179,10 @@ export async function GET(request: NextRequest) {
       headers["Cache-Control"] = "public, s-maxage=30, stale-while-revalidate=120";
     }
 
-    return NextResponse.json(
-      { feedbacks: transformedFeedbacks, total, userFeedback },
-      { headers }
-    );
+    return NextResponse.json({ feedbacks: transformedFeedbacks, total, userFeedback }, { headers });
   } catch (error) {
     console.error("Error fetching feedback:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch feedback" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch feedback" }, { status: 500 });
   }
 }
 
@@ -209,7 +213,14 @@ export async function POST(request: NextRequest) {
   });
   const userId = user.id;
 
-  let body: { type?: string; targetId?: string; rating?: number; comment?: string; metadata?: Record<string, unknown>; tags?: string[] };
+  let body: {
+    type?: string;
+    targetId?: string;
+    rating?: number;
+    comment?: string;
+    metadata?: Record<string, unknown>;
+    tags?: string[];
+  };
   try {
     body = await request.json();
   } catch {
@@ -227,9 +238,16 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate targetId
-  if (!targetId || typeof targetId !== "string" || targetId.length === 0 || targetId.length > MAX_TARGET_ID_LENGTH) {
+  if (
+    !targetId ||
+    typeof targetId !== "string" ||
+    targetId.length === 0 ||
+    targetId.length > MAX_TARGET_ID_LENGTH
+  ) {
     return NextResponse.json(
-      { error: `targetId is required and must be a non-empty string (max ${MAX_TARGET_ID_LENGTH} chars)` },
+      {
+        error: `targetId is required and must be a non-empty string (max ${MAX_TARGET_ID_LENGTH} chars)`,
+      },
       { status: 400 }
     );
   }
@@ -252,10 +270,7 @@ export async function POST(request: NextRequest) {
   let sanitizedComment: string | null = null;
   if (comment !== undefined && comment !== null) {
     if (typeof comment !== "string") {
-      return NextResponse.json(
-        { error: "comment must be a string" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "comment must be a string" }, { status: 400 });
     }
     sanitizedComment = stripHtml(comment).slice(0, MAX_COMMENT_LENGTH);
     if (sanitizedComment.length === 0) {
@@ -267,10 +282,7 @@ export async function POST(request: NextRequest) {
   if (sanitizedComment) {
     const filterResult = checkComment(sanitizedComment);
     if (!filterResult.clean) {
-      return NextResponse.json(
-        { error: filterResult.reason },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: filterResult.reason }, { status: 400 });
     }
   }
 
@@ -278,10 +290,7 @@ export async function POST(request: NextRequest) {
     // Check rate limit
     const allowed = await checkRateLimit(userId);
     if (!allowed) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded. Try again later." },
-        { status: 429 }
-      );
+      return NextResponse.json({ error: "Rate limit exceeded. Try again later." }, { status: 429 });
     }
 
     const feedbackType = type as "LINE" | "STOP" | "VEHICLE" | "BIKE_PARK" | "BIKE_LANE";
@@ -350,9 +359,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ feedback }, { status: 200 });
   } catch (error) {
     console.error("Error creating/updating feedback:", error);
-    return NextResponse.json(
-      { error: "Failed to save feedback" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to save feedback" }, { status: 500 });
   }
 }

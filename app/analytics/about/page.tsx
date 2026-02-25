@@ -20,7 +20,9 @@ export default function AboutPage() {
       <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">&larr;</Link>
+            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">
+              &larr;
+            </Link>
             <h1 className="text-xl font-bold text-content">Methodology</h1>
           </div>
           <DesktopNav />
@@ -28,7 +30,8 @@ export default function AboutPage() {
       </header>
       <div className="max-w-3xl mx-auto px-4 py-6">
         <p className="text-sm text-[var(--color-content-secondary)] mb-8">
-          How PortoMove collects, processes, and presents transit performance data for Porto&apos;s STCP network.
+          How PortoMove collects, processes, and presents transit performance data for Porto&apos;s
+          STCP network.
         </p>
 
         <Section title="Data Sources">
@@ -38,40 +41,51 @@ export default function AboutPage() {
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li>
-              <strong>Bus positions</strong> — FIWARE Urban Platform (NGSI v2), provided by Porto Digital.
-              Real-time GPS snapshots of ~400–600 STCP buses, collected every 30 seconds by our worker process.
-              Each record includes: vehicle ID, lat/lon, speed, heading, route, trip ID, direction.
+              <strong>Bus positions</strong> — FIWARE Urban Platform (NGSI v2), provided by Porto
+              Digital. Real-time GPS snapshots of ~400–600 STCP buses, collected every 30 seconds by
+              our worker process. Each record includes: vehicle ID, lat/lon, speed, heading, route,
+              trip ID, direction.
             </li>
             <li>
-              <strong>Route patterns &amp; schedules</strong> — Porto Digital OpenTripPlanner (OTP) GraphQL API
-              at <code className="text-xs bg-surface-sunken px-1 rounded">otp.portodigital.pt</code>.
+              <strong>Route patterns &amp; schedules</strong> — Porto Digital OpenTripPlanner (OTP)
+              GraphQL API at{" "}
+              <code className="text-xs bg-surface-sunken px-1 rounded">otp.portodigital.pt</code>.
               Provides route geometries (polylines), stop locations, and scheduled departure times.
               All transit data originates from STCP and is published on the{" "}
-              <a href="https://opendata.porto.digital" target="_blank" rel="noopener noreferrer" className="text-[var(--color-accent)] hover:underline">Porto Open Data portal</a>.
+              <a
+                href="https://opendata.porto.digital"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--color-accent)] hover:underline"
+              >
+                Porto Open Data portal
+              </a>
+              .
             </li>
             <li>
-              <strong>Bike infrastructure</strong> — Explore Porto API. Bike parks and bike lanes (ciclovias).
+              <strong>Bike infrastructure</strong> — Explore Porto API. Bike parks and bike lanes
+              (ciclovias).
             </li>
           </ul>
         </Section>
 
         <Section title="Data Collection">
           <p>
-            A dedicated worker process running on Fly.io queries the FIWARE API every 30 seconds
-            and writes each bus position to a PostgreSQL database (Neon). Raw position data is
-            retained for 24 hours; after daily aggregation, it is cleaned up to manage storage costs.
+            A dedicated worker process running on Fly.io queries the FIWARE API every 30 seconds and
+            writes each bus position to a PostgreSQL database (Neon). Raw position data is retained
+            for 24 hours; after daily aggregation, it is cleaned up to manage storage costs.
           </p>
           <p>
-            On a typical day, the collector records ~100,000–150,000 position samples across
-            ~120 active vehicles and ~49 routes.
+            On a typical day, the collector records ~100,000–150,000 position samples across ~120
+            active vehicles and ~49 routes.
           </p>
         </Section>
 
         <Section title="Route Segments">
           <p>
-            Route polylines from the Porto Digital OTP API are split into ~200-meter segments. Each GPS position is
-            snapped to the nearest segment (within 150m) using the Haversine formula. This allows
-            us to compute speed statistics at a granular geographic level.
+            Route polylines from the Porto Digital OTP API are split into ~200-meter segments. Each
+            GPS position is snapped to the nearest segment (within 150m) using the Haversine
+            formula. This allows us to compute speed statistics at a granular geographic level.
           </p>
         </Section>
 
@@ -84,9 +98,7 @@ export default function AboutPage() {
             <li>The trip ID changes between consecutive positions</li>
             <li>There is a gap of more than 10 minutes between consecutive positions</li>
           </ul>
-          <p>
-            Trips with fewer than 3 position samples are discarded as noise.
-          </p>
+          <p>Trips with fewer than 3 position samples are discarded as noise.</p>
         </Section>
 
         <Section title="Headway Metrics">
@@ -117,8 +129,8 @@ export default function AboutPage() {
               arriving too close together).
             </li>
             <li>
-              <strong>Gapping</strong> — percentage of headways above 150% of scheduled (long
-              gaps in service).
+              <strong>Gapping</strong> — percentage of headways above 150% of scheduled (long gaps
+              in service).
             </li>
           </ul>
           <p>
@@ -127,9 +139,7 @@ export default function AboutPage() {
         </Section>
 
         <Section title="Grading Scale">
-          <p>
-            Each route receives a letter grade based on EWT and headway adherence:
-          </p>
+          <p>Each route receives a letter grade based on EWT and headway adherence:</p>
           <div className="overflow-x-auto">
             <table className="text-sm border-collapse mt-2">
               <thead>
@@ -141,27 +151,47 @@ export default function AboutPage() {
               </thead>
               <tbody>
                 <tr className="border-b border-[var(--color-border)]">
-                  <td className="pr-6 py-1"><span className="inline-block w-6 h-6 rounded-full bg-green-500 text-white text-center text-xs leading-6 font-bold">A</span></td>
+                  <td className="pr-6 py-1">
+                    <span className="inline-block w-6 h-6 rounded-full bg-green-500 text-white text-center text-xs leading-6 font-bold">
+                      A
+                    </span>
+                  </td>
                   <td className="pr-6 py-1">&lt; 60 seconds</td>
                   <td className="py-1">&gt; 90%</td>
                 </tr>
                 <tr className="border-b border-[var(--color-border)]">
-                  <td className="pr-6 py-1"><span className="inline-block w-6 h-6 rounded-full bg-green-400 text-white text-center text-xs leading-6 font-bold">B</span></td>
+                  <td className="pr-6 py-1">
+                    <span className="inline-block w-6 h-6 rounded-full bg-green-400 text-white text-center text-xs leading-6 font-bold">
+                      B
+                    </span>
+                  </td>
                   <td className="pr-6 py-1">&lt; 120 seconds</td>
                   <td className="py-1">&gt; 80%</td>
                 </tr>
                 <tr className="border-b border-[var(--color-border)]">
-                  <td className="pr-6 py-1"><span className="inline-block w-6 h-6 rounded-full bg-yellow-400 text-white text-center text-xs leading-6 font-bold">C</span></td>
+                  <td className="pr-6 py-1">
+                    <span className="inline-block w-6 h-6 rounded-full bg-yellow-400 text-white text-center text-xs leading-6 font-bold">
+                      C
+                    </span>
+                  </td>
                   <td className="pr-6 py-1">&lt; 180 seconds</td>
                   <td className="py-1">&gt; 70%</td>
                 </tr>
                 <tr className="border-b border-[var(--color-border)]">
-                  <td className="pr-6 py-1"><span className="inline-block w-6 h-6 rounded-full bg-orange-400 text-white text-center text-xs leading-6 font-bold">D</span></td>
+                  <td className="pr-6 py-1">
+                    <span className="inline-block w-6 h-6 rounded-full bg-orange-400 text-white text-center text-xs leading-6 font-bold">
+                      D
+                    </span>
+                  </td>
                   <td className="pr-6 py-1">&lt; 300 seconds</td>
                   <td className="py-1">&gt; 50%</td>
                 </tr>
                 <tr>
-                  <td className="pr-6 py-1"><span className="inline-block w-6 h-6 rounded-full bg-red-500 text-white text-center text-xs leading-6 font-bold">F</span></td>
+                  <td className="pr-6 py-1">
+                    <span className="inline-block w-6 h-6 rounded-full bg-red-500 text-white text-center text-xs leading-6 font-bold">
+                      F
+                    </span>
+                  </td>
                   <td className="pr-6 py-1">&ge; 300 seconds</td>
                   <td className="py-1">&le; 50%</td>
                 </tr>
@@ -177,8 +207,8 @@ export default function AboutPage() {
             segment. Percentiles (p10, median, p90) are also computed to show speed variability.
           </p>
           <p>
-            Color scale: red (&le;5 km/h) through orange, yellow, lime, to green (&ge;25 km/h).
-            Gray segments have no data for the selected period.
+            Color scale: red (&le;5 km/h) through orange, yellow, lime, to green (&ge;25 km/h). Gray
+            segments have no data for the selected period.
           </p>
         </Section>
 
@@ -189,7 +219,8 @@ export default function AboutPage() {
             segment speeds. At 04:00 UTC, positions older than 24 hours are cleaned up.
           </p>
           <p>
-            Route segment definitions are refreshed weekly from the Porto Digital OTP API to capture any route changes.
+            Route segment definitions are refreshed weekly from the Porto Digital OTP API to capture
+            any route changes.
           </p>
         </Section>
 
@@ -199,8 +230,8 @@ export default function AboutPage() {
               GPS accuracy varies; positions may be off by 10–30 meters, affecting segment snapping.
             </li>
             <li>
-              The FIWARE API occasionally has gaps or delays, which may cause some trips to be
-              split or missed entirely.
+              The FIWARE API occasionally has gaps or delays, which may cause some trips to be split
+              or missed entirely.
             </li>
             <li>
               Scheduled headways are not always available from OTP, so we fall back to median
@@ -211,8 +242,8 @@ export default function AboutPage() {
               traffic speed.
             </li>
             <li>
-              Only STCP buses are tracked. Metro, Fertagus, and other operators are not included
-              in the position data.
+              Only STCP buses are tracked. Metro, Fertagus, and other operators are not included in
+              the position data.
             </li>
           </ul>
         </Section>
@@ -235,7 +266,8 @@ export default function AboutPage() {
               rel="noopener noreferrer"
             >
               GitHub repository
-            </a>.
+            </a>
+            .
           </p>
         </Section>
       </div>
