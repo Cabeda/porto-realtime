@@ -76,10 +76,10 @@ function SearchStation() {
     [feedbackTargetType, mutateStopSummaries, mutateLineSummaries]
   );
 
-  // Live countdown tick
+  // Live countdown tick — 15s for accurate "2 min" display
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60000);
+    const id = setInterval(() => setNow(Date.now()), 15000);
     return () => clearInterval(id);
   }, []);
 
@@ -211,7 +211,7 @@ function SearchStation() {
               </button>
               <Link
                 href={`/?station=${id}`}
-                className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-sm font-medium"
               >
                 <span>🗺️</span>
                 {t.station.viewOnMap}
@@ -235,7 +235,7 @@ function SearchStation() {
             </p>
           </div>
           <div className="text-xs text-blue-600 dark:text-blue-300 font-mono bg-blue-100 dark:bg-blue-900/50 px-2 py-1 rounded">
-            {new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}
+            {new Date(now).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}
           </div>
         </div>
 
@@ -246,10 +246,11 @@ function SearchStation() {
               const departure = getDepartureDisplay(diff);
               const isRealtime = item.realtimeState === "UPDATED";
               const isLeaving = diff <= 2 && diff > 0;
+              const stableKey = `${item.trip.route.shortName}-${item.serviceDay}-${item.realtimeDeparture}-${index}`;
 
               return (
                 <div
-                  key={index}
+                  key={stableKey}
                   className={`bg-surface-raised rounded-lg shadow-md hover:shadow-lg transition-all p-4 border-l-4 ${
                     isLeaving
                       ? "border-red-500 dark:border-red-400 animate-pulse"
@@ -283,7 +284,7 @@ function SearchStation() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-lg font-semibold text-content truncate">
-                          {item.headsign || item.trip.route.longName}
+                          {item.trip.route.longName}
                         </h3>
                         {isRealtime && (
                           <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium rounded-full">
@@ -292,10 +293,12 @@ function SearchStation() {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-content-secondary">
-                        <span>→</span>
-                        <span className="truncate">{item.trip.route.longName}</span>
-                      </div>
+                      {item.headsign && (
+                        <div className="flex items-center gap-2 text-sm text-content-secondary">
+                          <span>→</span>
+                          <span className="truncate font-medium">{item.headsign}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex-shrink-0 text-right">
@@ -350,7 +353,7 @@ function SearchStation() {
             <p className="text-content-secondary">{t.station.unavailableDesc}</p>
             <p className="text-sm text-content-muted mt-4">
               {t.station.unavailableHint}{" "}
-              <Link href="/" className="text-accent hover:underline">
+              <Link href={id ? `/?station=${id}` : "/"} className="text-accent hover:underline">
                 {t.station.realtimeMap}
               </Link>{" "}
               {t.station.toSeePositions}

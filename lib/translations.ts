@@ -48,6 +48,9 @@ const pt = {
     getMyLocation: "Obter a minha localização",
     dataOutdated: "Alguns dados podem estar desatualizados",
     dismiss: "Fechar",
+    selectedStation: "Estação selecionada",
+    centeredOnMap: "Centrado no mapa",
+    noBusesTracked: "Nenhum autocarro a ser monitorizado.",
   },
   stations: {
     title: "Estações",
@@ -69,6 +72,7 @@ const pt = {
     noStopsFound: "Nenhuma paragem encontrada",
     tapToFavorite: "Toque ☆ numa paragem para a adicionar aos favoritos",
     viewOnMap: "Ver no mapa",
+    typeMoreChars: "Escreva mais um caractere para pesquisar",
   },
   station: {
     loading: "A carregar...",
@@ -165,6 +169,8 @@ const pt = {
     stopFeedback: "Avaliações da paragem",
     lineFeedback: "Avaliações da linha",
     vehicleFeedback: "Avaliações do veículo",
+    bikeParkFeedback: "Avaliar Parque de Bicicletas",
+    bikeLaneFeedback: "Avaliar Ciclovia",
     vehicleOnLine: (line: string) => `A operar na linha ${line}`,
     characters: (count: number, max: number) => `${count}/${max}`,
     helpful: "Útil",
@@ -549,6 +555,9 @@ const en: typeof pt = {
     getMyLocation: "Get my location",
     dataOutdated: "Some data may be outdated",
     dismiss: "Dismiss",
+    selectedStation: "Selected station",
+    centeredOnMap: "Centered on map",
+    noBusesTracked: "No buses currently tracked.",
   },
   stations: {
     title: "Stations",
@@ -570,6 +579,7 @@ const en: typeof pt = {
     noStopsFound: "No stops found",
     tapToFavorite: "Tap ☆ on a stop to add it to favorites",
     viewOnMap: "View on map",
+    typeMoreChars: "Type one more character to search",
   },
   station: {
     loading: "Loading...",
@@ -665,6 +675,8 @@ const en: typeof pt = {
     stopFeedback: "Stop reviews",
     lineFeedback: "Line reviews",
     vehicleFeedback: "Vehicle reviews",
+    bikeParkFeedback: "Rate Bike Park",
+    bikeLaneFeedback: "Rate Bike Lane",
     vehicleOnLine: (line: string) => `Operating on line ${line}`,
     characters: (count: number, max: number) => `${count}/${max}`,
     helpful: "Helpful",

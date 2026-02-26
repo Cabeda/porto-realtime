@@ -19,6 +19,8 @@ function makePostRequest(body: Record<string, unknown>) {
     headers: {
       "Content-Type": "application/json",
       "x-forwarded-for": "127.0.0.1",
+      host: "localhost:3000",
+      origin: "http://localhost:3000",
     },
     body: JSON.stringify(body),
   });

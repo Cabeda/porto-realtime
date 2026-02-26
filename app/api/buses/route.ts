@@ -333,9 +333,9 @@ export async function GET(request: NextRequest) {
         };
       });
 
-    // Inject simulated buses if requested (dev mode)
+    // Inject simulated buses if requested (dev/preview mode only)
     const simulate = request.nextUrl.searchParams.get("simulate");
-    if (simulate) {
+    if (simulate && process.env.NODE_ENV !== "production") {
       const routes = simulate.split(",");
       const simBuses = await getSimulatedBuses(routes);
       buses.push(...simBuses);

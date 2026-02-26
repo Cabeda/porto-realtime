@@ -22,6 +22,16 @@ function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
 }
 
+function walkingMinutes(km: number): number {
+  // Average walking speed ~5 km/h
+  return Math.ceil((km / 5) * 60);
+}
+
+function formatWalkTime(km: number): string {
+  const mins = walkingMinutes(km);
+  return mins < 1 ? "< 1 min" : `${mins} min`;
+}
+
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -57,7 +67,9 @@ function StationCard({
         </div>
         {station.code && <p className="text-xs text-content-muted mt-0.5">{station.code}</p>}
         {distance !== undefined && (
-          <p className="text-sm text-content-muted mt-0.5">📍 {formatDistance(distance)}</p>
+          <p className="text-sm text-content-muted mt-0.5">
+            📍 {formatDistance(distance)} · 🚶 {formatWalkTime(distance)}
+          </p>
         )}
       </Link>
       <div className="flex items-center gap-2 flex-shrink-0">
@@ -88,13 +100,8 @@ function StationCard({
 export default function StationsPage() {
   const t = useTranslations();
   const [showSettings, setShowSettings] = useState(false);
-  const [favoriteStationIds, setFavoriteStationIds] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("favoriteStations");
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
+  const [favoriteStationIds, setFavoriteStationIds] = useState<string[]>([]);
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [filter, setFilter] = useState("");
 
@@ -108,8 +115,15 @@ export default function StationsPage() {
   }, []);
 
   useEffect(() => {
+    const saved = localStorage.getItem("favoriteStations");
+    setFavoriteStationIds(saved ? JSON.parse(saved) : []);
+    setFavoritesLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!favoritesLoaded) return;
     localStorage.setItem("favoriteStations", JSON.stringify(favoriteStationIds));
-  }, [favoriteStationIds]);
+  }, [favoriteStationIds, favoritesLoaded]);
 
   const { data: stations, error } = useSWR<StopsResponse>("/api/stations", stationsFetcher, {
     dedupingInterval: 7 * 24 * 60 * 60 * 1000,
@@ -212,6 +226,9 @@ export default function StationsPage() {
         </div>
 
         {/* Search results */}
+        {filter.length === 1 && (
+          <p className="text-content-muted text-sm italic">{t.stations.typeMoreChars}</p>
+        )}
         {filter.length >= 2 && (
           <section>
             <h2 className="text-sm font-semibold text-content-muted uppercase tracking-wide mb-3">
