@@ -508,6 +508,30 @@ const pt = {
     contactDesc:
       "Para questões de privacidade, contacte-nos através do repositório GitHub do projeto.",
   },
+  metricTips: {
+    activeBuses:
+      "Número de autocarros da STCP detetados em circulação. Atualizado a cada 30 segundos.",
+    networkSpeed:
+      "Velocidade comercial média de todos os autocarros em serviço, incluindo paragens e tráfego. A STCP registou 15,4 km/h em 2024 (mínimo histórico desde 2005). Valores abaixo de 10 km/h indicam congestionamento grave.",
+    ewt: "Tempo de Espera Excessivo (EWT): tempo extra que um passageiro espera além do intervalo previsto entre autocarros. Zero significa que os autocarros chegam exatamente como planeado. Quanto menor, melhor.",
+    worstLine:
+      "A linha com maior tempo de espera excessivo no período selecionado — ou seja, a que mais atrasa os passageiros.",
+    headwayAdherence:
+      "Percentagem de viagens em que o intervalo entre autocarros foi cumprido conforme o planeado. 100% significa pontualidade perfeita; valores baixos indicam irregularidade.",
+    bunching:
+      'Percentagem de viagens em que dois autocarros da mesma linha chegaram muito próximos um do outro ("comboio de autocarros"). Acontece quando um autocarro atrasa e o seguinte o apanha. Quanto menor, melhor.',
+    gapping:
+      "Percentagem de viagens em que o intervalo entre autocarros foi muito maior do que o previsto, deixando passageiros à espera por muito tempo. Quanto menor, melhor.",
+    grade:
+      "Nota geral da linha de A (excelente) a F (mau), calculada com base no tempo de espera excessivo, aderência ao intervalo e velocidade comercial. Linhas abaixo de 13 km/h são penalizadas (referência: STCP 2024 = 15,4 km/h).",
+    speed:
+      "Velocidade comercial média da linha, incluindo paragens. Referência STCP 2024: 15,4 km/h (mínimo histórico). Meta EU para autocarros urbanos: 18 km/h.",
+    trips: "Número de viagens completas observadas no período selecionado.",
+    headwayDistribution:
+      "Histograma dos intervalos entre autocarros consecutivos da mesma linha. Um pico estreito indica regularidade; uma distribuição larga indica irregularidade.",
+    runtimeDistribution:
+      "Histograma dos tempos de percurso completo da linha. Um pico estreito indica consistência; uma cauda longa indica viagens atrasadas.",
+  },
 };
 
 const en: typeof pt = {
@@ -1013,6 +1037,29 @@ const en: typeof pt = {
       "We use Neon (PostgreSQL) for the database, OpenStreetMap for maps, and Porto's OpenTripPlanner API for transit data. Google authentication is optional and handled by Neon Auth.",
     contactTitle: "Contact",
     contactDesc: "For privacy questions, contact us through the project's GitHub repository.",
+  },
+  metricTips: {
+    activeBuses: "Number of STCP buses detected in service. Updated every 30 seconds.",
+    networkSpeed:
+      "Average commercial speed of all buses in service, including stops and traffic. STCP recorded 15.4 km/h in 2024 (historic low since 2005). Values below 10 km/h indicate severe congestion.",
+    ewt: "Excess Wait Time (EWT): the extra time a passenger waits beyond the scheduled headway. Zero means buses arrive exactly as planned. Lower is better.",
+    worstLine:
+      "The line with the highest excess wait time in the selected period — i.e. the one that delays passengers the most.",
+    headwayAdherence:
+      "Percentage of trips where the headway between buses matched the schedule. 100% means perfect punctuality; low values indicate irregularity.",
+    bunching:
+      'Percentage of trips where two buses on the same line arrived very close together ("bus bunching"). Happens when one bus falls behind and the next catches up. Lower is better.',
+    gapping:
+      "Percentage of trips where the gap between buses was much larger than planned, leaving passengers waiting a long time. Lower is better.",
+    grade:
+      "Overall line grade from A (excellent) to F (poor), calculated from excess wait time, headway adherence, and commercial speed. Lines below 13 km/h are penalised (reference: STCP 2024 = 15.4 km/h).",
+    speed:
+      "Average commercial speed of the line, including stops. STCP 2024 reference: 15.4 km/h (historic low). EU target for urban buses: 18 km/h.",
+    trips: "Number of complete trips observed in the selected period.",
+    headwayDistribution:
+      "Histogram of gaps between consecutive buses on the same line. A narrow peak means regularity; a wide spread means irregular service.",
+    runtimeDistribution:
+      "Histogram of end-to-end journey times for the line. A narrow peak means consistent runtimes; a long tail indicates delayed trips.",
   },
 };
 

@@ -2,10 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "@/lib/hooks/useTranslations";
 
 interface TooltipPos {
   top: number;
   left: number;
+  placement: "top" | "bottom";
 }
 
 /**
@@ -25,7 +27,13 @@ export function MetricTooltip({ text }: { text: string }) {
   const show = useCallback(() => {
     if (!btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
-    setPos({ top: r.top + window.scrollY, left: r.left + r.width / 2 + window.scrollX });
+    // Place above if button is in the lower half of the viewport, below otherwise
+    const placement: "top" | "bottom" = r.top > window.innerHeight / 2 ? "top" : "bottom";
+    setPos({
+      top: placement === "top" ? r.top + window.scrollY : r.bottom + window.scrollY,
+      left: r.left + r.width / 2 + window.scrollX,
+      placement,
+    });
   }, []);
 
   const hide = useCallback(() => setPos(null), []);
@@ -37,16 +45,20 @@ export function MetricTooltip({ text }: { text: string }) {
             role="tooltip"
             style={{
               position: "absolute",
-              top: pos.top - 8,
+              top: pos.placement === "top" ? pos.top - 8 : pos.top + 8,
               left: pos.left,
-              transform: "translate(-50%, -100%)",
+              transform: pos.placement === "top" ? "translate(-50%, -100%)" : "translate(-50%, 0)",
             }}
             className="pointer-events-none z-[9999] w-56 rounded-lg px-3 py-2 text-xs leading-relaxed
         bg-[var(--color-surface-raised)] border border-[var(--color-border)] shadow-lg
         text-[var(--color-content)]"
           >
             {text}
-            <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--color-border)]" />
+            {pos.placement === "top" ? (
+              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--color-border)]" />
+            ) : (
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-[var(--color-border)]" />
+            )}
           </span>,
           document.body
         )
@@ -77,24 +89,8 @@ export function MetricTooltip({ text }: { text: string }) {
   );
 }
 
-/** All metric explanations in plain Portuguese */
-export const METRIC_TIPS = {
-  activeBuses:
-    "Número de autocarros da STCP detetados em circulação. Atualizado a cada 30 segundos.",
-  networkSpeed:
-    "Velocidade comercial média de todos os autocarros em serviço, incluindo paragens e tráfego. A STCP registou 15,4 km/h em 2024 (mínimo histórico desde 2005). Valores abaixo de 10 km/h indicam congestionamento grave.",
-  ewt: "Tempo de Espera Excessivo (EWT): tempo extra que um passageiro espera além do intervalo previsto entre autocarros. Zero significa que os autocarros chegam exatamente como planeado. Quanto menor, melhor.",
-  worstLine:
-    "A linha com maior tempo de espera excessivo no período selecionado — ou seja, a que mais atrasa os passageiros.",
-  headwayAdherence:
-    "Percentagem de viagens em que o intervalo entre autocarros foi cumprido conforme o planeado. 100% significa pontualidade perfeita; valores baixos indicam irregularidade.",
-  bunching:
-    'Percentagem de viagens em que dois autocarros da mesma linha chegaram muito próximos um do outro ("comboio de autocarros"). Acontece quando um autocarro atrasa e o seguinte o apanha. Quanto menor, melhor.',
-  gapping:
-    "Percentagem de viagens em que o intervalo entre autocarros foi muito maior do que o previsto, deixando passageiros à espera por muito tempo. Quanto menor, melhor.",
-  grade:
-    "Nota geral da linha de A (excelente) a F (mau), calculada com base no tempo de espera excessivo, aderência ao intervalo e velocidade comercial. Linhas abaixo de 13 km/h são penalizadas (referência: STCP 2024 = 15,4 km/h).",
-  speed:
-    "Velocidade comercial média da linha, incluindo paragens. Referência STCP 2024: 15,4 km/h (mínimo histórico). Meta EU para autocarros urbanos: 18 km/h.",
-  trips: "Número de viagens completas observadas no período selecionado.",
-} as const;
+/** Hook returning localised metric tip strings */
+export function useMetricTips() {
+  const t = useTranslations();
+  return t.metricTips;
+}

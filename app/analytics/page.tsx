@@ -18,7 +18,7 @@ import Link from "next/link";
 
 import { DesktopNav } from "@/components/DesktopNav";
 import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
-import { MetricTooltip, METRIC_TIPS } from "@/components/analytics/MetricTooltip";
+import { MetricTooltip, useMetricTips } from "@/components/analytics/MetricTooltip";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -70,6 +70,7 @@ function KpiCard({
 export default function AnalyticsDashboard() {
   const [period, setPeriod] = useState<PeriodValue>("today");
   const [selectedRoute, setSelectedRoute] = useState("");
+  const tips = useMetricTips();
 
   const { data: routes } = useSWR("/api/routes", fetcher, { revalidateOnFocus: false });
 
@@ -153,7 +154,7 @@ export default function AnalyticsDashboard() {
                   : null
             }
             subtitle={periodLabel}
-            tooltip={METRIC_TIPS.activeBuses}
+            tooltip={tips.activeBuses}
           />
           <KpiCard
             label="Network Speed"
@@ -168,7 +169,7 @@ export default function AnalyticsDashboard() {
                     : "#ef4444"
                 : undefined
             }
-            tooltip={METRIC_TIPS.networkSpeed}
+            tooltip={tips.networkSpeed}
           />
           <KpiCard
             label="Excess Wait Time"
@@ -191,7 +192,7 @@ export default function AnalyticsDashboard() {
                     : "#ef4444"
                 : undefined
             }
-            tooltip={METRIC_TIPS.ewt}
+            tooltip={tips.ewt}
           />
           <KpiCard
             label="Worst Line"
@@ -201,7 +202,7 @@ export default function AnalyticsDashboard() {
                 ? `EWT: ${Math.round(summary.worstRouteEwt / 60)}min${period === "today" && summary?.lastAggregatedDate ? ` (${summary.lastAggregatedDate})` : ""}`
                 : undefined
             }
-            tooltip={METRIC_TIPS.worstLine}
+            tooltip={tips.worstLine}
           />
         </div>
 

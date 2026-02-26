@@ -15,11 +15,194 @@ import {
   LineChart,
   Line,
   ReferenceLine,
+  Cell,
 } from "recharts";
 
 import { DesktopNav } from "@/components/DesktopNav";
 import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
-import { MetricTooltip, METRIC_TIPS } from "@/components/analytics/MetricTooltip";
+import { MetricTooltip, useMetricTips } from "@/components/analytics/MetricTooltip";
+
+// --- Stop spacing helpers ---
+
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+interface LineStop {
+  gtfsId: string;
+  name: string;
+  lat: number;
+  lon: number;
+}
+
+interface SpacingSegment {
+  label: string;
+  meters: number;
+}
+
+function computeSpacings(stops: LineStop[]): SpacingSegment[] {
+  const segments: SpacingSegment[] = [];
+  for (let i = 1; i < stops.length; i++) {
+    const prev = stops[i - 1]!;
+    const curr = stops[i]!;
+    const d = haversineMeters(prev.lat, prev.lon, curr.lat, curr.lon);
+    segments.push({ label: curr.name, meters: Math.round(d) });
+  }
+  return segments;
+}
+
+// EU benchmark ~400 m, US average ~313 m (Works in Progress article)
+const EU_BENCHMARK = 400;
+const US_AVERAGE = 313;
+
+function spacingColor(meters: number): string {
+  if (meters < 200) return "#ef4444"; // very short — over-stopped
+  if (meters < EU_BENCHMARK) return "#f59e0b"; // below EU benchmark
+  return "#22c55e"; // at or above EU benchmark
+}
+
+interface StopSpacingSectionProps {
+  lineId: string;
+}
+
+function StopSpacingSection({ lineId }: StopSpacingSectionProps) {
+  const { data: lineInfo } = useSWR<{ patterns: { directionId: number; stops: LineStop[] }[] }>(
+    `/api/line?id=${encodeURIComponent(lineId)}`,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 3600000 }
+  );
+  const [dirIdx, setDirIdx] = useState(0);
+
+  if (!lineInfo) {
+    return (
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 h-48 animate-pulse" />
+    );
+  }
+
+  const directions = lineInfo.patterns.reduce<typeof lineInfo.patterns>((acc, p) => {
+    if (!acc.find((d) => d.directionId === p.directionId)) acc.push(p);
+    return acc;
+  }, []);
+
+  const activeStops = directions[dirIdx]?.stops ?? [];
+  const segments = computeSpacings(activeStops);
+
+  if (segments.length === 0) return null;
+
+  const avg = Math.round(segments.reduce((s, x) => s + x.meters, 0) / segments.length);
+  const min = Math.min(...segments.map((s) => s.meters));
+  const max = Math.max(...segments.map((s) => s.meters));
+  const belowEU = segments.filter((s) => s.meters < EU_BENCHMARK).length;
+  const pctBelowEU = Math.round((belowEU / segments.length) * 100);
+
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-lg font-semibold">Stop Spacing</h2>
+        {directions.length > 1 && (
+          <div className="flex gap-1">
+            {directions.map((d, i) => (
+              <button
+                key={d.directionId}
+                onClick={() => setDirIdx(i)}
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                  i === dirIdx
+                    ? "bg-[var(--color-accent)] text-white"
+                    : "bg-[var(--color-surface-sunken)] text-[var(--color-content-secondary)]"
+                }`}
+              >
+                Dir {d.directionId}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-[var(--color-content-secondary)] mb-4">
+        Distance between consecutive stops. EU benchmark ≈ 400 m · US average ≈ 313 m.
+      </p>
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        {[
+          {
+            label: "Avg spacing",
+            value: `${avg} m`,
+            sub: avg >= EU_BENCHMARK ? "≥ EU benchmark" : "< EU benchmark",
+            ok: avg >= EU_BENCHMARK,
+          },
+          { label: "Min spacing", value: `${min} m`, sub: "shortest gap", ok: min >= 200 },
+          { label: "Max spacing", value: `${max} m`, sub: "longest gap", ok: true },
+          {
+            label: "Below EU benchmark",
+            value: `${pctBelowEU}%`,
+            sub: `${belowEU} of ${segments.length} gaps`,
+            ok: pctBelowEU < 30,
+          },
+        ].map((kpi) => (
+          <div key={kpi.label} className="rounded-lg border border-[var(--color-border)] p-3">
+            <div className="text-xs text-[var(--color-content-secondary)]">{kpi.label}</div>
+            <div className={`text-xl font-bold ${kpi.ok ? "text-green-500" : "text-amber-500"}`}>
+              {kpi.value}
+            </div>
+            <div className="text-xs text-[var(--color-content-secondary)]">{kpi.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bar chart */}
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={segments} margin={{ top: 4, right: 8, left: 0, bottom: 60 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 10 }}
+            angle={-45}
+            textAnchor="end"
+            interval={Math.max(0, Math.floor(segments.length / 12) - 1)}
+          />
+          <YAxis tick={{ fontSize: 11 }} unit=" m" />
+          <Tooltip formatter={(v: number | undefined) => [`${v ?? 0} m`, "Distance"]} />
+          <ReferenceLine
+            y={EU_BENCHMARK}
+            stroke="#22c55e"
+            strokeWidth={2}
+            label={{
+              value: "EU 400 m",
+              fontSize: 11,
+              fontWeight: 700,
+              fill: "#22c55e",
+              position: "insideTopLeft",
+            }}
+          />
+          <ReferenceLine
+            y={US_AVERAGE}
+            stroke="#f59e0b"
+            strokeWidth={2}
+            label={{
+              value: "US 313 m",
+              fontSize: 11,
+              fontWeight: 700,
+              fill: "#f59e0b",
+              position: "insideBottomLeft",
+            }}
+          />
+          <Bar dataKey="meters" radius={[3, 3, 0, 0]} name="Distance">
+            {segments.map((s, i) => (
+              <Cell key={i} fill={spacingColor(s.meters)} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -69,6 +252,7 @@ function LineAnalyticsContent() {
   const routeParam = searchParams.get("route") || "";
   const [route, setRoute] = useState(routeParam);
   const [period, setPeriod] = useState<PeriodValue>("7d");
+  const tips = useMetricTips();
 
   const { data: summary } = useSWR(route ? buildLineUrl(route, period, "summary") : null, fetcher);
 
@@ -107,8 +291,8 @@ function LineAnalyticsContent() {
             className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-lg font-bold"
           >
             <option value="">Select a route...</option>
-            {routes?.routes?.map((r: { shortName: string; longName: string }) => (
-              <option key={r.shortName} value={r.shortName}>
+            {routes?.routes?.map((r: { gtfsId: string; shortName: string; longName: string }) => (
+              <option key={r.gtfsId} value={r.shortName}>
                 {r.shortName} — {r.longName}
               </option>
             ))}
@@ -132,20 +316,20 @@ function LineAnalyticsContent() {
                 <GradeBadge grade={summary.grade} />
                 <div>
                   <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
-                    Grade <MetricTooltip text={METRIC_TIPS.grade} />
+                    Grade <MetricTooltip text={tips.grade} />
                   </div>
                   <div className="font-semibold">{summary.grade}</div>
                 </div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                 <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
-                  Trips <MetricTooltip text={METRIC_TIPS.trips} />
+                  Trips <MetricTooltip text={tips.trips} />
                 </div>
                 <div className="text-xl font-bold">{summary.totalTrips}</div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                 <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
-                  EWT <MetricTooltip text={METRIC_TIPS.ewt} />
+                  EWT <MetricTooltip text={tips.ewt} />
                 </div>
                 <div className="text-xl font-bold">
                   {summary.avgEwt !== null
@@ -155,7 +339,7 @@ function LineAnalyticsContent() {
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                 <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
-                  Adherence <MetricTooltip text={METRIC_TIPS.headwayAdherence} />
+                  Adherence <MetricTooltip text={tips.headwayAdherence} />
                 </div>
                 <div className="text-xl font-bold">
                   {summary.avgHeadwayAdherence !== null ? `${summary.avgHeadwayAdherence}%` : "—"}
@@ -163,7 +347,7 @@ function LineAnalyticsContent() {
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                 <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
-                  Speed <MetricTooltip text={METRIC_TIPS.speed} />
+                  Speed <MetricTooltip text={tips.speed} />
                 </div>
                 <div className="text-xl font-bold">
                   {summary.avgCommercialSpeed !== null ? `${summary.avgCommercialSpeed} km/h` : "—"}
@@ -171,10 +355,15 @@ function LineAnalyticsContent() {
               </div>
             </div>
 
+            {/* Stop Spacing Analysis */}
+            <StopSpacingSection lineId={route} />
+
             {/* Headway Distribution */}
             {headways?.headways?.length > 0 && (
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
-                <h2 className="text-lg font-semibold mb-4">Headway Distribution</h2>
+                <h2 className="text-lg font-semibold mb-4 flex items-center">
+                  Headway Distribution <MetricTooltip text={tips.headwayDistribution} />
+                </h2>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={headways.headways}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -199,7 +388,9 @@ function LineAnalyticsContent() {
             {/* Runtime Distribution */}
             {runtimes?.runtimes?.length > 0 && (
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
-                <h2 className="text-lg font-semibold mb-4">Runtime Distribution</h2>
+                <h2 className="text-lg font-semibold mb-4 flex items-center">
+                  Runtime Distribution <MetricTooltip text={tips.runtimeDistribution} />
+                </h2>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={runtimes.runtimes}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />

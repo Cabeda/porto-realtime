@@ -17,7 +17,7 @@ import {
 
 import { DesktopNav } from "@/components/DesktopNav";
 import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
-import { MetricTooltip, METRIC_TIPS } from "@/components/analytics/MetricTooltip";
+import { MetricTooltip, useMetricTips } from "@/components/analytics/MetricTooltip";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -92,6 +92,7 @@ export default function ReliabilityPage() {
   const [period, setPeriod] = useState<PeriodValue>("7d");
   const [stopRoute, setStopRoute] = useState("");
   const [stopDirection, setStopDirection] = useState("0");
+  const tips = useMetricTips();
 
   const { data } = useSWR(buildApiUrl("/api/analytics/reliability", period), fetcher);
 
@@ -141,7 +142,7 @@ export default function ReliabilityPage() {
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
               <div className="text-xs text-[var(--color-content-secondary)] uppercase flex items-center">
                 Network EWT
-                <MetricTooltip text={METRIC_TIPS.ewt} />
+                <MetricTooltip text={tips.ewt} />
               </div>
               <div className="text-2xl font-bold mt-1">
                 {data.networkEwt !== null
@@ -152,7 +153,7 @@ export default function ReliabilityPage() {
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
               <div className="text-xs text-[var(--color-content-secondary)] uppercase flex items-center">
                 Headway Adherence
-                <MetricTooltip text={METRIC_TIPS.headwayAdherence} />
+                <MetricTooltip text={tips.headwayAdherence} />
               </div>
               <div className="text-2xl font-bold mt-1">
                 {data.networkAdherence !== null ? `${data.networkAdherence}%` : "—"}
@@ -161,7 +162,7 @@ export default function ReliabilityPage() {
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
               <div className="text-xs text-[var(--color-content-secondary)] uppercase flex items-center">
                 Bunching Rate
-                <MetricTooltip text={METRIC_TIPS.bunching} />
+                <MetricTooltip text={tips.bunching} />
               </div>
               <div className="text-2xl font-bold mt-1">
                 {data.networkBunching !== null ? `${data.networkBunching}%` : "—"}
@@ -185,37 +186,37 @@ export default function ReliabilityPage() {
                   <th className="text-left px-4 py-3 font-medium">Route</th>
                   <th className="text-left px-4 py-3 font-medium">
                     <span className="inline-flex items-center gap-1">
-                      Grade <MetricTooltip text={METRIC_TIPS.grade} />
+                      Grade <MetricTooltip text={tips.grade} />
                     </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
                     <span className="inline-flex items-center justify-end gap-1">
-                      EWT <MetricTooltip text={METRIC_TIPS.ewt} />
+                      EWT <MetricTooltip text={tips.ewt} />
                     </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
                     <span className="inline-flex items-center justify-end gap-1">
-                      Adherence <MetricTooltip text={METRIC_TIPS.headwayAdherence} />
+                      Adherence <MetricTooltip text={tips.headwayAdherence} />
                     </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
                     <span className="inline-flex items-center justify-end gap-1">
-                      Speed <MetricTooltip text={METRIC_TIPS.speed} />
+                      Speed <MetricTooltip text={tips.speed} />
                     </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
                     <span className="inline-flex items-center justify-end gap-1">
-                      Bunching <MetricTooltip text={METRIC_TIPS.bunching} />
+                      Bunching <MetricTooltip text={tips.bunching} />
                     </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
                     <span className="inline-flex items-center justify-end gap-1">
-                      Gapping <MetricTooltip text={METRIC_TIPS.gapping} />
+                      Gapping <MetricTooltip text={tips.gapping} />
                     </span>
                   </th>
                   <th className="text-right px-4 py-3 font-medium">
                     <span className="inline-flex items-center justify-end gap-1">
-                      Trips <MetricTooltip text={METRIC_TIPS.trips} />
+                      Trips <MetricTooltip text={tips.trips} />
                     </span>
                   </th>
                 </tr>
