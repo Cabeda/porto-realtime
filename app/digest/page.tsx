@@ -62,26 +62,46 @@ function Stars({ rating }: { rating: number }) {
   const n = Math.round(rating);
   return (
     <span className="text-yellow-400 text-sm">
-      {"★".repeat(n)}{"☆".repeat(5 - n)}
+      {"★".repeat(n)}
+      {"☆".repeat(5 - n)}
     </span>
   );
 }
 
-function TargetRow({ item, rank, variant }: { item: DigestTarget; rank: number; variant: "worst" | "best" }) {
+function TargetRow({
+  item,
+  rank,
+  variant,
+}: {
+  item: DigestTarget;
+  rank: number;
+  variant: "worst" | "best";
+}) {
   const href = targetHref(item.type, item.targetId);
-  const border = variant === "best" ? "border-l-green-500" : item.avg <= 2 ? "border-l-red-500" : "border-l-orange-400";
+  const border =
+    variant === "best"
+      ? "border-l-green-500"
+      : item.avg <= 2
+        ? "border-l-red-500"
+        : "border-l-orange-400";
   const inner = (
-    <div className={`flex items-center gap-3 p-3 rounded-lg border-l-4 bg-[var(--color-surface)] hover:shadow-md transition-shadow ${border}`}>
+    <div
+      className={`flex items-center gap-3 p-3 rounded-lg border-l-4 bg-[var(--color-surface)] hover:shadow-md transition-shadow ${border}`}
+    >
       <span className="text-[var(--color-content-secondary)] text-xs font-mono w-4">{rank}</span>
       <span>{TYPE_ICON[item.type] ?? "📋"}</span>
       <div className="flex-1 min-w-0">
         <span className="font-medium text-sm text-[var(--color-content)] truncate block">
           {targetLabel(item.type, item.targetId)}
         </span>
-        <span className="text-xs text-[var(--color-content-muted)]">{item.count} review{item.count !== 1 ? "s" : ""}</span>
+        <span className="text-xs text-[var(--color-content-muted)]">
+          {item.count} review{item.count !== 1 ? "s" : ""}
+        </span>
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <span className="text-sm font-bold text-[var(--color-content-secondary)]">{item.avg.toFixed(1)}</span>
+        <span className="text-sm font-bold text-[var(--color-content-secondary)]">
+          {item.avg.toFixed(1)}
+        </span>
         <Stars rating={item.avg} />
       </div>
     </div>
@@ -99,7 +119,10 @@ export default function DigestPage() {
       <header className="bg-[var(--color-surface-raised)] shadow-sm border-b border-[var(--color-border)] sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <Link href="/community" className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]">
+            <Link
+              href="/community"
+              className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
+            >
               &larr;
             </Link>
             <h1 className="text-xl font-bold">Weekly Digest</h1>
@@ -121,7 +144,9 @@ export default function DigestPage() {
           <>
             {/* Header card */}
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <p className="text-xs text-[var(--color-content-muted)] mb-1">Porto transit community</p>
+              <p className="text-xs text-[var(--color-content-muted)] mb-1">
+                Porto transit community
+              </p>
               <h2 className="text-lg font-bold mb-4">{data.weekLabel}</h2>
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center">
@@ -143,17 +168,23 @@ export default function DigestPage() {
             {data.topIssues.length > 0 && (
               <section>
                 <h3 className="text-sm font-semibold mb-1">Top upvoted issues</h3>
-                <p className="text-xs text-[var(--color-content-muted)] mb-3">Most community-supported reports this week</p>
+                <p className="text-xs text-[var(--color-content-muted)] mb-3">
+                  Most community-supported reports this week
+                </p>
                 <div className="space-y-2">
                   {data.topIssues.map((issue, i) => {
                     const href = targetHref(issue.type, issue.targetId);
                     const inner = (
                       <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:shadow-md transition-shadow">
-                        <span className="text-[var(--color-content-secondary)] text-xs font-mono w-4 mt-0.5">{i + 1}</span>
+                        <span className="text-[var(--color-content-secondary)] text-xs font-mono w-4 mt-0.5">
+                          {i + 1}
+                        </span>
                         <span className="mt-0.5">{TYPE_ICON[issue.type] ?? "📋"}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-sm truncate">{targetLabel(issue.type, issue.targetId)}</span>
+                            <span className="font-medium text-sm truncate">
+                              {targetLabel(issue.type, issue.targetId)}
+                            </span>
                             <Stars rating={issue.rating} />
                             <span className="ml-auto text-xs text-[var(--color-accent)] font-medium flex-shrink-0">
                               ▲ {issue.voteCount}
@@ -167,7 +198,10 @@ export default function DigestPage() {
                           {issue.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1.5">
                               {issue.tags.map((tag) => (
-                                <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-surface-sunken)] text-[var(--color-content-muted)]">
+                                <span
+                                  key={tag}
+                                  className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-surface-sunken)] text-[var(--color-content-muted)]"
+                                >
                                   {tag}
                                 </span>
                               ))}
@@ -176,7 +210,13 @@ export default function DigestPage() {
                         </div>
                       </div>
                     );
-                    return href ? <Link key={issue.id} href={href}>{inner}</Link> : <div key={issue.id}>{inner}</div>;
+                    return href ? (
+                      <Link key={issue.id} href={href}>
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div key={issue.id}>{inner}</div>
+                    );
                   })}
                 </div>
               </section>
@@ -186,10 +226,17 @@ export default function DigestPage() {
             {data.worst.length > 0 && (
               <section>
                 <h3 className="text-sm font-semibold mb-1">Needs improvement</h3>
-                <p className="text-xs text-[var(--color-content-muted)] mb-3">Lowest-rated lines and stops this week</p>
+                <p className="text-xs text-[var(--color-content-muted)] mb-3">
+                  Lowest-rated lines and stops this week
+                </p>
                 <div className="space-y-2">
                   {data.worst.map((item, i) => (
-                    <TargetRow key={`${item.type}:${item.targetId}`} item={item} rank={i + 1} variant="worst" />
+                    <TargetRow
+                      key={`${item.type}:${item.targetId}`}
+                      item={item}
+                      rank={i + 1}
+                      variant="worst"
+                    />
                   ))}
                 </div>
               </section>
@@ -199,10 +246,17 @@ export default function DigestPage() {
             {data.best.length > 0 && (
               <section>
                 <h3 className="text-sm font-semibold mb-1">What&apos;s working well</h3>
-                <p className="text-xs text-[var(--color-content-muted)] mb-3">Highest-rated lines and stops this week</p>
+                <p className="text-xs text-[var(--color-content-muted)] mb-3">
+                  Highest-rated lines and stops this week
+                </p>
                 <div className="space-y-2">
                   {data.best.map((item, i) => (
-                    <TargetRow key={`${item.type}:${item.targetId}`} item={item} rank={i + 1} variant="best" />
+                    <TargetRow
+                      key={`${item.type}:${item.targetId}`}
+                      item={item}
+                      rank={i + 1}
+                      variant="best"
+                    />
                   ))}
                 </div>
               </section>
@@ -215,7 +269,10 @@ export default function DigestPage() {
             )}
 
             <p className="text-xs text-[var(--color-content-muted)] text-center pt-2">
-              Updates hourly &middot; <Link href="/community" className="text-[var(--color-accent)] hover:underline">View full community</Link>
+              Updates hourly &middot;{" "}
+              <Link href="/community" className="text-[var(--color-accent)] hover:underline">
+                View full community
+              </Link>
             </p>
           </>
         )}

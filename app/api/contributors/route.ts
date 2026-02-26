@@ -36,18 +36,17 @@ export async function GET() {
       where: { userId: { in: userIds }, hidden: false },
       select: { id: true, userId: true },
     });
-    const feedbackToUser = new Map<string, string>(
-      userFeedbackIds.map((f) => [f.id, f.userId])
-    );
+    const feedbackToUser = new Map<string, string>(userFeedbackIds.map((f) => [f.id, f.userId]));
     const feedbackIds = userFeedbackIds.map((f) => f.id);
 
-    const voteStats = feedbackIds.length > 0
-      ? await prisma.feedbackVote.groupBy({
-          by: ["feedbackId"],
-          where: { feedbackId: { in: feedbackIds } },
-          _count: { id: true },
-        })
-      : [];
+    const voteStats =
+      feedbackIds.length > 0
+        ? await prisma.feedbackVote.groupBy({
+            by: ["feedbackId"],
+            where: { feedbackId: { in: feedbackIds } },
+            _count: { id: true },
+          })
+        : [];
 
     const votesPerUser = new Map<string, number>();
     for (const v of voteStats) {
@@ -56,19 +55,21 @@ export async function GET() {
       votesPerUser.set(uid, (votesPerUser.get(uid) ?? 0) + v._count.id);
     }
 
-    const contributors = topUsers.map((u: { userId: string; _count: { id: number } }, i: number) => {
-      const badges = badgeMap.get(u.userId) ?? [];
-      return {
-        rank: i + 1,
-        reviewCount: u._count.id,
-        totalVotes: votesPerUser.get(u.userId) ?? 0,
-        badges: badges.map((bid) => ({
-          id: bid,
-          emoji: BADGES[bid].emoji,
-          label: BADGES[bid].label,
-        })),
-      };
-    });
+    const contributors = topUsers.map(
+      (u: { userId: string; _count: { id: number } }, i: number) => {
+        const badges = badgeMap.get(u.userId) ?? [];
+        return {
+          rank: i + 1,
+          reviewCount: u._count.id,
+          totalVotes: votesPerUser.get(u.userId) ?? 0,
+          badges: badges.map((bid) => ({
+            id: bid,
+            emoji: BADGES[bid].emoji,
+            label: BADGES[bid].label,
+          })),
+        };
+      }
+    );
 
     return NextResponse.json({ contributors }, { headers: CACHE });
   } catch (err) {

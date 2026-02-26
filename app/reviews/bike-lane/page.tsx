@@ -37,13 +37,22 @@ function BikeLaneReviewsContent() {
 
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState<"recent" | "helpful">("recent");
-  const { data: feedbackList, mutate } = useFeedbackList("BIKE_LANE", laneId || null, page, 20, sort);
+  const { data: feedbackList, mutate } = useFeedbackList(
+    "BIKE_LANE",
+    laneId || null,
+    page,
+    20,
+    sort
+  );
 
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
 
-  const handleFeedbackSuccess = useCallback((_feedback: FeedbackItem) => {
-    mutate();
-  }, [mutate]);
+  const handleFeedbackSuccess = useCallback(
+    (_feedback: FeedbackItem) => {
+      mutate();
+    },
+    [mutate]
+  );
 
   if (!laneId) {
     return (
@@ -77,8 +86,18 @@ function BikeLaneReviewsContent() {
                 aria-label={t.nav.settings}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
                 </svg>
               </button>
             </div>
@@ -88,13 +107,12 @@ function BikeLaneReviewsContent() {
               <span className="text-white text-2xl">🛤️</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold text-content truncate">
-                {laneId}
-              </h1>
+              <h1 className="text-xl font-bold text-content truncate">{laneId}</h1>
               {detail && detail.count > 0 && (
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-yellow-400 text-sm">
-                    {"★".repeat(stars)}{"☆".repeat(5 - stars)}
+                    {"★".repeat(stars)}
+                    {"☆".repeat(5 - stars)}
                   </span>
                   <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                     {detail.avg.toFixed(1)}
@@ -130,13 +148,19 @@ function BikeLaneReviewsContent() {
               </h2>
               <div className="flex gap-1">
                 <button
-                  onClick={() => { setSort("recent"); setPage(0); }}
+                  onClick={() => {
+                    setSort("recent");
+                    setPage(0);
+                  }}
                   className={`px-2 py-1 text-xs rounded-md transition-colors ${sort === "recent" ? "bg-accent text-white" : "bg-surface-sunken text-content-muted hover:text-content-secondary"}`}
                 >
                   {t.feedback.sortByRecent}
                 </button>
                 <button
-                  onClick={() => { setSort("helpful"); setPage(0); }}
+                  onClick={() => {
+                    setSort("helpful");
+                    setPage(0);
+                  }}
                   className={`px-2 py-1 text-xs rounded-md transition-colors ${sort === "helpful" ? "bg-accent text-white" : "bg-surface-sunken text-content-muted hover:text-content-secondary"}`}
                 >
                   {t.feedback.sortByHelpful}
@@ -172,12 +196,8 @@ function BikeLaneReviewsContent() {
         ) : feedbackList ? (
           <div className="bg-surface-raised rounded-lg shadow-md p-8 text-center">
             <div className="text-5xl mb-4">📝</div>
-            <h3 className="text-lg font-semibold text-content mb-2">
-              {t.reviews.noReviews}
-            </h3>
-            <p className="text-content-muted text-sm">
-              {t.reviews.noReviewsDesc}
-            </p>
+            <h3 className="text-lg font-semibold text-content mb-2">{t.reviews.noReviews}</h3>
+            <p className="text-content-muted text-sm">{t.reviews.noReviewsDesc}</p>
           </div>
         ) : (
           <div className="space-y-3">

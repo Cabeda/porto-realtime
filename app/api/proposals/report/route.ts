@@ -17,10 +17,7 @@ export async function POST(request: NextRequest) {
   const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
-    return NextResponse.json(
-      { error: "Authentication required." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
   const user = await prisma.user.upsert({
@@ -40,16 +37,10 @@ export async function POST(request: NextRequest) {
   const { proposalId, reason } = body;
 
   if (!proposalId || typeof proposalId !== "string") {
-    return NextResponse.json(
-      { error: "proposalId is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "proposalId is required" }, { status: 400 });
   }
 
-  if (
-    !reason ||
-    !VALID_REASONS.includes(reason as (typeof VALID_REASONS)[number])
-  ) {
+  if (!reason || !VALID_REASONS.includes(reason as (typeof VALID_REASONS)[number])) {
     return NextResponse.json(
       { error: `Invalid reason. Must be one of: ${VALID_REASONS.join(", ")}` },
       { status: 400 }
@@ -79,17 +70,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!proposal) {
-      return NextResponse.json(
-        { error: "Proposal not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
     }
 
     if (proposal.userId === user.id) {
-      return NextResponse.json(
-        { error: "Cannot report your own proposal" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Cannot report your own proposal" }, { status: 400 });
     }
 
     const reportReason = reason as "SPAM" | "OFFENSIVE" | "MISLEADING" | "OTHER";
@@ -123,9 +108,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reported: true, reportCount });
   } catch (error) {
     console.error("Error reporting proposal:", error);
-    return NextResponse.json(
-      { error: "Failed to report proposal" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to report proposal" }, { status: 500 });
   }
 }

@@ -78,11 +78,7 @@
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
+  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb)))
     rgb(var(--background-start-rgb));
 }
 
@@ -126,8 +122,6 @@ body {
   padding-bottom: 8px;
   border-bottom: 2px solid var(--color-border);
 }
-
-
 
 .bus-popup-info {
   margin-bottom: 4px;
@@ -195,7 +189,7 @@ body {
 /* Bottom nav height variable for consistent positioning */
 :root {
   --bottom-nav-height: 3.5rem; /* matches BottomNav py-2 + content */
-  --bottom-nav-gap: 0.75rem;   /* spacing above the nav */
+  --bottom-nav-gap: 0.75rem; /* spacing above the nav */
 }
 
 /* Ensure Leaflet bottom controls sit above mobile bottom nav */
@@ -269,7 +263,7 @@ body {
   .custom-bus-marker-with-destination {
     z-index: 1000;
   }
-  
+
   /* Ensure destination labels don't overflow on small screens */
   .custom-bus-marker-with-destination .destination-label {
     max-width: 120px !important;
@@ -323,7 +317,10 @@ body {
   pointer-events: none;
   z-index: 10;
   line-height: 1;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 /* Custom location icon styling */
@@ -341,7 +338,9 @@ body {
 /* Ensure map controls are properly styled */
 .leaflet-control-zoom {
   border: none !important;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
 }
 
 .leaflet-control-zoom a {
@@ -355,12 +354,23 @@ body {
 
 /* Real-time departure pulse animation (Google/Apple Maps style) */
 @keyframes rtpulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.4); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.4);
+  }
 }
 
 /* Header refresh progress bar */
 @keyframes progress {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(350%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
 }

@@ -9,7 +9,8 @@ const inter = Inter({ subsets: ["latin"], display: "swap", preload: true });
 
 export const metadata: Metadata = {
   title: "PortoMove - Transportes em Tempo Real",
-  description: "Dá voz a quem usa transportes públicos e micro-mobilidade no Porto. Mapa em tempo real, horários, avaliações e check-ins da comunidade.",
+  description:
+    "Dá voz a quem usa transportes públicos e micro-mobilidade no Porto. Mapa em tempo real, horários, avaliações e check-ins da comunidade.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -24,9 +25,7 @@ export const metadata: Metadata = {
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 

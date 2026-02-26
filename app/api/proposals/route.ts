@@ -138,10 +138,8 @@ export async function GET(request: NextRequest) {
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       voteCount: p._count.votes,
-      userVoted:
-        "votes" in p ? (p.votes as { id: string }[]).length > 0 : false,
-      userReported:
-        "reports" in p ? (p.reports as { id: string }[]).length > 0 : false,
+      userVoted: "votes" in p ? (p.votes as { id: string }[]).length > 0 : false,
+      userReported: "reports" in p ? (p.reports as { id: string }[]).length > 0 : false,
       isOwner:
         sessionUser && "user" in p
           ? (p.user as { email: string })?.email === sessionUser.email
@@ -152,20 +150,13 @@ export async function GET(request: NextRequest) {
     if (sessionUser) {
       headers["Cache-Control"] = "private, no-store";
     } else {
-      headers["Cache-Control"] =
-        "public, s-maxage=30, stale-while-revalidate=120";
+      headers["Cache-Control"] = "public, s-maxage=30, stale-while-revalidate=120";
     }
 
-    return NextResponse.json(
-      { proposals: transformedProposals, total },
-      { headers }
-    );
+    return NextResponse.json({ proposals: transformedProposals, total }, { headers });
   } catch (error) {
     console.error("Error fetching proposals:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch proposals" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch proposals" }, { status: 500 });
   }
 }
 
@@ -279,10 +270,7 @@ export async function POST(request: NextRequest) {
 
   // Sanitize
   const sanitizedTitle = stripHtml(title).slice(0, MAX_TITLE_LENGTH);
-  const sanitizedDescription = stripHtml(description).slice(
-    0,
-    MAX_DESCRIPTION_LENGTH
-  );
+  const sanitizedDescription = stripHtml(description).slice(0, MAX_DESCRIPTION_LENGTH);
 
   // Content filter on title
   const titleFilter = checkComment(sanitizedTitle);
@@ -308,7 +296,10 @@ export async function POST(request: NextRequest) {
       );
     }
     // Basic GeoJSON FeatureCollection validation
-    const geo = geometry as { type?: string; features?: Array<{ type?: string; geometry?: { type?: string } }> };
+    const geo = geometry as {
+      type?: string;
+      features?: Array<{ type?: string; geometry?: { type?: string } }>;
+    };
     if (
       geo.type !== "FeatureCollection" ||
       !Array.isArray(geo.features) ||
@@ -321,7 +312,11 @@ export async function POST(request: NextRequest) {
     }
     const VALID_GEO_TYPES = ["Point", "LineString", "MultiLineString", "Polygon"];
     for (const feature of geo.features) {
-      if (feature.type !== "Feature" || !feature.geometry?.type || !VALID_GEO_TYPES.includes(feature.geometry.type)) {
+      if (
+        feature.type !== "Feature" ||
+        !feature.geometry?.type ||
+        !VALID_GEO_TYPES.includes(feature.geometry.type)
+      ) {
         return NextResponse.json(
           { error: `Invalid geometry type. Supported: ${VALID_GEO_TYPES.join(", ")}` },
           { status: 400 }
@@ -334,10 +329,7 @@ export async function POST(request: NextRequest) {
   try {
     const allowed = await checkRateLimit(userId);
     if (!allowed) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded. Try again later." },
-        { status: 429 }
-      );
+      return NextResponse.json({ error: "Rate limit exceeded. Try again later." }, { status: 429 });
     }
 
     const proposalType = type as "BIKE_LANE" | "STOP" | "LINE";
@@ -377,9 +369,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ proposal }, { status: 201 });
   } catch (error) {
     console.error("Error creating proposal:", error);
-    return NextResponse.json(
-      { error: "Failed to create proposal" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create proposal" }, { status: 500 });
   }
 }

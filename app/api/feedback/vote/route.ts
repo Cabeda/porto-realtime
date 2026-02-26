@@ -37,10 +37,7 @@ export async function POST(request: NextRequest) {
   const { feedbackId } = body;
 
   if (!feedbackId || typeof feedbackId !== "string") {
-    return NextResponse.json(
-      { error: "feedbackId is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "feedbackId is required" }, { status: 400 });
   }
 
   // Verify the feedback exists
@@ -50,10 +47,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (!feedback) {
-    return NextResponse.json(
-      { error: "Feedback not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Feedback not found" }, { status: 404 });
   }
 
   try {
@@ -91,9 +85,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error toggling vote:", error);
-    return NextResponse.json(
-      { error: "Failed to toggle vote" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to toggle vote" }, { status: 500 });
   }
 }

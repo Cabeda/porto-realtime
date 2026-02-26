@@ -13,7 +13,12 @@ interface UpvoteButtonProps {
   onVoteChange?: (voted: boolean, newCount: number) => void;
 }
 
-export function UpvoteButton({ feedbackId, voteCount, userVoted, onVoteChange }: UpvoteButtonProps) {
+export function UpvoteButton({
+  feedbackId,
+  voteCount,
+  userVoted,
+  onVoteChange,
+}: UpvoteButtonProps) {
   const t = useTranslations();
   const { isAuthenticated } = useAuth();
   const [voted, setVoted] = useState(userVoted);
@@ -67,9 +72,7 @@ export function UpvoteButton({ feedbackId, voteCount, userVoted, onVoteChange }:
         onClick={handleVote}
         disabled={isLoading}
         className={`inline-flex flex-col items-center justify-center w-10 rounded-lg transition-colors ${
-          voted
-            ? "text-accent"
-            : "text-content-muted hover:text-accent"
+          voted ? "text-accent" : "text-content-muted hover:text-accent"
         } disabled:opacity-50`}
         title={!isAuthenticated ? t.feedback.loginToVote : t.feedback.helpful}
         aria-label={`${t.feedback.helpful} (${count})`}
@@ -81,23 +84,22 @@ export function UpvoteButton({ feedbackId, voteCount, userVoted, onVoteChange }:
           stroke="currentColor"
           strokeWidth={voted ? 0 : 2}
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 4l-7 7h4v9h6v-9h4l-7-7z"
-          />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4l-7 7h4v9h6v-9h4l-7-7z" />
         </svg>
-        <span className={`text-xs font-semibold leading-tight ${voted ? "text-accent" : "text-content-muted"}`}>
+        <span
+          className={`text-xs font-semibold leading-tight ${voted ? "text-accent" : "text-content-muted"}`}
+        >
           {count}
         </span>
       </button>
-      {showAuthModal && createPortal(
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={() => setShowAuthModal(false)}
-        />,
-        document.body
-      )}
+      {showAuthModal &&
+        createPortal(
+          <AuthModal
+            onClose={() => setShowAuthModal(false)}
+            onSuccess={() => setShowAuthModal(false)}
+          />,
+          document.body
+        )}
     </>
   );
 }

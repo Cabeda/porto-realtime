@@ -30,7 +30,12 @@ interface EntityPickerProps {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-export function EntityPicker({ type, onSelect, onLineDetail, selectedTargetId }: EntityPickerProps) {
+export function EntityPicker({
+  type,
+  onSelect,
+  onLineDetail,
+  selectedTargetId,
+}: EntityPickerProps) {
   const t = useTranslations();
   const tp = t.proposals;
   const [search, setSearch] = useState("");
@@ -134,9 +139,7 @@ export function EntityPicker({ type, onSelect, onLineDetail, selectedTargetId }:
   // Build GeoJSON from selected entity
   const getGeometry = (entityId: string): ProposalGeoJSON | null => {
     if (type === "LINE" && shapesData?.patterns) {
-      const patterns = shapesData.patterns.filter(
-        (p) => p.routeShortName === entityId
-      );
+      const patterns = shapesData.patterns.filter((p) => p.routeShortName === entityId);
       if (patterns.length === 0) return null;
       const features: ProposalGeoJSON["features"] = patterns.map((p) => ({
         type: "Feature" as const,
@@ -156,16 +159,14 @@ export function EntityPicker({ type, onSelect, onLineDetail, selectedTargetId }:
     if (type === "BIKE_LANE" && lanesData?.lanes) {
       const lane = lanesData.lanes.find((l) => l.id === entityId);
       if (!lane) return null;
-      const features: ProposalGeoJSON["features"] = lane.segments.map(
-        (seg, i) => ({
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: seg,
-          },
-          properties: { name: lane.name, segment: i },
-        })
-      );
+      const features: ProposalGeoJSON["features"] = lane.segments.map((seg, i) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "LineString" as const,
+          coordinates: seg,
+        },
+        properties: { name: lane.name, segment: i },
+      }));
       return { type: "FeatureCollection", features };
     }
 
@@ -186,9 +187,7 @@ export function EntityPicker({ type, onSelect, onLineDetail, selectedTargetId }:
   if (type === "STOP") return null;
 
   if (items.length === 0) {
-    return (
-      <div className="text-xs text-content-muted py-2">{tp.loadingEntities}</div>
-    );
+    return <div className="text-xs text-content-muted py-2">{tp.loadingEntities}</div>;
   }
 
   return (
@@ -227,7 +226,13 @@ export function EntityPicker({ type, onSelect, onLineDetail, selectedTargetId }:
               <span className="flex-shrink-0">{item.icon}</span>
               <span className="truncate">{item.label}</span>
               {selectedTargetId === item.id && (
-                <svg className="w-4 h-4 ml-auto flex-shrink-0 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <svg
+                  className="w-4 h-4 ml-auto flex-shrink-0 text-accent"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               )}
@@ -237,9 +242,7 @@ export function EntityPicker({ type, onSelect, onLineDetail, selectedTargetId }:
       </div>
 
       {filtered.length > 50 && (
-        <p className="text-xs text-content-muted mt-1">
-          {tp.showingFirst50}
-        </p>
+        <p className="text-xs text-content-muted mt-1">{tp.showingFirst50}</p>
       )}
     </div>
   );

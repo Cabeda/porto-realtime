@@ -41,9 +41,15 @@ async function fetchInfrastructure() {
   console.log("📡 Fetching infrastructure data...");
 
   const [stopsRes, bikeLanesRes, bikeParksRes] = await Promise.all([
-    fetch(`${BASE_URL}/api/stations`).then(r => r.json()).catch(() => null),
-    fetch(`${BASE_URL}/api/bike-lanes`).then(r => r.json()).catch(() => null),
-    fetch(`${BASE_URL}/api/bike-parks`).then(r => r.json()).catch(() => null),
+    fetch(`${BASE_URL}/api/stations`)
+      .then((r) => r.json())
+      .catch(() => null),
+    fetch(`${BASE_URL}/api/bike-lanes`)
+      .then((r) => r.json())
+      .catch(() => null),
+    fetch(`${BASE_URL}/api/bike-parks`)
+      .then((r) => r.json())
+      .catch(() => null),
   ]);
 
   const stops = stopsRes?.data?.stops || [];
@@ -51,20 +57,22 @@ async function fetchInfrastructure() {
   const bikeParks = bikeParksRes?.parks || [];
 
   // Filter stops by vehicle mode for more realistic targeting
-  const busStops = stops.filter(s => s.vehicleMode === "BUS" && s.lat && s.lon);
-  const metroStops = stops.filter(s => s.vehicleMode === "RAIL" || s.vehicleMode === "SUBWAY" || s.vehicleMode === "TRAM");
-  const allStops = stops.filter(s => s.lat && s.lon);
+  const busStops = stops.filter((s) => s.vehicleMode === "BUS" && s.lat && s.lon);
+  const metroStops = stops.filter(
+    (s) => s.vehicleMode === "RAIL" || s.vehicleMode === "SUBWAY" || s.vehicleMode === "TRAM"
+  );
+  const allStops = stops.filter((s) => s.lat && s.lon);
 
   // Pre-compute bike lane midpoints
   const laneTargets = bikeLanes
-    .filter(l => l.segments && l.segments.length > 0)
-    .map(l => {
+    .filter((l) => l.segments && l.segments.length > 0)
+    .map((l) => {
       const mid = laneMidpoint(l.segments);
       return mid ? { name: l.name, ...mid } : null;
     })
     .filter(Boolean);
 
-  const parkTargets = bikeParks.filter(p => p.lat && p.lon);
+  const parkTargets = bikeParks.filter((p) => p.lat && p.lon);
 
   console.log(`   Stops: ${allStops.length} (${busStops.length} bus, ${metroStops.length} metro)`);
   console.log(`   Bike lanes: ${laneTargets.length}`);
@@ -98,7 +106,7 @@ function pickTarget(mode, infra) {
         const park = randomChoice(infra.parkTargets);
         return { targetId: park.name || park.id, lat: park.lat, lon: park.lon };
       }
-      return { targetId: null, lat: 41.1580, lon: -8.6290 };
+      return { targetId: null, lat: 41.158, lon: -8.629 };
     }
     case "WALK":
     case "SCOOTER": {
@@ -134,7 +142,9 @@ async function simulateCheckIn(index, infra) {
         `✓ [${String(index + 1).padStart(4)}/${COUNT}] ${mode}${target} @ (${lat.toFixed(4)}, ${lon.toFixed(4)}) — expires ${data.checkIn?.expiresAt || "?"}`
       );
     } else {
-      console.log(`✗ [${String(index + 1).padStart(4)}/${COUNT}] ${mode} — ${data.error || res.status}`);
+      console.log(
+        `✗ [${String(index + 1).padStart(4)}/${COUNT}] ${mode} — ${data.error || res.status}`
+      );
     }
   } catch (err) {
     console.log(`✗ [${String(index + 1).padStart(4)}/${COUNT}] ${mode} — ${err.message}`);

@@ -5,7 +5,7 @@
  */
 export function escapeHtml(text: string | number | undefined | null): string {
   if (text === undefined || text === null) return "";
-  
+
   const str = String(text);
   const htmlEscapeMap: Record<string, string> = {
     "&": "&amp;",

@@ -60,17 +60,23 @@ export function EscalationPrompt({
     : "This issue has enough community support to escalate to Portal da Queixa, where STCP actively responds.";
 
   return (
-    <div className={`mt-3 rounded-lg border p-3 text-xs ${isTier3 ? "border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-950/30" : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30"}`}>
+    <div
+      className={`mt-3 rounded-lg border p-3 text-xs ${isTier3 ? "border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-950/30" : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30"}`}
+    >
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 text-left"
       >
         <span className="text-base">{isTier3 ? "⚖️" : "📢"}</span>
         <div className="flex-1">
-          <span className={`font-semibold ${isTier3 ? "text-orange-700 dark:text-orange-300" : "text-blue-700 dark:text-blue-300"}`}>
+          <span
+            className={`font-semibold ${isTier3 ? "text-orange-700 dark:text-orange-300" : "text-blue-700 dark:text-blue-300"}`}
+          >
             {voteCount} people agree — escalate to {urlLabel}
           </span>
-          <span className={`ml-1 ${isTier3 ? "text-orange-600 dark:text-orange-400" : "text-blue-600 dark:text-blue-400"}`}>
+          <span
+            className={`ml-1 ${isTier3 ? "text-orange-600 dark:text-orange-400" : "text-blue-600 dark:text-blue-400"}`}
+          >
             ({threshold}+ votes)
           </span>
         </div>
@@ -87,7 +93,9 @@ export function EscalationPrompt({
 
       {expanded && (
         <div className="mt-3 space-y-3">
-          <p className={`${isTier3 ? "text-orange-700 dark:text-orange-300" : "text-blue-700 dark:text-blue-300"}`}>
+          <p
+            className={`${isTier3 ? "text-orange-700 dark:text-orange-300" : "text-blue-700 dark:text-blue-300"}`}
+          >
             {description}
           </p>
 

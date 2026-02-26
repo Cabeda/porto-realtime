@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, Typecheck & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Get pnpm store path
+        id: pnpm-cache
+        run: echo "store=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.store }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          for i in 1 2 3; do
+            pnpm install --frozen-lockfile && break
+            echo "Attempt $i failed, retrying in 30s..."
+            sleep 30
+          done
+
+      - name: Generate Prisma client
+        run: pnpm prisma generate
+
+      - name: Lint
+        run: npx eslint . --max-warnings 141
+
+      - name: Format check
+        run: npx prettier --check .
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test with coverage
+        run: pnpm vitest run --coverage
+
+      - name: Security audit
+        run: pnpm audit --audit-level=high

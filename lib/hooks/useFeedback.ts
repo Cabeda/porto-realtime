@@ -1,11 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import type {
-  FeedbackSummaryResponse,
-  FeedbackListResponse,
-  FeedbackType,
-} from "@/lib/types";
+import type { FeedbackSummaryResponse, FeedbackListResponse, FeedbackType } from "@/lib/types";
 
 const jsonFetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -13,12 +9,12 @@ const jsonFetcher = (url: string) => fetch(url).then((res) => res.json());
  * Fetch batch feedback summaries for multiple targets.
  * Returns a map of targetId → { avg, count }.
  */
-export function useFeedbackSummaries(
-  type: FeedbackType,
-  targetIds: string[]
-) {
+export function useFeedbackSummaries(type: FeedbackType, targetIds: string[]) {
   const ids = targetIds.filter(Boolean).join(",");
-  const key = ids.length > 0 ? `/api/feedback/summary?type=${type}&targetIds=${encodeURIComponent(ids)}` : null;
+  const key =
+    ids.length > 0
+      ? `/api/feedback/summary?type=${type}&targetIds=${encodeURIComponent(ids)}`
+      : null;
 
   return useSWR<FeedbackSummaryResponse>(key, jsonFetcher, {
     revalidateOnFocus: false,

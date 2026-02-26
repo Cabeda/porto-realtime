@@ -9,10 +9,12 @@
 ## What We Accomplished Today
 
 ### 1. Station Detail Page Complete Redesign ✅
+
 **Commit**: `fce100d` - Already pushed in previous session  
 **Status**: ✅ **COMPLETE**
 
 **Achievements**:
+
 - Google Maps-inspired modern card layout
 - Color-coded departure times (red/orange/blue/gray)
 - Real-time indicators with pulsing green dot
@@ -28,12 +30,14 @@
 ---
 
 ### 2. "View on Map" Feature Implementation ✅
+
 **Commit**: `a98e810`  
 **Status**: ✅ **COMPLETE & PUSHED**
 
 **Problem Solved**: Users couldn't navigate from station detail page to see station location on map.
 
 **Implementation**:
+
 - Added "Ver no Mapa" button on station page (line 118-124)
 - Deep linking: `/?station={gtfsId}` parameter
 - Map auto-centers on station at zoom level 17
@@ -43,6 +47,7 @@
 - Wrapped `useSearchParams` in Suspense boundary for Next.js 16
 
 **Technical Details**:
+
 - Added `highlightedStationId` prop to `LeafletMap` component
 - New `useEffect` hook manages highlighted marker lifecycle
 - CSS keyframe animation for pulsing effect (scale 1 → 1.5, opacity 1 → 0)
@@ -52,6 +57,7 @@
 **Files Modified**: `app/page.tsx` (129 insertions, 2 deletions)
 
 **User Flow**:
+
 1. User visits station detail page: `/station?gtfsId=2:BRRS2`
 2. Clicks "Ver no Mapa" button
 3. Map page loads with `/?station=2:BRRS2`
@@ -63,12 +69,14 @@
 ## Performance Status
 
 ### Current Metrics
+
 - **First Load**: ~500-800ms ✅
 - **Subsequent Loads**: **<10ms** ✅ (localStorage cache)
 - **Bus Data Refresh**: 30s interval
 - **Stops Cache**: 7 days with stale-while-revalidate
 
 ### Optimizations Completed (Previous Session)
+
 - ✅ Environment-aware logging (no console.logs in production)
 - ✅ Skeleton loading UI
 - ✅ localStorage caching for stops/stations
@@ -81,6 +89,7 @@
 ## Project Status
 
 ### Features Complete ✅
+
 1. **Route Filtering** - Filter buses by route number (persisted in localStorage)
 2. **Performance Optimization** - <1s first load, <10ms subsequent loads
 3. **Station Page Redesign** - Modern Google Maps-inspired UI
@@ -91,6 +100,7 @@
 8. **Real-time Updates** - 30s auto-refresh for bus positions and departures
 
 ### Features Pending
+
 1. **Dark Mode** - CSS variables exist but not implemented in components
 2. **Virtual Scrolling** - For 1000+ stations list (performance optimization)
 3. **PWA Features** - Service worker, offline support, install prompt
@@ -98,6 +108,7 @@
 5. **Multi-station View** - Compare departures across multiple stations
 
 ### Technical Debt
+
 - 20 Dependabot alerts on GitHub (pnpm audit shows 0 vulnerabilities)
 - Dark mode implementation incomplete
 - TypeScript `any` types in some areas
@@ -108,6 +119,7 @@
 ## Key Files & Their Roles
 
 ### Pages
+
 - **`app/page.tsx`** (777 lines)
   - Map page with bus positions
   - Route filtering panel
@@ -129,12 +141,14 @@
   - localStorage caching
 
 ### Utilities
+
 - **`lib/logger.ts`** - Environment-aware logging
 - **`lib/storage.ts`** - localStorage wrapper with expiry
 - **`lib/useIncrementalLoading.ts`** - Progressive rendering hook (unused)
 - **`components/LoadingSkeletons.tsx`** - Professional skeleton UI
 
 ### API Routes
+
 - **`pages/api/buses.tsx`** - Real-time bus positions
 - **`pages/api/station.tsx`** - Station departures by gtfsId
 - **`pages/api/stations.tsx`** - All stops/stations
@@ -144,6 +158,7 @@
 ## Testing
 
 ### Manual Testing Checklist
+
 - [x] Build succeeds (`pnpm build`)
 - [x] Station page redesign displays correctly
 - [x] "Ver no Mapa" button links to map
@@ -156,6 +171,7 @@
 - [x] Performance: Map loads in <10ms subsequent times
 
 ### Automated Testing
+
 ```bash
 # Performance tests (Playwright)
 pnpm test:perf          # Run tests
@@ -169,11 +185,13 @@ pnpm test:perf:ui       # Interactive mode
 ## Git Status
 
 ### Current Branch
+
 ```
 feature/live-bus-map-and-upgrades
 ```
 
 ### Recent Commits
+
 ```
 a98e810 - Add "View on Map" functionality with highlighted station
 fce100d - Redesign station detail page with Google Maps-inspired UI
@@ -183,6 +201,7 @@ fce100d - Redesign station detail page with Google Maps-inspired UI
 ```
 
 ### Changes Pushed
+
 ✅ All changes committed and pushed to `feature/live-bus-map-and-upgrades`
 
 ---
@@ -190,6 +209,7 @@ fce100d - Redesign station detail page with Google Maps-inspired UI
 ## Next Steps (Priority Order)
 
 ### High Priority
+
 1. **Dark Mode Implementation** (Estimated: 2-3 hours)
    - Enable `darkMode: 'class'` in tailwind.config.ts
    - Add dark mode toggle button
@@ -211,6 +231,7 @@ fce100d - Redesign station detail page with Google Maps-inspired UI
    - Filter buses by route when route is selected
 
 ### Medium Priority
+
 4. **Virtual Scrolling** (Estimated: 1-2 hours)
    - Implement for stations list (1000+ items)
    - Use `lib/useIncrementalLoading.ts` hook
@@ -223,6 +244,7 @@ fce100d - Redesign station detail page with Google Maps-inspired UI
    - Highlight fastest route
 
 ### Low Priority
+
 6. **Security Vulnerabilities** (Estimated: 1-2 hours)
    - Review 20 Dependabot alerts
    - Update dependencies if needed
@@ -239,24 +261,28 @@ fce100d - Redesign station detail page with Google Maps-inspired UI
 ## How to Continue Development
 
 ### Start Dev Server
+
 ```bash
 pnpm dev
 # Visit: http://localhost:3000
 ```
 
 ### Test URLs
+
 - **Map**: http://localhost:3000
 - **Stations List**: http://localhost:3000/stations
 - **Station Detail**: http://localhost:3000/station?gtfsId=2:BRRS2
 - **Map with Highlighted Station**: http://localhost:3000/?station=2:BRRS2
 
 ### Build for Production
+
 ```bash
 pnpm build
 pnpm start
 ```
 
 ### Run Tests
+
 ```bash
 pnpm test:perf          # Performance tests
 pnpm test:perf:ui       # Interactive mode
@@ -267,13 +293,16 @@ pnpm test:perf:ui       # Interactive mode
 ## API Endpoints
 
 ### Real-time Data (30s refresh)
+
 - `/api/buses` - Bus positions
 - `/api/station?gtfsId=X` - Station departures
 
 ### Cached Data (7 days localStorage)
+
 - `/api/stations` - All stops
 
 ### Response Headers
+
 ```
 X-Response-Time: 145ms
 Cache-Control: public, s-maxage=10, stale-while-revalidate=60
@@ -284,17 +313,20 @@ Cache-Control: public, s-maxage=10, stale-while-revalidate=60
 ## Important Notes
 
 ### Caching Strategy
+
 - **Bus positions**: 30s SWR refresh (real-time)
 - **Stops/stations**: 7 days localStorage + SWR memory cache
 - **Route filters**: localStorage (persistent)
 - **Favorites**: localStorage (persistent)
 
 ### Browser Support
+
 - Modern browsers with ES6+ support
 - Requires JavaScript enabled
 - Leaflet maps require WebGL
 
 ### Known Issues
+
 1. **LSP Error**: `app/map/page.tsx` (file doesn't exist, can ignore)
 2. **Dark mode**: Broken implementation, needs full rewrite
 3. **20 Dependabot alerts**: GitHub warning (pnpm audit shows 0 vulnerabilities)
@@ -316,12 +348,14 @@ Cache-Control: public, s-maxage=10, stale-while-revalidate=60
 **Implement Dark Mode** (High Value, Medium Effort)
 
 **Why**:
+
 - CSS variables already exist
 - Improves UX for night usage
 - Common feature request
 - Relatively easy to implement
 
 **Steps**:
+
 1. Enable `darkMode: 'class'` in tailwind.config.ts
 2. Create dark mode toggle component
 3. Add `dark:` variants to components
@@ -335,11 +369,13 @@ Cache-Control: public, s-maxage=10, stale-while-revalidate=60
 ## Success Metrics
 
 ### Performance ✅
+
 - First load: <1s ✅ (achieved ~500-800ms)
 - Subsequent loads: <100ms ✅ (achieved <10ms)
 - API response time: <200ms ✅ (monitored via X-Response-Time)
 
 ### User Experience ✅
+
 - Modern, intuitive UI ✅
 - Real-time updates ✅
 - Offline-capable ⏳ (pending PWA)
@@ -347,6 +383,7 @@ Cache-Control: public, s-maxage=10, stale-while-revalidate=60
 - Mobile-responsive ✅
 
 ### Code Quality ✅
+
 - Type-safe TypeScript ⚠️ (some `any` types remain)
 - No console.logs in production ✅
 - Professional loading states ✅

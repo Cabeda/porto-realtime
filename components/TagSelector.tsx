@@ -9,7 +9,10 @@ interface TagSelectorProps {
   onChange: (tags: FeedbackTag[]) => void;
 }
 
-const TAG_LABEL_MAP: Record<FeedbackTag, (t: ReturnType<typeof useTranslations>["feedback"]) => string> = {
+const TAG_LABEL_MAP: Record<
+  FeedbackTag,
+  (t: ReturnType<typeof useTranslations>["feedback"]) => string
+> = {
   OVERCROWDED: (t) => t.tagOvercrowded,
   LATE: (t) => t.tagLate,
   DIRTY: (t) => t.tagDirty,

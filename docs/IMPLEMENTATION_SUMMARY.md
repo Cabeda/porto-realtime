@@ -36,6 +36,7 @@ npm install
 ```
 
 This will install:
+
 - leaflet
 - react-leaflet
 - @types/leaflet
@@ -43,6 +44,7 @@ This will install:
 ## Testing
 
 1. **Start the development server:**
+
    ```bash
    npm run dev
    ```
@@ -65,6 +67,7 @@ This will install:
 ## Features
 
 ### Live Bus Map (`/map`)
+
 - **Interactive Map**: Pan, zoom, and explore Porto
 - **Real-time Updates**: Refreshes every 30 seconds
 - **Bus Markers**: Each bus shows as a marker on the map
@@ -77,6 +80,7 @@ This will install:
 - **Navigation**: "Back to Stations" link to return home
 
 ### API Endpoint (`/api/buses`)
+
 - **CORS-safe**: Server-side proxy avoids browser CORS issues
 - **Normalized Data**: Converts FIWARE NGSI v2 format to clean JSON
 - **Defensive Parsing**: Handles various field name variations in the FIWARE response
@@ -117,16 +121,19 @@ This will install:
 ## Troubleshooting
 
 ### Map doesn't load
+
 - Check browser console for errors
 - Ensure Leaflet CSS is loading (check Network tab)
 - Try refreshing the page
 
 ### No buses showing
+
 - Check `/api/buses` endpoint returns data
 - Verify FIWARE API is accessible
 - Check browser console for errors
 
 ### TypeScript errors
+
 - Run `npm install` to ensure all types are installed
 - Restart your editor/IDE
 - Run `npm run build` to check for build errors
@@ -134,6 +141,7 @@ This will install:
 ## Data Source
 
 Bus location data from Porto Digital's FIWARE Urban Platform:
+
 - **Endpoint**: `https://broker.fiware.urbanplatform.portodigital.pt/v2/entities`
 - **Query**: `?q=vehicleType==bus&limit=1000`
 - **Format**: FIWARE NGSI v2 (normalized in our API proxy)

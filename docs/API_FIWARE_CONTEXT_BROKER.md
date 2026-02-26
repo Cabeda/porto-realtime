@@ -26,12 +26,12 @@ The Orion Context Broker is the core component of the FIWARE open-source platfor
 
 The Porto Urban Platform architecture includes:
 
-| Layer | Description |
-|---|---|
-| **Data Acquisition (UrbanSense)** | 75+ fixed monitoring stations, 200+ municipal vehicles with mobile sensors. Developed with Ubiwhere. |
-| **Interoperability (Context Broker)** | FIWARE Orion — centralizes real-time data from all city systems. |
-| **Vertical Domains** | Mobility (buses, traffic), Environment (air quality, noise), Energy & Waste. |
-| **Open Data** | Selected datasets exposed publicly for developers and researchers. |
+| Layer                                 | Description                                                                                          |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Data Acquisition (UrbanSense)**     | 75+ fixed monitoring stations, 200+ municipal vehicles with mobile sensors. Developed with Ubiwhere. |
+| **Interoperability (Context Broker)** | FIWARE Orion — centralizes real-time data from all city systems.                                     |
+| **Vertical Domains**                  | Mobility (buses, traffic), Environment (air quality, noise), Energy & Waste.                         |
+| **Open Data**                         | Selected datasets exposed publicly for developers and researchers.                                   |
 
 The bus vehicle data comes from **STCP's AVL (Automatic Vehicle Location)** system, which feeds GPS positions into the Context Broker in near real-time.
 
@@ -43,9 +43,9 @@ The bus vehicle data comes from **STCP's AVL (Automatic Vehicle Location)** syst
 
 We make a single API call to fetch all bus positions:
 
-| Use Case | API Proxy | Endpoint | Cache Duration |
-|---|---|---|---|
-| Real-time bus positions | `pages/api/buses.tsx` | `GET /v2/entities?q=vehicleType==bus&limit=1000` | 10 seconds |
+| Use Case                | API Proxy             | Endpoint                                         | Cache Duration |
+| ----------------------- | --------------------- | ------------------------------------------------ | -------------- |
+| Real-time bus positions | `pages/api/buses.tsx` | `GET /v2/entities?q=vehicleType==bus&limit=1000` | 10 seconds     |
 
 This is the **only endpoint we call** on the FIWARE broker. The response is an array of Vehicle entities with GPS coordinates, which we parse and normalize into our internal `Bus` type.
 
@@ -61,20 +61,20 @@ GET /v2/entities
 
 **Query Parameters:**
 
-| Parameter | Type | Description | Example |
-|---|---|---|---|
-| `type` | string | Filter by entity type | `?type=Vehicle` |
-| `q` | string | Simple Query Language filter | `?q=vehicleType==bus` |
-| `id` | string | Filter by specific entity ID | `?id=urn:ngsi-ld:Vehicle:stcp:205:3264` |
-| `idPattern` | string | Regex filter on entity ID | `?idPattern=stcp:205:.*` |
-| `attrs` | string | Comma-separated attributes to return | `?attrs=location,speed` |
-| `limit` | integer | Max results per page (default 20, max 1000) | `?limit=1000` |
-| `offset` | integer | Pagination offset | `?offset=0` |
-| `orderBy` | string | Sort field | `?orderBy=dateModified` |
-| `options` | string | Response format options | `?options=keyValues` (simplified format) |
-| `georel` | string | Geo-spatial relationship | `?georel=near;maxDistance:1000` |
-| `geometry` | string | Geo-spatial shape type | `?geometry=point` |
-| `coords` | string | Geo-spatial coordinates | `?coords=41.15,-8.61` |
+| Parameter   | Type    | Description                                 | Example                                  |
+| ----------- | ------- | ------------------------------------------- | ---------------------------------------- |
+| `type`      | string  | Filter by entity type                       | `?type=Vehicle`                          |
+| `q`         | string  | Simple Query Language filter                | `?q=vehicleType==bus`                    |
+| `id`        | string  | Filter by specific entity ID                | `?id=urn:ngsi-ld:Vehicle:stcp:205:3264`  |
+| `idPattern` | string  | Regex filter on entity ID                   | `?idPattern=stcp:205:.*`                 |
+| `attrs`     | string  | Comma-separated attributes to return        | `?attrs=location,speed`                  |
+| `limit`     | integer | Max results per page (default 20, max 1000) | `?limit=1000`                            |
+| `offset`    | integer | Pagination offset                           | `?offset=0`                              |
+| `orderBy`   | string  | Sort field                                  | `?orderBy=dateModified`                  |
+| `options`   | string  | Response format options                     | `?options=keyValues` (simplified format) |
+| `georel`    | string  | Geo-spatial relationship                    | `?georel=near;maxDistance:1000`          |
+| `geometry`  | string  | Geo-spatial shape type                      | `?geometry=point`                        |
+| `coords`    | string  | Geo-spatial coordinates                     | `?coords=41.15,-8.61`                    |
 
 ### NGSI v2 Attribute Format
 
@@ -145,11 +145,7 @@ Each bus entity returned by the Porto Context Broker follows the [FIWARE Smart D
     "type": "DateTime"
   },
   "annotations": {
-    "value": [
-      "stcp:route:205",
-      "stcp:sentido:1",
-      "stcp:nr_viagem:T205_1_42"
-    ],
+    "value": ["stcp:route:205", "stcp:sentido:1", "stcp:nr_viagem:T205_1_42"],
     "type": "StructuredValue"
   }
 }
@@ -157,38 +153,38 @@ Each bus entity returned by the Porto Context Broker follows the [FIWARE Smart D
 
 ### Attribute Reference
 
-| Attribute | Type | Description | Example Value |
-|---|---|---|---|
-| `id` | string | URN identifier. Format: `urn:ngsi-ld:Vehicle:stcp:ROUTE:VEHICLE_ID` | `"urn:ngsi-ld:Vehicle:stcp:205:3264"` |
-| `type` | string | Always `"Vehicle"` | `"Vehicle"` |
-| `location` | geo:json | GPS position as GeoJSON Point. **Coordinates are [lon, lat]** (GeoJSON standard). | `{"type":"Point","coordinates":[-8.629,41.158]}` |
-| `vehicleType` | Text | Vehicle category | `"bus"` |
-| `vehiclePlateIdentifier` | Text | Vehicle identifier string. Format varies: `"STCP ROUTE VEHICLE_NUM"` | `"STCP 205 3264"` |
-| `vehicleNumber` | Text | Alternative vehicle number field (not always present) | `"3264"` |
-| `speed` | Number | Current speed (km/h, assumed) | `28.5` |
-| `heading` | Number | Compass bearing in degrees (0-360) | `180` |
-| `bearing` | Number | Alternative heading field (not always present) | `270` |
-| `dateModified` | DateTime | Last update timestamp (ISO 8601) | `"2025-01-15T10:30:00.000Z"` |
-| `timestamp` | DateTime | Alternative timestamp field | `"2025-01-15T10:30:00.000Z"` |
-| `annotations` | StructuredValue | Array of STCP-specific metadata strings | `["stcp:route:205","stcp:sentido:1"]` |
-| `routeShortName` | Text | Route number (not always present) | `"205"` |
-| `route` | Text | Alternative route field | `"205"` |
-| `lineId` | Text | Alternative line identifier | `"205"` |
-| `line` | Text | Alternative line field | `"205"` |
-| `routeLongName` | Text | Route destination (not always present) | `"Castelo do Queijo"` |
-| `destination` | Text | Alternative destination field | `"Campanhã"` |
-| `tripHeadsign` | Text | Trip headsign | `"Castelo do Queijo"` |
-| `name` | Text | Entity display name | `"STCP 205 3264"` |
+| Attribute                | Type            | Description                                                                       | Example Value                                    |
+| ------------------------ | --------------- | --------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `id`                     | string          | URN identifier. Format: `urn:ngsi-ld:Vehicle:stcp:ROUTE:VEHICLE_ID`               | `"urn:ngsi-ld:Vehicle:stcp:205:3264"`            |
+| `type`                   | string          | Always `"Vehicle"`                                                                | `"Vehicle"`                                      |
+| `location`               | geo:json        | GPS position as GeoJSON Point. **Coordinates are [lon, lat]** (GeoJSON standard). | `{"type":"Point","coordinates":[-8.629,41.158]}` |
+| `vehicleType`            | Text            | Vehicle category                                                                  | `"bus"`                                          |
+| `vehiclePlateIdentifier` | Text            | Vehicle identifier string. Format varies: `"STCP ROUTE VEHICLE_NUM"`              | `"STCP 205 3264"`                                |
+| `vehicleNumber`          | Text            | Alternative vehicle number field (not always present)                             | `"3264"`                                         |
+| `speed`                  | Number          | Current speed (km/h, assumed)                                                     | `28.5`                                           |
+| `heading`                | Number          | Compass bearing in degrees (0-360)                                                | `180`                                            |
+| `bearing`                | Number          | Alternative heading field (not always present)                                    | `270`                                            |
+| `dateModified`           | DateTime        | Last update timestamp (ISO 8601)                                                  | `"2025-01-15T10:30:00.000Z"`                     |
+| `timestamp`              | DateTime        | Alternative timestamp field                                                       | `"2025-01-15T10:30:00.000Z"`                     |
+| `annotations`            | StructuredValue | Array of STCP-specific metadata strings                                           | `["stcp:route:205","stcp:sentido:1"]`            |
+| `routeShortName`         | Text            | Route number (not always present)                                                 | `"205"`                                          |
+| `route`                  | Text            | Alternative route field                                                           | `"205"`                                          |
+| `lineId`                 | Text            | Alternative line identifier                                                       | `"205"`                                          |
+| `line`                   | Text            | Alternative line field                                                            | `"205"`                                          |
+| `routeLongName`          | Text            | Route destination (not always present)                                            | `"Castelo do Queijo"`                            |
+| `destination`            | Text            | Alternative destination field                                                     | `"Campanhã"`                                     |
+| `tripHeadsign`           | Text            | Trip headsign                                                                     | `"Castelo do Queijo"`                            |
+| `name`                   | Text            | Entity display name                                                               | `"STCP 205 3264"`                                |
 
 ### STCP Annotations Format
 
 The `annotations` array contains STCP-specific metadata encoded as prefixed strings:
 
-| Annotation Pattern | Description | Example |
-|---|---|---|
-| `stcp:route:XXX` | Route number | `"stcp:route:205"` |
-| `stcp:sentido:N` | Direction ID (0 or 1) | `"stcp:sentido:1"` |
-| `stcp:nr_viagem:XXX` | Trip identifier | `"stcp:nr_viagem:T205_1_42"` |
+| Annotation Pattern   | Description           | Example                      |
+| -------------------- | --------------------- | ---------------------------- |
+| `stcp:route:XXX`     | Route number          | `"stcp:route:205"`           |
+| `stcp:sentido:N`     | Direction ID (0 or 1) | `"stcp:sentido:1"`           |
+| `stcp:nr_viagem:XXX` | Trip identifier       | `"stcp:nr_viagem:T205_1_42"` |
 
 ### Entity ID Format (URN)
 
@@ -200,13 +196,13 @@ urn:ngsi-ld:Vehicle:stcp:ROUTE:VEHICLE_ID
 
 Example: `urn:ngsi-ld:Vehicle:stcp:205:3264`
 
-| Segment | Meaning |
-|---|---|
-| `urn:ngsi-ld` | NGSI-LD namespace |
-| `Vehicle` | Entity type |
-| `stcp` | Data provider (STCP) |
-| `205` | Route short name |
-| `3264` | Vehicle number |
+| Segment       | Meaning              |
+| ------------- | -------------------- |
+| `urn:ngsi-ld` | NGSI-LD namespace    |
+| `Vehicle`     | Entity type          |
+| `stcp`        | Data provider (STCP) |
+| `205`         | Route short name     |
+| `3264`        | Vehicle number       |
 
 ---
 
@@ -215,6 +211,7 @@ Example: `urn:ngsi-ld:Vehicle:stcp:205:3264`
 Because the FIWARE entity schema is not strictly enforced (different vehicles may have different attributes populated), our `pages/api/buses.tsx` uses a **fallback chain** to extract each field:
 
 ### Route Number Extraction (priority order)
+
 1. `entity.routeShortName.value`
 2. `entity.route.value`
 3. `entity.lineId.value`
@@ -223,6 +220,7 @@ Because the FIWARE entity schema is not strictly enforced (different vehicles ma
 6. Parse from entity `id` URN (second-to-last segment)
 
 ### Destination Extraction (priority order)
+
 1. `entity.routeLongName.value`
 2. `entity.destination.value`
 3. `entity.tripHeadsign.value`
@@ -231,6 +229,7 @@ Because the FIWARE entity schema is not strictly enforced (different vehicles ma
 6. Fallback to OTP route data (cached headsigns by route + direction)
 
 ### Vehicle Number Extraction (priority order)
+
 1. `entity.vehiclePlateIdentifier.value`
 2. `entity.vehicleNumber.value`
 3. `entity.license_plate.value`
@@ -243,11 +242,11 @@ Because the FIWARE entity schema is not strictly enforced (different vehicles ma
 
 The FIWARE broker can be unreliable (timeouts, 5xx errors), so our proxy implements:
 
-| Strategy | Implementation |
-|---|---|
-| **Retry with backoff** | Up to 3 retries with exponential backoff (1s, 2s, 4s). 10s timeout per attempt. |
-| **Stale data fallback** | If the broker is down, return last successful response (up to 5 minutes old). |
-| **CDN caching** | `Cache-Control: public, s-maxage=10, stale-while-revalidate=60` |
+| Strategy                  | Implementation                                                                         |
+| ------------------------- | -------------------------------------------------------------------------------------- |
+| **Retry with backoff**    | Up to 3 retries with exponential backoff (1s, 2s, 4s). 10s timeout per attempt.        |
+| **Stale data fallback**   | If the broker is down, return last successful response (up to 5 minutes old).          |
+| **CDN caching**           | `Cache-Control: public, s-maxage=10, stale-while-revalidate=60`                        |
 | **OTP destination cache** | Route destinations from OTP are cached 24 hours in-memory, used to enrich FIWARE data. |
 
 ---

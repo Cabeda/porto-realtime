@@ -2,8 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { OTPStationDeparturesResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry, KeyedStaleCache } from "@/lib/api-fetch";
 
-const OTP_URL =
-  "https://otp.portodigital.pt/otp/routers/default/index/graphql";
+const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 
 // Per-stop stale cache (60 seconds — departures are time-sensitive)
 const staleCache = new KeyedStaleCache<unknown>(60 * 1000, 200);
@@ -87,7 +86,7 @@ export async function GET(request: NextRequest) {
     // Return stale data if available
     const cached = staleCache.get(gtfsId);
     if (cached) {
-      return NextResponse.json({ ...cached.data as object, stale: true });
+      return NextResponse.json({ ...(cached.data as object), stale: true });
     }
 
     return NextResponse.json(

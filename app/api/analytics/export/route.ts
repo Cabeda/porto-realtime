@@ -13,7 +13,7 @@ import { listArchiveDates, getArchiveUrl, isR2Configured } from "@/lib/r2";
 
 function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
-  const headers = Object.keys(rows[0]);
+  const headers = Object.keys(rows[0]!);
   const lines = [
     headers.join(","),
     ...rows.map((row) =>
@@ -21,8 +21,7 @@ function toCsv(rows: Record<string, unknown>[]): string {
         .map((h) => {
           const val = row[h];
           if (val === null || val === undefined) return "";
-          if (typeof val === "string" && val.includes(","))
-            return `"${val}"`;
+          if (typeof val === "string" && val.includes(",")) return `"${val}"`;
           return String(val);
         })
         .join(",")
@@ -66,7 +65,9 @@ export async function GET(request: NextRequest) {
           return NextResponse.redirect(url);
         }
         return NextResponse.json(
-          { error: `No Parquet archive found for ${date}. Archives are created daily for previous days.` },
+          {
+            error: `No Parquet archive found for ${date}. Archives are created daily for previous days.`,
+          },
           { status: 404 }
         );
       }
@@ -153,7 +154,9 @@ export async function GET(request: NextRequest) {
 
       if (positions.length === 0) {
         return NextResponse.json(
-          { error: `No position data available for ${date}. Data older than 1 day is archived to R2 as Parquet.` },
+          {
+            error: `No position data available for ${date}. Data older than 1 day is archived to R2 as Parquet.`,
+          },
           { status: 404 }
         );
       }
@@ -230,7 +233,13 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         data,
-        meta: { type: "route-performance", from: fromDate.toISOString().slice(0, 10), to: toDate.toISOString().slice(0, 10), count: data.length, methodology: "/analytics/about" },
+        meta: {
+          type: "route-performance",
+          from: fromDate.toISOString().slice(0, 10),
+          to: toDate.toISOString().slice(0, 10),
+          count: data.length,
+          methodology: "/analytics/about",
+        },
       });
     }
 
@@ -275,7 +284,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ error: "Invalid type. Use: positions, route-performance, segments, archives" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid type. Use: positions, route-performance, segments, archives" },
+      { status: 400 }
+    );
   } catch (error) {
     console.error("Export error:", error);
     return NextResponse.json({ error: "Export failed" }, { status: 500 });

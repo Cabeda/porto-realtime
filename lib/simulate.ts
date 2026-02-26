@@ -19,7 +19,7 @@ interface SimBus {
 
 interface CachedRoute {
   coords: [number, number][]; // [lat, lon][]
-  cumDist: number[];          // cumulative distance in meters
+  cumDist: number[]; // cumulative distance in meters
   totalDist: number;
   longName: string;
   headsign: string;
@@ -31,18 +31,21 @@ const SPEED_MS = 20_000 / 3600; // 20 km/h in m/s
 
 function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6_371_000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function bearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
-  const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
-    Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
-  return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const y = Math.sin(dLon) * Math.cos((lat2 * Math.PI) / 180);
+  const x =
+    Math.cos((lat1 * Math.PI) / 180) * Math.sin((lat2 * Math.PI) / 180) -
+    Math.sin((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
 async function fetchRoutePolylines(routeShortName: string): Promise<CachedRoute[]> {
@@ -67,12 +70,16 @@ async function fetchRoutePolylines(routeShortName: string): Promise<CachedRoute[
 
       const cumDist = [0];
       for (let i = 1; i < coords.length; i++) {
-        cumDist.push(cumDist[i - 1] + haversineM(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1]));
+        cumDist.push(
+          cumDist[i - 1]! +
+            haversineM(coords[i - 1]![0], coords[i - 1]![1], coords[i]![0], coords[i]![1])
+        );
       }
 
       routes.push({
-        coords, cumDist,
-        totalDist: cumDist[cumDist.length - 1],
+        coords,
+        cumDist,
+        totalDist: cumDist[cumDist.length - 1]!,
         longName: route.longName || "",
         headsign: pattern.headsign || route.longName || "",
       });
@@ -83,20 +90,27 @@ async function fetchRoutePolylines(routeShortName: string): Promise<CachedRoute[
   return routes;
 }
 
-function positionAtDistance(route: CachedRoute, dist: number): { lat: number; lon: number; heading: number } {
+function positionAtDistance(
+  route: CachedRoute,
+  dist: number
+): { lat: number; lon: number; heading: number } {
   const { coords, cumDist } = route;
   // Binary search for segment
-  let lo = 0, hi = cumDist.length - 1;
+  let lo = 0,
+    hi = cumDist.length - 1;
   while (lo < hi - 1) {
     const mid = (lo + hi) >> 1;
-    if (cumDist[mid] <= dist) lo = mid; else hi = mid;
+    if (cumDist[mid]! <= dist) lo = mid;
+    else hi = mid;
   }
-  const segLen = cumDist[hi] - cumDist[lo];
-  const t = segLen > 0 ? (dist - cumDist[lo]) / segLen : 0;
+  const segLen = cumDist[hi]! - cumDist[lo]!;
+  const t = segLen > 0 ? (dist - cumDist[lo]!) / segLen : 0;
+  const loCoord = coords[lo]!;
+  const hiCoord = coords[hi]!;
   return {
-    lat: coords[lo][0] + (coords[hi][0] - coords[lo][0]) * t,
-    lon: coords[lo][1] + (coords[hi][1] - coords[lo][1]) * t,
-    heading: bearing(coords[lo][0], coords[lo][1], coords[hi][0], coords[hi][1]),
+    lat: loCoord[0] + (hiCoord[0] - loCoord[0]) * t,
+    lon: loCoord[1] + (hiCoord[1] - loCoord[1]) * t,
+    heading: bearing(loCoord[0], loCoord[1], hiCoord[0], hiCoord[1]),
   };
 }
 

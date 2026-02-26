@@ -98,9 +98,9 @@ export function RouteEditor({
   const handleUndo = useCallback(() => {
     setHistory((prev) => {
       if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
+      const last = prev[prev.length - 1]!;
       setStops(last);
-      onGeometryChange(buildGeometry(last));
+      onGeometryChange(buildGeometry(last as RouteStop[]));
       return prev.slice(0, -1);
     });
   }, [buildGeometry, onGeometryChange]);
@@ -150,9 +150,7 @@ export function RouteEditor({
 
       // Draw route polyline (read-only)
       if (routeCoordinates.length >= 2) {
-        const latLngs = routeCoordinates.map(
-          ([lon, lat]) => [lat, lon] as [number, number]
-        );
+        const latLngs = routeCoordinates.map(([lon, lat]) => [lat, lon] as [number, number]);
         polylineRef.current = L.polyline(latLngs, {
           color: "#3b82f6",
           weight: 4,
@@ -189,9 +187,7 @@ export function RouteEditor({
           const pos = marker.getLatLng();
           pushHistory();
           setStops((prev) =>
-            prev.map((s) =>
-              s.id === stop.id ? { ...s, lat: pos.lat, lon: pos.lng } : s
-            )
+            prev.map((s) => (s.id === stop.id ? { ...s, lat: pos.lat, lon: pos.lng } : s))
           );
         });
 
@@ -270,9 +266,7 @@ export function RouteEditor({
 
       {/* Controls bar */}
       <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-content-muted">
-          {tp.stopCount(stops.length)}
-        </span>
+        <span className="text-xs text-content-muted">{tp.stopCount(stops.length)}</span>
         <div className="flex items-center gap-2">
           <button
             type="button"

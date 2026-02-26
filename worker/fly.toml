@@ -1,4 +1,4 @@
-# fly.toml — PortoMove Worker (position collector + scheduled jobs)
+# fly.toml — PortoMove Worker (Go rewrite)
 
 app = 'portomove-collector'
 primary_region = 'cdg'
@@ -6,11 +6,11 @@ primary_region = 'cdg'
 [build]
 
 [env]
-  NODE_ENV = 'production'
+  TZ = 'UTC'
 
 # No http_service — this is a background worker, not a web server
 [processes]
-  worker = "npx tsx src/index.ts"
+  worker = "/worker"
 
 [[vm]]
   size = 'shared-cpu-1x'

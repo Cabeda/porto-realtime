@@ -10,6 +10,17 @@ export interface FetchWithRetryOptions {
   init?: RequestInit;
 }
 
+/** Error subclass for 4xx client errors — never retried. */
+class ClientError extends Error {
+  constructor(
+    message: string,
+    public status: number
+  ) {
+    super(message);
+    this.name = "ClientError";
+  }
+}
+
 export async function fetchWithRetry(
   url: string,
   options: FetchWithRetryOptions = {}
@@ -32,23 +43,32 @@ export async function fetchWithRetry(
         return response;
       }
 
-      // Don't retry on 4xx errors (client errors)
+      // Don't retry on 4xx errors (client errors) — bail immediately
       if (response.status >= 400 && response.status < 500) {
-        throw new Error(`API returned ${response.status}`);
+        throw new ClientError(`API returned ${response.status}`, response.status);
       }
 
       // Retry on 5xx (server errors)
       if (attempt < maxRetries - 1) {
         const backoffMs = Math.min(1000 * Math.pow(2, attempt), 10000);
-        console.log(`[fetchWithRetry] Retry ${attempt + 1}/${maxRetries} for ${url} after ${backoffMs}ms`);
+        console.warn(
+          `[fetchWithRetry] Retry ${attempt + 1}/${maxRetries} for ${url} after ${backoffMs}ms`
+        );
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         continue;
       }
 
       throw new Error(`API returned ${response.status} after ${maxRetries} attempts`);
     } catch (error: unknown) {
+      // Never retry client errors (4xx)
+      if (error instanceof ClientError) {
+        throw error;
+      }
+
       if (error instanceof Error && error.name === "AbortError") {
-        console.error(`[fetchWithRetry] Timeout (${timeoutMs}ms) on attempt ${attempt + 1} for ${url}`);
+        console.error(
+          `[fetchWithRetry] Timeout (${timeoutMs}ms) on attempt ${attempt + 1} for ${url}`
+        );
       }
 
       if (attempt === maxRetries - 1) {
@@ -56,7 +76,7 @@ export async function fetchWithRetry(
       }
 
       const backoffMs = Math.min(1000 * Math.pow(2, attempt), 10000);
-      console.log(
+      console.warn(
         `[fetchWithRetry] Retry ${attempt + 1}/${maxRetries} for ${url} after ${backoffMs}ms due to: ${error instanceof Error ? error.message : error}`
       );
       await new Promise((resolve) => setTimeout(resolve, backoffMs));

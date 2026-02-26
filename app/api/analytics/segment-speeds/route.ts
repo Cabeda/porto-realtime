@@ -53,7 +53,10 @@ export async function GET(request: NextRequest) {
       });
 
       if (segments.length === 0) {
-        return NextResponse.json({ segments: [], period: periodLabel }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
+        return NextResponse.json(
+          { segments: [], period: periodLabel },
+          { headers: filter.mode === "today" ? NO_CACHE : CACHE }
+        );
       }
 
       // First try pre-aggregated hourly data
@@ -75,25 +78,29 @@ export async function GET(request: NextRequest) {
           a.speeds.push(s.avgSpeed);
           a.samples += s.sampleCount;
         }
-        return NextResponse.json({
-          period: periodLabel,
-          segments: segments.map((seg) => {
-            const a = segAgg.get(seg.id);
-            const avgSpeed = a && a.speeds.length > 0
-              ? Math.round((a.speeds.reduce((x, y) => x + y, 0) / a.speeds.length) * 10) / 10
-              : null;
-            return {
-              id: seg.id,
-              route: seg.route,
-              directionId: seg.directionId,
-              geometry: seg.geometry,
-              lengthM: seg.lengthM,
-              avgSpeed,
-              medianSpeed: null,
-              sampleCount: a?.samples ?? 0,
-            };
-          }),
-        }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
+        return NextResponse.json(
+          {
+            period: periodLabel,
+            segments: segments.map((seg) => {
+              const a = segAgg.get(seg.id);
+              const avgSpeed =
+                a && a.speeds.length > 0
+                  ? Math.round((a.speeds.reduce((x, y) => x + y, 0) / a.speeds.length) * 10) / 10
+                  : null;
+              return {
+                id: seg.id,
+                route: seg.route,
+                directionId: seg.directionId,
+                geometry: seg.geometry,
+                lengthM: seg.lengthM,
+                avgSpeed,
+                medianSpeed: null,
+                sampleCount: a?.samples ?? 0,
+              };
+            }),
+          },
+          { headers: filter.mode === "today" ? NO_CACHE : CACHE }
+        );
       }
 
       // Fallback: compute live average speed per route from raw positions
@@ -128,23 +135,26 @@ export async function GET(request: NextRequest) {
           ])
       );
 
-      return NextResponse.json({
-        period: periodLabel,
-        source: "live",
-        segments: segments.map((seg) => {
-          const rs = routeSpeedMap.get(seg.route);
-          return {
-            id: seg.id,
-            route: seg.route,
-            directionId: seg.directionId,
-            geometry: seg.geometry,
-            lengthM: seg.lengthM,
-            avgSpeed: rs?.avgSpeed ?? null,
-            medianSpeed: null,
-            sampleCount: rs?.count ?? 0,
-          };
-        }),
-      }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
+      return NextResponse.json(
+        {
+          period: periodLabel,
+          source: "live",
+          segments: segments.map((seg) => {
+            const rs = routeSpeedMap.get(seg.route);
+            return {
+              id: seg.id,
+              route: seg.route,
+              directionId: seg.directionId,
+              geometry: seg.geometry,
+              lengthM: seg.lengthM,
+              avgSpeed: rs?.avgSpeed ?? null,
+              medianSpeed: null,
+              sampleCount: rs?.count ?? 0,
+            };
+          }),
+        },
+        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
+      );
     }
 
     // Historical periods (7d, 30d) — filter.mode === "period"
@@ -171,32 +181,30 @@ export async function GET(request: NextRequest) {
       agg.samples += s.sampleCount;
     }
 
-    return NextResponse.json({
-      period: filter.period,
-      segments: segments.map((seg) => {
-        const agg = segAgg.get(seg.id);
-        const avgSpeed =
-          agg && agg.speeds.length > 0
-            ? Math.round(
-                (agg.speeds.reduce((a, b) => a + b, 0) / agg.speeds.length) * 10
-              ) / 10
-            : null;
-        return {
-          id: seg.id,
-          route: seg.route,
-          directionId: seg.directionId,
-          geometry: seg.geometry,
-          lengthM: seg.lengthM,
-          avgSpeed,
-          sampleCount: agg?.samples ?? 0,
-        };
-      }),
-    }, { headers: CACHE });
+    return NextResponse.json(
+      {
+        period: filter.period,
+        segments: segments.map((seg) => {
+          const agg = segAgg.get(seg.id);
+          const avgSpeed =
+            agg && agg.speeds.length > 0
+              ? Math.round((agg.speeds.reduce((a, b) => a + b, 0) / agg.speeds.length) * 10) / 10
+              : null;
+          return {
+            id: seg.id,
+            route: seg.route,
+            directionId: seg.directionId,
+            geometry: seg.geometry,
+            lengthM: seg.lengthM,
+            avgSpeed,
+            sampleCount: agg?.samples ?? 0,
+          };
+        }),
+      },
+      { headers: CACHE }
+    );
   } catch (error) {
     console.error("Segment speeds error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch segment speeds" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch segment speeds" }, { status: 500 });
   }
 }

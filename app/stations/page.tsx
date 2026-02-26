@@ -22,16 +22,38 @@ function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
 }
 
+function walkingMinutes(km: number): number {
+  // Average walking speed ~5 km/h
+  return Math.ceil((km / 5) * 60);
+}
+
+function formatWalkTime(km: number): string {
+  const mins = walkingMinutes(km);
+  return mins < 1 ? "< 1 min" : `${mins} min`;
+}
+
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function StationCard({ station, isFavorite, onToggleFavorite, distance, feedbackSummary }: {
-  station: Stop; isFavorite: boolean; onToggleFavorite: () => void; distance?: number; feedbackSummary?: FeedbackSummaryData;
+function StationCard({
+  station,
+  isFavorite,
+  onToggleFavorite,
+  distance,
+  feedbackSummary,
+}: {
+  station: Stop;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  distance?: number;
+  feedbackSummary?: FeedbackSummaryData;
 }) {
   const t = useTranslations();
   return (
@@ -43,11 +65,11 @@ function StationCard({ station, isFavorite, onToggleFavorite, distance, feedback
             <FeedbackSummary summary={feedbackSummary} compact />
           )}
         </div>
-        {station.code && (
-          <p className="text-xs text-content-muted mt-0.5">{station.code}</p>
-        )}
+        {station.code && <p className="text-xs text-content-muted mt-0.5">{station.code}</p>}
         {distance !== undefined && (
-          <p className="text-sm text-content-muted mt-0.5">📍 {formatDistance(distance)}</p>
+          <p className="text-sm text-content-muted mt-0.5">
+            📍 {formatDistance(distance)} · 🚶 {formatWalkTime(distance)}
+          </p>
         )}
       </Link>
       <div className="flex items-center gap-2 flex-shrink-0">
@@ -78,13 +100,8 @@ function StationCard({ station, isFavorite, onToggleFavorite, distance, feedback
 export default function StationsPage() {
   const t = useTranslations();
   const [showSettings, setShowSettings] = useState(false);
-  const [favoriteStationIds, setFavoriteStationIds] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("favoriteStations");
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
+  const [favoriteStationIds, setFavoriteStationIds] = useState<string[]>([]);
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [filter, setFilter] = useState("");
 
@@ -98,8 +115,15 @@ export default function StationsPage() {
   }, []);
 
   useEffect(() => {
+    const saved = localStorage.getItem("favoriteStations");
+    setFavoriteStationIds(saved ? JSON.parse(saved) : []);
+    setFavoritesLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!favoritesLoaded) return;
     localStorage.setItem("favoriteStations", JSON.stringify(favoriteStationIds));
-  }, [favoriteStationIds]);
+  }, [favoriteStationIds, favoritesLoaded]);
 
   const { data: stations, error } = useSWR<StopsResponse>("/api/stations", stationsFetcher, {
     dedupingInterval: 7 * 24 * 60 * 60 * 1000,
@@ -118,13 +142,19 @@ export default function StationsPage() {
 
   const stops = stations?.data?.stops ?? [];
   const closestStations: StopWithDistance[] = location
-    ? stops.map((s) => ({ ...s, distance: haversine(location.latitude, location.longitude, s.lat, s.lon) }))
-        .sort((a, b) => a.distance - b.distance).slice(0, 5)
+    ? stops
+        .map((s) => ({
+          ...s,
+          distance: haversine(location.latitude, location.longitude, s.lat, s.lon),
+        }))
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 5)
     : [];
   const favoriteStations = stops.filter((s) => favoriteStationIds.includes(s.gtfsId));
-  const filteredStations = filter.length >= 2
-    ? stops.filter((s) => s.name.toLowerCase().includes(filter.toLowerCase())).slice(0, 30)
-    : [];
+  const filteredStations =
+    filter.length >= 2
+      ? stops.filter((s) => s.name.toLowerCase().includes(filter.toLowerCase())).slice(0, 30)
+      : [];
 
   // Collect visible station IDs for batch feedback summary
   const visibleStationIds = useMemo(() => {
@@ -137,14 +167,15 @@ export default function StationsPage() {
 
   const { data: stopSummaries } = useFeedbackSummaries("STOP", visibleStationIds);
 
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-sunken">
-      <div className="text-center">
-        <span className="text-4xl">⚠️</span>
-        <p className="mt-2 text-red-600 dark:text-red-400">{t.stations.errorLoading}</p>
+  if (error)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface-sunken">
+        <div className="text-center">
+          <span className="text-4xl">⚠️</span>
+          <p className="mt-2 text-red-600 dark:text-red-400">{t.stations.errorLoading}</p>
+        </div>
       </div>
-    </div>
-  );
+    );
   if (!stations) return <StationsSkeleton />;
 
   return (
@@ -161,8 +192,18 @@ export default function StationsPage() {
             aria-label={t.nav.settings}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
             </svg>
           </button>
         </div>
@@ -185,15 +226,25 @@ export default function StationsPage() {
         </div>
 
         {/* Search results */}
+        {filter.length === 1 && (
+          <p className="text-content-muted text-sm italic">{t.stations.typeMoreChars}</p>
+        )}
         {filter.length >= 2 && (
           <section>
             <h2 className="text-sm font-semibold text-content-muted uppercase tracking-wide mb-3">
-              {t.stations.results} ({filteredStations.length}{filteredStations.length === 30 ? "+" : ""})
+              {t.stations.results} ({filteredStations.length}
+              {filteredStations.length === 30 ? "+" : ""})
             </h2>
             {filteredStations.length > 0 ? (
               <div className="space-y-2">
                 {filteredStations.map((s) => (
-                  <StationCard key={s.id} station={s} isFavorite={isFavorite(s.gtfsId)} onToggleFavorite={() => toggleFavorite(s.gtfsId)} feedbackSummary={stopSummaries?.[s.gtfsId]} />
+                  <StationCard
+                    key={s.id}
+                    station={s}
+                    isFavorite={isFavorite(s.gtfsId)}
+                    onToggleFavorite={() => toggleFavorite(s.gtfsId)}
+                    feedbackSummary={stopSummaries?.[s.gtfsId]}
+                  />
                 ))}
               </div>
             ) : (
@@ -210,7 +261,14 @@ export default function StationsPage() {
             </h2>
             <div className="space-y-2">
               {closestStations.map((s) => (
-                <StationCard key={`near-${s.id}`} station={s} isFavorite={isFavorite(s.gtfsId)} onToggleFavorite={() => toggleFavorite(s.gtfsId)} distance={s.distance} feedbackSummary={stopSummaries?.[s.gtfsId]} />
+                <StationCard
+                  key={`near-${s.id}`}
+                  station={s}
+                  isFavorite={isFavorite(s.gtfsId)}
+                  onToggleFavorite={() => toggleFavorite(s.gtfsId)}
+                  distance={s.distance}
+                  feedbackSummary={stopSummaries?.[s.gtfsId]}
+                />
               ))}
             </div>
           </section>
@@ -225,13 +283,17 @@ export default function StationsPage() {
             {favoriteStations.length > 0 ? (
               <div className="space-y-2">
                 {favoriteStations.map((s) => (
-                  <StationCard key={`fav-${s.gtfsId}`} station={s} isFavorite onToggleFavorite={() => toggleFavorite(s.gtfsId)} feedbackSummary={stopSummaries?.[s.gtfsId]} />
+                  <StationCard
+                    key={`fav-${s.gtfsId}`}
+                    station={s}
+                    isFavorite
+                    onToggleFavorite={() => toggleFavorite(s.gtfsId)}
+                    feedbackSummary={stopSummaries?.[s.gtfsId]}
+                  />
                 ))}
               </div>
             ) : (
-              <p className="text-content-muted text-sm italic">
-                {t.stations.tapToFavorite}
-              </p>
+              <p className="text-content-muted text-sm italic">{t.stations.tapToFavorite}</p>
             )}
           </section>
         )}

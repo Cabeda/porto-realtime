@@ -15,10 +15,8 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
 
   const toggleRoute = (route: string) => {
-    setSelectedRoutes(prev =>
-      prev.includes(route)
-        ? prev.filter(r => r !== route)
-        : [...prev, route]
+    setSelectedRoutes((prev) =>
+      prev.includes(route) ? prev.filter((r) => r !== route) : [...prev, route]
     );
   };
 
@@ -27,7 +25,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
 
   const handleLocationRequest = () => {
     setIsRequestingLocation(true);
-    
+
     if (!navigator.geolocation) {
       // No geolocation support, skip to completion
       setTimeout(() => {
@@ -77,9 +75,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
           <div className="text-center space-y-8 animate-fade-in">
             <div className="space-y-4">
               <div className="text-7xl mb-4 animate-bounce-slow">🚌</div>
-              <h1 className="text-4xl font-bold text-content">
-                PortoMove
-              </h1>
+              <h1 className="text-4xl font-bold text-content">PortoMove</h1>
               <p className="text-lg text-content-secondary max-w-md mx-auto">
                 Acompanhe os autocarros do Porto em tempo real
               </p>
@@ -126,9 +122,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
           <div className="space-y-6 animate-fade-in">
             <div className="text-center space-y-2">
               <div className="text-5xl mb-2">🎯</div>
-              <h2 className="text-3xl font-bold text-content">
-                Quais linhas usa?
-              </h2>
+              <h2 className="text-3xl font-bold text-content">Quais linhas usa?</h2>
               <p className="text-content-secondary">
                 Selecione as suas linhas favoritas para começar
               </p>
@@ -141,7 +135,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
                   ↓ Role para ver todas as linhas ↓
                 </p>
               </div>
-              
+
               {/* Scrollable route grid */}
               <div className="px-6 pb-4 max-h-[50vh] overflow-y-auto">
                 {busRoutes.length > 0 && (
@@ -150,7 +144,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
                       🚌 Autocarros ({busRoutes.length})
                     </div>
                     <div className="grid grid-cols-3 gap-3">
-                      {busRoutes.map(route => (
+                      {busRoutes.map((route) => (
                         <button
                           key={route.gtfsId}
                           onClick={() => toggleRoute(route.shortName)}
@@ -173,7 +167,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
                       🚇 Metro ({metroRoutes.length})
                     </div>
                     <div className="grid grid-cols-3 gap-3">
-                      {metroRoutes.map(route => (
+                      {metroRoutes.map((route) => (
                         <button
                           key={route.gtfsId}
                           onClick={() => toggleRoute(route.shortName)}
@@ -196,7 +190,8 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
               {selectedRoutes.length > 0 && (
                 <div className="px-6 py-3 border-t border-border bg-white/95 dark:bg-gray-800/95 sticky bottom-0">
                   <p className="text-sm text-content-secondary text-center font-medium">
-                    ✓ {selectedRoutes.length} linha{selectedRoutes.length > 1 ? 's' : ''} selecionada{selectedRoutes.length > 1 ? 's' : ''}
+                    ✓ {selectedRoutes.length} linha{selectedRoutes.length > 1 ? "s" : ""}{" "}
+                    selecionada{selectedRoutes.length > 1 ? "s" : ""}
                   </p>
                 </div>
               )}
@@ -225,9 +220,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
           <div className="space-y-8 animate-fade-in text-center">
             <div className="space-y-3">
               <div className="text-6xl mb-4">📍</div>
-              <h2 className="text-3xl font-bold text-content">
-                Encontrar paragens próximas
-              </h2>
+              <h2 className="text-3xl font-bold text-content">Encontrar paragens próximas</h2>
               <p className="text-content-secondary max-w-sm mx-auto">
                 Permitir acesso à localização para ver as paragens mais próximas de si
               </p>
@@ -238,9 +231,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
                 <div className="flex items-start gap-3 text-left">
                   <span className="text-2xl">🔒</span>
                   <div className="flex-1">
-                    <p className="font-semibold text-content">
-                      Privacidade garantida
-                    </p>
+                    <p className="font-semibold text-content">Privacidade garantida</p>
                     <p className="text-sm text-content-secondary">
                       A sua localização nunca é guardada ou partilhada
                     </p>
@@ -249,9 +240,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
                 <div className="flex items-start gap-3 text-left">
                   <span className="text-2xl">⚡</span>
                   <div className="flex-1">
-                    <p className="font-semibold text-content">
-                      Totalmente opcional
-                    </p>
+                    <p className="font-semibold text-content">Totalmente opcional</p>
                     <p className="text-sm text-content-secondary">
                       Pode usar a app sem partilhar a localização
                     </p>
@@ -268,11 +257,10 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
               >
                 {isRequestingLocation ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="animate-spin">⏳</span>
-                    A processar...
+                    <span className="animate-spin">⏳</span>A processar...
                   </span>
                 ) : (
-                  'Permitir Localização'
+                  "Permitir Localização"
                 )}
               </button>
               <button
@@ -299,7 +287,8 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
         }
 
         @keyframes bounce-slow {
-          0%, 100% {
+          0%,
+          100% {
             transform: translateY(0);
           }
           50% {

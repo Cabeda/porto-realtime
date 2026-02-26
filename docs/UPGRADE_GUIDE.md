@@ -3,6 +3,7 @@
 ## Issue Encountered
 
 The automatic upgrade tool (`@next/codemod upgrade`) failed due to an ESLint version conflict:
+
 - Next.js 16 requires ESLint 9+
 - The tool upgraded Next.js but left ESLint at version 8
 - This created a peer dependency conflict
@@ -10,6 +11,7 @@ The automatic upgrade tool (`@next/codemod upgrade`) failed due to an ESLint ver
 ## Fix Applied
 
 Updated `package.json`:
+
 ```diff
 - "eslint": "^8",
 + "eslint": "^9",
@@ -31,6 +33,7 @@ npm list eslint next react
 ```
 
 Expected output:
+
 ```
 porto-app@0.1.0
 ├── eslint@9.x.x
@@ -41,6 +44,7 @@ porto-app@0.1.0
 ## What Changed
 
 ### Major Version Updates
+
 - **Next.js**: 14.1.4 → 16.1.6
 - **React Types**: 18.x → 19.2.13
 - **ESLint**: 8.x → 9.x
@@ -48,9 +52,11 @@ porto-app@0.1.0
 ### Breaking Changes to Watch For
 
 #### 1. ESLint 9 Configuration
+
 ESLint 9 uses a new flat config format. You may need to update `.eslintrc.json` if you have custom rules.
 
 **Before (ESLint 8):**
+
 ```json
 {
   "extends": "next/core-web-vitals"
@@ -60,12 +66,14 @@ ESLint 9 uses a new flat config format. You may need to update `.eslintrc.json` 
 **After (ESLint 9):** Should still work with `next/core-web-vitals`, but custom configs may need updates.
 
 #### 2. Next.js 16 Changes
+
 - Improved performance and stability
 - Better TypeScript support
 - Enhanced App Router features
 - Updated caching behavior
 
 #### 3. React 18 Preserved
+
 The upgrade kept React 18 (recommended choice for mixed pages/app router usage).
 
 ## Verify Everything Works
@@ -73,16 +81,19 @@ The upgrade kept React 18 (recommended choice for mixed pages/app router usage).
 After installation, test:
 
 1. **Development Server:**
+
    ```bash
    npm run dev
    ```
 
 2. **Build:**
+
    ```bash
    npm run build
    ```
 
 3. **Linting:**
+
    ```bash
    npm run lint
    ```
@@ -99,6 +110,7 @@ After installation, test:
 **Symptom:** `npm run lint` fails with config errors
 
 **Solution:** Update `.eslintrc.json` to use flat config or add compatibility:
+
 ```json
 {
   "extends": ["next/core-web-vitals"]
@@ -110,6 +122,7 @@ After installation, test:
 **Symptom:** TypeScript errors about React types
 
 **Solution:** The `overrides` section in package.json should handle this, but if issues persist:
+
 ```bash
 npm install --save-dev @types/react@19.2.13 @types/react-dom@19.2.3
 ```
@@ -118,7 +131,8 @@ npm install --save-dev @types/react@19.2.13 @types/react-dom@19.2.3
 
 **Symptom:** `npm run build` fails
 
-**Solution:** 
+**Solution:**
+
 1. Clear Next.js cache: `rm -rf .next`
 2. Rebuild: `npm run build`
 
@@ -156,27 +170,31 @@ npm install @types/react@18.2.0 @types/react-dom@18.2.0 --save-dev
 Since you're upgrading from Next.js 14 → 16 (skipping 15), review these key changes from the [Next.js 15 migration guide](https://nextjs.org/docs/app/guides/upgrading/version-15):
 
 ### 1. Async Request APIs (Breaking Change)
+
 **Affected:** `headers()`, `cookies()`, `params`, `searchParams`
 
 In Next.js 15+, these are now async:
+
 ```typescript
 // Before (Next.js 14)
-const headersList = headers()
-const cookieStore = cookies()
+const headersList = headers();
+const cookieStore = cookies();
 
 // After (Next.js 15+)
-const headersList = await headers()
-const cookieStore = await cookies()
+const headersList = await headers();
+const cookieStore = await cookies();
 ```
 
 **Action Required:** Check if you use these APIs anywhere.
 
 ### 2. Route Segment Config Changes
+
 - `runtime` prop changes
 - `dynamic` behavior updates
 - Caching defaults changed
 
 ### 3. fetch() Caching Changes
+
 **Important:** `fetch()` requests are no longer cached by default in Next.js 15+.
 
 **Before:** All fetch requests cached automatically
@@ -184,16 +202,18 @@ const cookieStore = await cookies()
 
 ```typescript
 // Opt-in to caching
-fetch('https://...', { cache: 'force-cache' })
+fetch("https://...", { cache: "force-cache" });
 
 // Or set in route segment
-export const dynamic = 'force-static'
+export const dynamic = "force-static";
 ```
 
 ### 4. Route Handlers (`GET`, `POST`, etc.)
+
 GET handlers now opt out of caching by default. Add caching if needed:
+
 ```typescript
-export const dynamic = 'force-static'
+export const dynamic = "force-static";
 ```
 
 ### Impact on Porto Explore App
@@ -201,11 +221,13 @@ export const dynamic = 'force-static'
 Based on our codebase review:
 
 ✅ **No Action Needed:**
+
 - We don't use `headers()` or `cookies()` directly
 - Our API routes (`/api/buses`, `/api/stations`) use Pages Router (not affected)
 - Client-side data fetching via SWR (not affected)
 
 ⚠️ **Monitor:**
+
 - FIWARE API calls in `/api/buses` - already configured with explicit headers
 - OTP GraphQL calls in `/api/stations` - using fetch without cache options
 

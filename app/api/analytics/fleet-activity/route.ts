@@ -78,15 +78,15 @@ export async function GET(request: NextRequest) {
       select: { recordedAt: true, vehicleId: true, route: true },
     });
 
-    return NextResponse.json({
-      period: filter.mode === "date" ? filter.dateStr : "today",
-      timeseries: buildFleetTimeseries(positions),
-    }, { headers: filter.mode === "date" ? CACHE : NO_CACHE });
+    return NextResponse.json(
+      {
+        period: filter.mode === "date" ? filter.dateStr : "today",
+        timeseries: buildFleetTimeseries(positions),
+      },
+      { headers: filter.mode === "date" ? CACHE : NO_CACHE }
+    );
   } catch (error) {
     console.error("Fleet activity error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch fleet activity" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch fleet activity" }, { status: 500 });
   }
 }

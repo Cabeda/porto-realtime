@@ -34,6 +34,7 @@ Updated route number extraction logic in `pages/api/buses.tsx`:
 ### Enhanced Debug Logging
 
 Added detailed console output showing:
+
 - Entity IDs
 - Available field keys
 - Full entity structure
@@ -42,6 +43,7 @@ Added detailed console output showing:
 ## Expected Entity ID Formats
 
 The parser now handles:
+
 ```
 urn:ngsi-ld:Vehicle:205:123456           → 205
 urn:ngsi-ld:Vehicle:porto:205:123456     → 205
@@ -52,10 +54,11 @@ urn:ngsi-ld:Vehicle:ZM:123               → ZM
 ## Regex Pattern
 
 ```javascript
-/^[A-Z0-9]{1,4}$/i
+/^[A-Z0-9]{1,4}$/i;
 ```
 
 Matches:
+
 - ✅ 205, 502, 901 (numeric routes)
 - ✅ ZM, ZC (zone routes)
 - ✅ 9B, 10A (alphanumeric)
@@ -72,6 +75,7 @@ Matches:
 ## Debug Output Example
 
 In your terminal, you should see:
+
 ```
 === FIWARE Entity Sample ===
 First entity ID: urn:ngsi-ld:Vehicle:porto:205:123456
@@ -88,6 +92,7 @@ Full first entity: {
 ## If Still Not Working
 
 Check the console output and look for:
+
 1. **Field name** that contains the route number
 2. **Entity ID format** to adjust parsing
 3. Update the extraction logic accordingly
@@ -95,6 +100,7 @@ Check the console output and look for:
 ## Alternative Field Names to Check
 
 If the standard fields don't work, look for:
+
 - `linea`
 - `linha`
 - `ruta`

@@ -17,8 +17,8 @@ function isDateStr(v: string): boolean {
 /** Map speed (km/h) to a color: red (<10) → orange (15) → green (≥25) */
 function speedColor(speed: number | null): string {
   if (speed === null) return "#94a3b8";
-  if (speed < 10) return "hsl(0, 90%, 45%)";           // red
-  if (speed >= 25) return "hsl(120, 70%, 38%)";         // green
+  if (speed < 10) return "hsl(0, 90%, 45%)"; // red
+  if (speed >= 25) return "hsl(120, 70%, 38%)"; // green
   // 10–15: red → orange (hue 0°→30°)
   if (speed < 15) {
     const hue = ((speed - 10) / 5) * 30;
@@ -55,20 +55,16 @@ export default function HeatmapPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const leafletRef = useRef<typeof L | null>(null);
 
-  const hp = HOUR_PRESETS[hourPreset];
-  const hourSuffix = hp.from === 0 && hp.to === 24
-    ? ""
-    : `&hourFrom=${hp.from}&hourTo=${hp.to}`;
+  const hp = HOUR_PRESETS[hourPreset]!;
+  const hourSuffix = hp.from === 0 && hp.to === 24 ? "" : `&hourFrom=${hp.from}&hourTo=${hp.to}`;
 
   const segUrl = isDateStr(period)
     ? `/api/analytics/segment-speeds?date=${period}${route ? `&route=${route}` : ""}${hourSuffix}`
     : `/api/analytics/segment-speeds?period=${period}${route ? `&route=${route}` : ""}${hourSuffix}`;
 
-  const { data: segmentData } = useSWR(
-    segUrl,
-    fetcher,
-    { refreshInterval: period === "today" ? 300000 : 0 }
-  );
+  const { data: segmentData } = useSWR(segUrl, fetcher, {
+    refreshInterval: period === "today" ? 300000 : 0,
+  });
 
   const { data: routes } = useSWR("/api/routes", fetcher);
 
@@ -91,7 +87,8 @@ export default function HeatmapPage() {
       });
 
       Lf.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
         maxZoom: 19,
       }).addTo(map);
 
@@ -132,9 +129,10 @@ export default function HeatmapPage() {
         opacity,
       });
 
-      const tooltip = seg.avgSpeed !== null
-        ? `<b>${seg.route}</b> dir ${seg.directionId}<br/>Speed: ${seg.avgSpeed} km/h<br/>Samples: ${seg.sampleCount}`
-        : `<b>${seg.route}</b> dir ${seg.directionId}<br/>No speed data`;
+      const tooltip =
+        seg.avgSpeed !== null
+          ? `<b>${seg.route}</b> dir ${seg.directionId}<br/>Speed: ${seg.avgSpeed} km/h<br/>Samples: ${seg.sampleCount}`
+          : `<b>${seg.route}</b> dir ${seg.directionId}<br/>No speed data`;
 
       polyline.bindTooltip(tooltip);
       polyline.addTo(layerRef.current!);
@@ -145,9 +143,9 @@ export default function HeatmapPage() {
     drawSegments();
   }, [drawSegments]);
 
-  const segmentsWithData = segmentData?.segments?.filter(
-    (s: { avgSpeed: number | null }) => s.avgSpeed !== null
-  ).length ?? 0;
+  const segmentsWithData =
+    segmentData?.segments?.filter((s: { avgSpeed: number | null }) => s.avgSpeed !== null).length ??
+    0;
   const totalSegments = segmentData?.segments?.length ?? 0;
 
   return (
@@ -155,7 +153,9 @@ export default function HeatmapPage() {
       <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">&larr;</Link>
+            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">
+              &larr;
+            </Link>
             <h1 className="text-xl font-bold text-content">Velocity Heatmap</h1>
           </div>
           <DesktopNav />
@@ -226,9 +226,9 @@ export default function HeatmapPage() {
         </div>
 
         <p className="mt-4 text-sm text-[var(--color-content-secondary)]">
-          Segments are colored by average commercial speed. Red indicates congestion or slow service;
-          green indicates free-flowing traffic. Gray segments have no data for the selected period.
-          Hover over a segment for details.
+          Segments are colored by average commercial speed. Red indicates congestion or slow
+          service; green indicates free-flowing traffic. Gray segments have no data for the selected
+          period. Hover over a segment for details.
         </p>
       </div>
     </div>

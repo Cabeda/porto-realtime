@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { OTPStopsResponseSchema } from "@/lib/schemas/otp";
 import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 import { readFallback } from "@/lib/fallback";
+import { logger } from "@/lib/logger";
 
-const OTP_URL =
-  "https://otp.portodigital.pt/otp/routers/default/index/graphql";
+const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 
 const CACHE_DURATION = 30 * 24 * 60 * 60; // 30 days in seconds
 const staleCache = new StaleCache<unknown>(30 * 24 * 60 * 60 * 1000); // 30 days
@@ -66,7 +66,7 @@ export async function GET() {
     // Layer 4: static fallback from public/fallback/stops.json
     const fallback = await readFallback<{ data: { stops: unknown[] } }>("stops.json");
     if (fallback?.data?.stops?.length) {
-      console.log("Returning static fallback for stations");
+      logger.log("Returning static fallback for stations");
       return NextResponse.json(fallback, {
         headers: { "X-Cache-Status": "FALLBACK" },
       });

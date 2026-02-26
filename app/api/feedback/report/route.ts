@@ -17,10 +17,7 @@ export async function POST(request: NextRequest) {
   const sessionUser = await safeGetSession(auth);
 
   if (!sessionUser) {
-    return NextResponse.json(
-      { error: "Authentication required." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
   const user = await prisma.user.upsert({
@@ -114,9 +111,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reported: true, reportCount });
   } catch (error) {
     console.error("Error reporting feedback:", error);
-    return NextResponse.json(
-      { error: "Failed to report feedback" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to report feedback" }, { status: 500 });
   }
 }

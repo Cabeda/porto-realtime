@@ -129,13 +129,14 @@ export async function batchComputeBadges(
   const feedbackToUser = new Map<string, string>(userFeedbackIds.map((f) => [f.id, f.userId]));
   const feedbackIds = userFeedbackIds.map((f) => f.id);
 
-  const voteStats = feedbackIds.length > 0
-    ? await prisma.feedbackVote.groupBy({
-        by: ["feedbackId"],
-        where: { feedbackId: { in: feedbackIds } },
-        _count: { id: true },
-      })
-    : [];
+  const voteStats =
+    feedbackIds.length > 0
+      ? await prisma.feedbackVote.groupBy({
+          by: ["feedbackId"],
+          where: { feedbackId: { in: feedbackIds } },
+          _count: { id: true },
+        })
+      : [];
 
   const votesPerUser = new Map<string, number>();
   for (const v of voteStats) {
@@ -147,14 +148,19 @@ export async function batchComputeBadges(
   // Assemble
   const result = new Map<string, BadgeId[]>();
   for (const uid of unique) {
-    const rc = reviewStats.find((r: { userId: string; _count: { id: number } }) => r.userId === uid)?._count.id ?? 0;
+    const rc =
+      reviewStats.find((r: { userId: string; _count: { id: number } }) => r.userId === uid)?._count
+        .id ?? 0;
     const votes = votesPerUser.get(uid) ?? 0;
     const targets = uniqueTargetsMap.get(uid)?.size ?? 0;
-    result.set(uid, computeBadgesFromStats({
-      reviewCount: rc,
-      totalVotesReceived: votes,
-      uniqueTargets: targets,
-    }));
+    result.set(
+      uid,
+      computeBadgesFromStats({
+        reviewCount: rc,
+        totalVotesReceived: votes,
+        uniqueTargets: targets,
+      })
+    );
   }
 
   return result;

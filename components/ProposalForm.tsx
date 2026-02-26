@@ -42,7 +42,10 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
   const [targetId, setTargetId] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [geometry, setGeometry] = useState<ProposalGeoJSON | null>(null);
-  const [lineDetail, setLineDetail] = useState<{ stops: RouteStop[]; routeCoordinates: [number, number][] } | null>(null);
+  const [lineDetail, setLineDetail] = useState<{
+    stops: RouteStop[];
+    routeCoordinates: [number, number][];
+  } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -137,10 +140,13 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
   }, []);
 
   // Stable callback for EntityPicker line detail
-  const handleLineDetail = useCallback((detail: { stops: RouteStop[]; routeCoordinates: [number, number][] } | null) => {
-    setLineDetail(detail);
-    if (detail) setGeometry(null);
-  }, []);
+  const handleLineDetail = useCallback(
+    (detail: { stops: RouteStop[]; routeCoordinates: [number, number][] } | null) => {
+      setLineDetail(detail);
+      if (detail) setGeometry(null);
+    },
+    []
+  );
 
   return (
     <div className="space-y-5">
@@ -206,7 +212,9 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
         />
         <div className="flex justify-between text-xs text-content-muted mt-1">
           <span>{description.trim().length < 20 ? tp.descriptionMinLength : ""}</span>
-          <span>{description.length}/{MAX_DESCRIPTION}</span>
+          <span>
+            {description.length}/{MAX_DESCRIPTION}
+          </span>
         </div>
       </div>
 
@@ -242,7 +250,9 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
 
       {/* Route stop editor for LINE type */}
       {type === "LINE" && targetId && lineDetail && (
-        <Suspense fallback={<div className="h-[350px] rounded-lg bg-surface-sunken animate-pulse" />}>
+        <Suspense
+          fallback={<div className="h-[350px] rounded-lg bg-surface-sunken animate-pulse" />}
+        >
           <RouteEditor
             routeCoordinates={lineDetail.routeCoordinates}
             initialStops={lineDetail.stops}
@@ -274,7 +284,9 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
           <label className="block text-sm font-medium text-content-secondary mb-1">
             {tp.mapPreview}
           </label>
-          <Suspense fallback={<div className="h-[200px] rounded-lg bg-surface-sunken animate-pulse" />}>
+          <Suspense
+            fallback={<div className="h-[200px] rounded-lg bg-surface-sunken animate-pulse" />}
+          >
             <ProposalMapPreview geometry={geometry} height="200px" />
           </Suspense>
         </div>
@@ -297,9 +309,7 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
 
       {/* Auth hint */}
       {!isAuthenticated && title.trim().length > 0 && (
-        <p className="text-xs text-content-muted text-center">
-          {tp.loginRequired}
-        </p>
+        <p className="text-xs text-content-muted text-center">{tp.loginRequired}</p>
       )}
 
       {/* Submit */}
@@ -325,13 +335,11 @@ export function ProposalForm({ onSuccess }: ProposalFormProps) {
       )}
 
       {/* Auth modal */}
-      {showAuthModal && createPortal(
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={handleAuthSuccess}
-        />,
-        document.body
-      )}
+      {showAuthModal &&
+        createPortal(
+          <AuthModal onClose={() => setShowAuthModal(false)} onSuccess={handleAuthSuccess} />,
+          document.body
+        )}
     </div>
   );
 }

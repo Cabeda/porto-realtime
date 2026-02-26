@@ -31,18 +31,12 @@ export async function GET(request: NextRequest) {
     .filter((id) => id.length > 0 && id.length <= MAX_TARGET_ID_LENGTH);
 
   if (targetIds.length === 0) {
-    return NextResponse.json(
-      { error: "targetIds must contain at least one ID" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "targetIds must contain at least one ID" }, { status: 400 });
   }
 
   // Cap at 100 to prevent abuse
   if (targetIds.length > 100) {
-    return NextResponse.json(
-      { error: "Maximum 100 targetIds per request" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Maximum 100 targetIds per request" }, { status: 400 });
   }
 
   try {
@@ -75,9 +69,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error fetching feedback summaries:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch feedback summaries" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch feedback summaries" }, { status: 500 });
   }
 }

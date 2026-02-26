@@ -1,0 +1,19 @@
+# fly.toml — PortoMove Worker (position collector + scheduled jobs)
+
+app = 'portomove-collector'
+primary_region = 'cdg'
+
+[build]
+
+[env]
+  NODE_ENV = 'production'
+
+# No http_service — this is a background worker, not a web server
+[processes]
+  worker = "npx tsx src/index.ts"
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
+  cpus = 1
+  memory_mb = 512

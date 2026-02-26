@@ -51,7 +51,10 @@ export function RouteFilterPanel({
               <span className="flex items-center justify-center gap-1">
                 {route.shortName}
                 {isLive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0" title={t.map.live} />
+                  <span
+                    className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0"
+                    title={t.map.live}
+                  />
                 )}
               </span>
             </button>
@@ -61,7 +64,11 @@ export function RouteFilterPanel({
                 onToggleFavorite(route.shortName);
               }}
               className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-xs leading-none"
-              title={favoriteRoutes.includes(route.shortName) ? t.stations.removeFromFavorites : t.stations.addToFavorites}
+              title={
+                favoriteRoutes.includes(route.shortName)
+                  ? t.stations.removeFromFavorites
+                  : t.stations.addToFavorites
+              }
             >
               {favoriteRoutes.includes(route.shortName) ? (
                 <span className="text-yellow-500">&#9733;</span>
@@ -109,7 +116,9 @@ export function RouteFilterPanel({
             <div className="mb-3">
               <div className="text-xs font-semibold text-content-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
                 🚌 {t.map.busLines}
-                <span className="text-content-muted font-normal normal-case">({busRoutes.length})</span>
+                <span className="text-content-muted font-normal normal-case">
+                  ({busRoutes.length})
+                </span>
               </div>
               {renderRouteGrid(busRoutes)}
             </div>
@@ -120,7 +129,9 @@ export function RouteFilterPanel({
             <div>
               <div className="text-xs font-semibold text-content-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
                 🚇 {t.map.metroLines}
-                <span className="text-content-muted font-normal normal-case">({metroRoutes.length})</span>
+                <span className="text-content-muted font-normal normal-case">
+                  ({metroRoutes.length})
+                </span>
               </div>
               {renderRouteGrid(metroRoutes)}
             </div>

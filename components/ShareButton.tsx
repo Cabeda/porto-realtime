@@ -17,9 +17,10 @@ export function ShareButton({ feedback, targetName }: ShareButtonProps) {
     feedback.comment ? ` — "${feedback.comment}"` : ""
   }${feedback.voteCount ? ` (${feedback.voteCount} 👍)` : ""} #PortoMove`;
 
-  const shareUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/reviews/${feedback.type.toLowerCase().replace("_", "-")}?target=${encodeURIComponent(feedback.targetId)}`
-    : "";
+  const shareUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/reviews/${feedback.type.toLowerCase().replace("_", "-")}?target=${encodeURIComponent(feedback.targetId)}`
+      : "";
 
   const handleShare = async () => {
     // Try Web Share API first (mobile)

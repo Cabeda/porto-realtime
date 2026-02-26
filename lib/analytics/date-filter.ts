@@ -8,10 +8,7 @@ export type DateFilter =
   | { mode: "period"; days: number; fromDate: Date; period: string }
   | { mode: "date"; date: Date; dateStr: string };
 
-export function parseDateFilter(
-  period: string | null,
-  dateParam: string | null
-): DateFilter {
+export function parseDateFilter(period: string | null, dateParam: string | null): DateFilter {
   const now = new Date();
 
   // Specific date takes priority

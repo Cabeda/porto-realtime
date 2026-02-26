@@ -2,10 +2,5 @@
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": "nextjs",
-  "crons": [
-    {
-      "path": "/api/cron/sync-external-reviews",
-      "schedule": "0 4 * * *"
-    }
-  ]
+  "crons": []
 }

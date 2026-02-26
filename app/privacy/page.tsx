@@ -11,7 +11,9 @@ export default function PrivacyPage() {
 
       <section className="space-y-6 text-sm leading-relaxed text-content-secondary">
         <div>
-          <h2 className="text-base font-semibold text-content mb-2">{t.privacy.whatWeCollectTitle}</h2>
+          <h2 className="text-base font-semibold text-content mb-2">
+            {t.privacy.whatWeCollectTitle}
+          </h2>
           <ul className="list-disc pl-5 space-y-1">
             <li>{t.privacy.collectEmail}</li>
             <li>{t.privacy.collectName}</li>
@@ -35,7 +37,9 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-content mb-2">{t.privacy.dataRetentionTitle}</h2>
+          <h2 className="text-base font-semibold text-content mb-2">
+            {t.privacy.dataRetentionTitle}
+          </h2>
           <p>{t.privacy.dataRetentionDesc}</p>
         </div>
 
@@ -51,7 +55,9 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-content mb-2">{t.privacy.localStorageTitle}</h2>
+          <h2 className="text-base font-semibold text-content mb-2">
+            {t.privacy.localStorageTitle}
+          </h2>
           <p>{t.privacy.localStorageDesc}</p>
         </div>
 

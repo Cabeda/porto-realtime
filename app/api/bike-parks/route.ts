@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchWithRetry, StaleCache } from "@/lib/api-fetch";
 import { readFallback } from "@/lib/fallback";
+import { logger } from "@/lib/logger";
 
 const OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql";
 const CACHE_DURATION = 5 * 60; // 5 minutes in seconds
@@ -51,16 +52,25 @@ export async function GET() {
     const raw = await response.json();
     const stations = raw?.data?.bikeRentalStations || [];
 
-    const parks = stations.map((station: { id: string; name?: string; lat: number; lon: number; spacesAvailable?: number; bikesAvailable?: number }) => ({
-      id: station.id,
-      name: station.name || "Parque desconhecido",
-      lat: station.lat,
-      lon: station.lon,
-      capacity: (station.spacesAvailable || 0) + (station.bikesAvailable || 0),
-      occupied: station.bikesAvailable || 0,
-      available: station.spacesAvailable || 0,
-      lastUpdated: new Date().toISOString(),
-    }));
+    const parks = stations.map(
+      (station: {
+        id: string;
+        name?: string;
+        lat: number;
+        lon: number;
+        spacesAvailable?: number;
+        bikesAvailable?: number;
+      }) => ({
+        id: station.id,
+        name: station.name || "Parque desconhecido",
+        lat: station.lat,
+        lon: station.lon,
+        capacity: (station.spacesAvailable || 0) + (station.bikesAvailable || 0),
+        occupied: station.bikesAvailable || 0,
+        available: station.spacesAvailable || 0,
+        lastUpdated: new Date().toISOString(),
+      })
+    );
 
     const data: BikeParkData = { parks };
     staleCache.set(data);
@@ -84,7 +94,7 @@ export async function GET() {
     // Layer 4: static fallback from public/fallback/bike-parks.json
     const fallback = await readFallback<BikeParkData>("bike-parks.json");
     if (fallback?.parks?.length) {
-      console.log("Returning static fallback for bike parks");
+      logger.log("Returning static fallback for bike parks");
       return NextResponse.json(fallback, {
         headers: { "X-Cache-Status": "FALLBACK" },
       });

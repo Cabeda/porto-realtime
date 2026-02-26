@@ -102,7 +102,7 @@ function parseKML(text: string): ProposalGeoJSON | null {
           const [lon, lat] = c.split(",").map(Number);
           return [lon, lat] as number[];
         })
-        .filter((c) => !isNaN(c[0]) && !isNaN(c[1]));
+        .filter((c) => !isNaN(c[0]!) && !isNaN(c[1]!));
       if (coords.length >= 2) {
         features.push({
           type: "Feature",
@@ -116,11 +116,11 @@ function parseKML(text: string): ProposalGeoJSON | null {
     // Point
     const pointCoords = pm.querySelector("Point coordinates");
     if (pointCoords?.textContent) {
-      const [lon, lat] = pointCoords.textContent.trim().split(",").map(Number);
+      const [lon, lat] = pointCoords.textContent.trim().split(",").map(Number) as [number, number];
       if (!isNaN(lon) && !isNaN(lat)) {
         features.push({
           type: "Feature",
-          geometry: { type: "Point", coordinates: [lon, lat] },
+          geometry: { type: "Point", coordinates: [lon, lat] as [number, number] },
           properties: { name },
         });
         continue;
@@ -137,7 +137,7 @@ function parseKML(text: string): ProposalGeoJSON | null {
           const [lon, lat] = c.split(",").map(Number);
           return [lon, lat] as number[];
         })
-        .filter((c) => !isNaN(c[0]) && !isNaN(c[1]));
+        .filter((c) => !isNaN(c[0]!) && !isNaN(c[1]!));
       if (coords.length >= 3) {
         features.push({
           type: "Feature",
@@ -244,7 +244,13 @@ export function GeoFileUpload({ onParsed, onClear, hasGeometry }: GeoFileUploadP
 
       {hasGeometry && fileName ? (
         <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg bg-surface text-sm">
-          <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <svg
+            className="w-4 h-4 text-green-500 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
           <span className="text-content truncate flex-1">{fileName}</span>
@@ -253,7 +259,13 @@ export function GeoFileUpload({ onParsed, onClear, hasGeometry }: GeoFileUploadP
             onClick={handleClear}
             className="text-content-muted hover:text-red-500 transition-colors flex-shrink-0"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -264,8 +276,18 @@ export function GeoFileUpload({ onParsed, onClear, hasGeometry }: GeoFileUploadP
           onClick={() => inputRef.current?.click()}
           className="w-full flex items-center justify-center gap-2 px-3 py-3 border-2 border-dashed border-border rounded-lg bg-surface text-content-muted hover:border-accent hover:text-accent transition-colors text-sm"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+            />
           </svg>
           {tp.uploadFile}
         </button>
@@ -281,9 +303,7 @@ export function GeoFileUpload({ onParsed, onClear, hasGeometry }: GeoFileUploadP
 
       <p className="text-xs text-content-muted mt-1">{tp.geoFileHelp}</p>
 
-      {error && (
-        <p className="text-xs text-red-600 dark:text-red-400 mt-1">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{error}</p>}
     </div>
   );
 }

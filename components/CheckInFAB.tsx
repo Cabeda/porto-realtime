@@ -6,7 +6,11 @@ import { useTranslations } from "@/lib/hooks/useTranslations";
 import { useAuth } from "@/lib/hooks/useAuth";
 import type { TransitMode, CheckInItem, Bus, Stop, BikePark, BikeLane } from "@/lib/types";
 
-const MODE_OPTIONS: { mode: TransitMode; emoji: string; key: keyof ReturnType<typeof import("@/lib/hooks/useTranslations").useTranslations>["checkin"] }[] = [
+const MODE_OPTIONS: {
+  mode: TransitMode;
+  emoji: string;
+  key: keyof ReturnType<typeof import("@/lib/hooks/useTranslations").useTranslations>["checkin"];
+}[] = [
   { mode: "BUS", emoji: "🚌", key: "bus" },
   { mode: "METRO", emoji: "🚇", key: "metro" },
   { mode: "BIKE", emoji: "🚲", key: "bike" },
@@ -18,7 +22,9 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -60,7 +66,7 @@ function findNearbyCandidates(
   stops: Stop[],
   bikeParks: BikePark[],
   bikeLanes: BikeLane[],
-  t: ReturnType<typeof import("@/lib/hooks/useTranslations").useTranslations>,
+  t: ReturnType<typeof import("@/lib/hooks/useTranslations").useTranslations>
 ): NearbyCandidate[] {
   const candidates: NearbyCandidate[] = [];
 
@@ -71,7 +77,15 @@ function findNearbyCandidates(
       if (dist <= MAX_NEARBY_BUS_METRO) {
         const destination = bus.routeLongName ? ` → ${bus.routeLongName}` : "";
         const vehicleLabel = bus.vehicleNumber ? ` (#${bus.vehicleNumber})` : "";
-        candidates.push({ targetId: bus.id, lat: bus.lat, lon: bus.lon, label: `${t.checkin.bus} ${bus.routeShortName}${vehicleLabel}${destination}`, emoji: "🚌", distance: dist, priority: 0 });
+        candidates.push({
+          targetId: bus.id,
+          lat: bus.lat,
+          lon: bus.lon,
+          label: `${t.checkin.bus} ${bus.routeShortName}${vehicleLabel}${destination}`,
+          emoji: "🚌",
+          distance: dist,
+          priority: 0,
+        });
       }
     }
     // Bus stops as fallback
@@ -79,16 +93,36 @@ function findNearbyCandidates(
       if (!stop.vehicleMode || stop.vehicleMode === "BUS") {
         const dist = haversineMeters(userLat, userLon, stop.lat, stop.lon);
         if (dist <= MAX_NEARBY_BUS_METRO) {
-          candidates.push({ targetId: stop.gtfsId, lat: stop.lat, lon: stop.lon, label: t.checkin.nearestStop(stop.name), emoji: "🚏", distance: dist, priority: 1 });
+          candidates.push({
+            targetId: stop.gtfsId,
+            lat: stop.lat,
+            lon: stop.lon,
+            label: t.checkin.nearestStop(stop.name),
+            emoji: "🚏",
+            distance: dist,
+            priority: 1,
+          });
         }
       }
     }
   } else if (mode === "METRO") {
     for (const stop of stops) {
-      if (stop.vehicleMode === "SUBWAY" || stop.vehicleMode === "TRAM" || stop.vehicleMode === "RAIL") {
+      if (
+        stop.vehicleMode === "SUBWAY" ||
+        stop.vehicleMode === "TRAM" ||
+        stop.vehicleMode === "RAIL"
+      ) {
         const dist = haversineMeters(userLat, userLon, stop.lat, stop.lon);
         if (dist <= MAX_NEARBY_BUS_METRO) {
-          candidates.push({ targetId: stop.gtfsId, lat: stop.lat, lon: stop.lon, label: t.checkin.nearestStop(stop.name), emoji: "🚇", distance: dist, priority: 0 });
+          candidates.push({
+            targetId: stop.gtfsId,
+            lat: stop.lat,
+            lon: stop.lon,
+            label: t.checkin.nearestStop(stop.name),
+            emoji: "🚇",
+            distance: dist,
+            priority: 0,
+          });
         }
       }
     }
@@ -97,7 +131,15 @@ function findNearbyCandidates(
       for (const stop of stops) {
         const dist = haversineMeters(userLat, userLon, stop.lat, stop.lon);
         if (dist <= MAX_NEARBY_BUS_METRO) {
-          candidates.push({ targetId: stop.gtfsId, lat: stop.lat, lon: stop.lon, label: t.checkin.nearestStop(stop.name), emoji: "🚏", distance: dist, priority: 1 });
+          candidates.push({
+            targetId: stop.gtfsId,
+            lat: stop.lat,
+            lon: stop.lon,
+            label: t.checkin.nearestStop(stop.name),
+            emoji: "🚏",
+            distance: dist,
+            priority: 1,
+          });
         }
       }
     }
@@ -105,7 +147,15 @@ function findNearbyCandidates(
     for (const park of bikeParks) {
       const dist = haversineMeters(userLat, userLon, park.lat, park.lon);
       if (dist <= MAX_NEARBY_BIKE) {
-        candidates.push({ targetId: park.id, lat: park.lat, lon: park.lon, label: t.checkin.nearestBikePark(park.name), emoji: "🅿️", distance: dist, priority: 1 });
+        candidates.push({
+          targetId: park.id,
+          lat: park.lat,
+          lon: park.lon,
+          label: t.checkin.nearestBikePark(park.name),
+          emoji: "🅿️",
+          distance: dist,
+          priority: 1,
+        });
       }
     }
     for (const lane of bikeLanes) {
@@ -117,17 +167,37 @@ function findNearbyCandidates(
         for (const seg of lane.segments) {
           for (const coord of seg) {
             const d = haversineMeters(userLat, userLon, coord[1], coord[0]);
-            if (d < bestDist) { bestDist = d; bestLat = coord[1]; bestLon = coord[0]; }
+            if (d < bestDist) {
+              bestDist = d;
+              bestLat = coord[1];
+              bestLon = coord[0];
+            }
           }
         }
         if (bestDist <= MAX_NEARBY_BIKE) {
-          candidates.push({ targetId: lane.name, lat: bestLat, lon: bestLon, label: lane.name, emoji: "🛤️", distance: bestDist, priority: 0 });
+          candidates.push({
+            targetId: lane.name,
+            lat: bestLat,
+            lon: bestLon,
+            label: lane.name,
+            emoji: "🛤️",
+            distance: bestDist,
+            priority: 0,
+          });
         }
       }
     }
     // Always offer "cycling here" at user's location — signals demand for bike infrastructure
     // lat/lon NOT sent to API (privacy) — shown client-side only via userLocation prop
-    candidates.push({ targetId: "bike-here", lat: 0, lon: 0, label: t.checkin.cyclingHere, emoji: "🚲", distance: 0, priority: 2 });
+    candidates.push({
+      targetId: "bike-here",
+      lat: 0,
+      lon: 0,
+      label: t.checkin.cyclingHere,
+      emoji: "🚲",
+      distance: 0,
+      priority: 2,
+    });
   }
 
   // Sort by priority first (live/primary before static/fallback), then by distance
@@ -142,7 +212,9 @@ const ANON_CHECKIN_KEY = "anon_active_checkin";
 function saveAnonCheckIn(checkIn: CheckInItem) {
   try {
     localStorage.setItem(ANON_CHECKIN_KEY, JSON.stringify(checkIn));
-  } catch { /* quota exceeded — non-critical */ }
+  } catch {
+    /* quota exceeded — non-critical */
+  }
 }
 
 /** Load anonymous check-in from localStorage, clearing if expired */
@@ -162,10 +234,21 @@ function loadAnonCheckIn(): CheckInItem | null {
 }
 
 function clearAnonCheckIn() {
-  try { localStorage.removeItem(ANON_CHECKIN_KEY); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem(ANON_CHECKIN_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
-export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [], bikeLanes = [], onLocationAcquired }: CheckInFABProps) {
+export function CheckInFAB({
+  userLocation,
+  buses = [],
+  stops = [],
+  bikeParks = [],
+  bikeLanes = [],
+  onLocationAcquired,
+}: CheckInFABProps) {
   const t = useTranslations();
   const { isAuthenticated } = useAuth();
   const [showPicker, setShowPicker] = useState(false);
@@ -224,60 +307,69 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
 
   // Check-in handler — works for both anonymous and authenticated users
   // lat/lon are infrastructure coords (stop, bike park); null for bike-here (privacy)
-  const handleCheckIn = useCallback(async (mode: TransitMode, targetId?: string, lat?: number, lon?: number) => {
-    // Block if anon user already has an active check-in (client-side guard)
-    if (!isAuthenticated && activeCheckIn) {
-      setToast(t.checkin.alreadyCheckedIn);
-      return;
-    }
-
-    setIsLoading(true);
-    // Dispatch optimistic event immediately so the map updates before the API responds
-    window.dispatchEvent(new CustomEvent("checkin-changed", {
-      detail: { mode, targetId, lat, lon, action: "add" },
-    }));
-    try {
-      const res = await fetch("/api/checkin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, targetId, lat, lon }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setActiveCheckIn(data.checkIn);
-        // Persist anon check-in to localStorage so it survives page refresh
-        if (!isAuthenticated) {
-          saveAnonCheckIn(data.checkIn);
-        }
-        setToast(t.checkin.checkInSuccess);
-        // Revalidate server data — s-maxage=0 ensures fresh response
-        window.dispatchEvent(new CustomEvent("checkin-confirmed"));
-      } else {
-        const data = await res.json().catch(() => ({}));
-        // Handle specific "already checked in" error from API
-        if (data.error === "ALREADY_CHECKED_IN") {
-          setToast(t.checkin.alreadyCheckedIn);
-        } else {
-          setToast(data.error || t.checkin.checkInError);
-        }
-        // Revert optimistic update on failure
-        window.dispatchEvent(new CustomEvent("checkin-changed", {
-          detail: { mode, targetId, action: "remove" },
-        }));
+  const handleCheckIn = useCallback(
+    async (mode: TransitMode, targetId?: string, lat?: number, lon?: number) => {
+      // Block if anon user already has an active check-in (client-side guard)
+      if (!isAuthenticated && activeCheckIn) {
+        setToast(t.checkin.alreadyCheckedIn);
+        return;
       }
-    } catch {
-      setToast(t.checkin.checkInError);
-      // Revert optimistic update on failure
-      window.dispatchEvent(new CustomEvent("checkin-changed", {
-        detail: { mode, targetId, action: "remove" },
-      }));
-    } finally {
-      setIsLoading(false);
-      setShowPicker(false);
-      setNearbyCandidates([]);
-      setSelectedMode(null);
-    }
-  }, [t, isAuthenticated, activeCheckIn]);
+
+      setIsLoading(true);
+      // Dispatch optimistic event immediately so the map updates before the API responds
+      window.dispatchEvent(
+        new CustomEvent("checkin-changed", {
+          detail: { mode, targetId, lat, lon, action: "add" },
+        })
+      );
+      try {
+        const res = await fetch("/api/checkin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode, targetId, lat, lon }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setActiveCheckIn(data.checkIn);
+          // Persist anon check-in to localStorage so it survives page refresh
+          if (!isAuthenticated) {
+            saveAnonCheckIn(data.checkIn);
+          }
+          setToast(t.checkin.checkInSuccess);
+          // Revalidate server data — s-maxage=0 ensures fresh response
+          window.dispatchEvent(new CustomEvent("checkin-confirmed"));
+        } else {
+          const data = await res.json().catch(() => ({}));
+          // Handle specific "already checked in" error from API
+          if (data.error === "ALREADY_CHECKED_IN") {
+            setToast(t.checkin.alreadyCheckedIn);
+          } else {
+            setToast(data.error || t.checkin.checkInError);
+          }
+          // Revert optimistic update on failure
+          window.dispatchEvent(
+            new CustomEvent("checkin-changed", {
+              detail: { mode, targetId, action: "remove" },
+            })
+          );
+        }
+      } catch {
+        setToast(t.checkin.checkInError);
+        // Revert optimistic update on failure
+        window.dispatchEvent(
+          new CustomEvent("checkin-changed", {
+            detail: { mode, targetId, action: "remove" },
+          })
+        );
+      } finally {
+        setIsLoading(false);
+        setShowPicker(false);
+        setNearbyCandidates([]);
+        setSelectedMode(null);
+      }
+    },
+    [t, isAuthenticated, activeCheckIn]
+  );
 
   /** Request geolocation and resolve with coordinates, or null on failure */
   const requestLocation = useCallback((): Promise<[number, number] | null> => {
@@ -307,30 +399,42 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
   }, [t, onLocationAcquired]);
 
   /** Handle mode selection from the FAB picker — finds nearest target automatically */
-  const handleModeSelect = useCallback(async (mode: TransitMode) => {
-    let loc = effectiveLocation;
+  const handleModeSelect = useCallback(
+    async (mode: TransitMode) => {
+      let loc = effectiveLocation;
 
-    // Auto-request location if not available
-    if (!loc) {
-      loc = await requestLocation();
+      // Auto-request location if not available
       if (!loc) {
+        loc = await requestLocation();
+        if (!loc) {
+          setShowPicker(false);
+          return;
+        }
+      }
+
+      const candidates = findNearbyCandidates(
+        mode,
+        loc[0],
+        loc[1],
+        buses,
+        stops,
+        bikeParks,
+        bikeLanes,
+        t
+      );
+
+      if (candidates.length === 0) {
+        setToast(t.checkin.noNearbyTarget);
         setShowPicker(false);
         return;
       }
-    }
 
-    const candidates = findNearbyCandidates(mode, loc[0], loc[1], buses, stops, bikeParks, bikeLanes, t);
-
-    if (candidates.length === 0) {
-      setToast(t.checkin.noNearbyTarget);
-      setShowPicker(false);
-      return;
-    }
-
-    // Show sub-picker with nearby candidates (priority-sorted: live first, then static)
-    setNearbyCandidates(candidates.slice(0, 5));
-    setSelectedMode(mode);
-  }, [effectiveLocation, requestLocation, buses, stops, bikeParks, bikeLanes, t, handleCheckIn]);
+      // Show sub-picker with nearby candidates (priority-sorted: live first, then static)
+      setNearbyCandidates(candidates.slice(0, 5));
+      setSelectedMode(mode);
+    },
+    [effectiveLocation, requestLocation, buses, stops, bikeParks, bikeLanes, t, handleCheckIn]
+  );
 
   const handleEndCheckIn = async () => {
     setIsLoading(true);
@@ -340,9 +444,11 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
       const endedTarget = activeCheckIn?.targetId;
       setActiveCheckIn(null);
       // Optimistic removal — map updates immediately via checkin-changed
-      window.dispatchEvent(new CustomEvent("checkin-changed", {
-        detail: { mode: endedMode, targetId: endedTarget, action: "remove" },
-      }));
+      window.dispatchEvent(
+        new CustomEvent("checkin-changed", {
+          detail: { mode: endedMode, targetId: endedTarget, action: "remove" },
+        })
+      );
       // Revalidate server data — s-maxage=0 ensures fresh response
       window.dispatchEvent(new CustomEvent("checkin-confirmed"));
     } catch {
@@ -369,7 +475,7 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
   // Listen for check-in requests from bus popups — removed (FAB-only check-in)
 
   const modeEmoji = activeCheckIn
-    ? MODE_OPTIONS.find((m) => m.mode === activeCheckIn.mode)?.emoji ?? "🚏"
+    ? (MODE_OPTIONS.find((m) => m.mode === activeCheckIn.mode)?.emoji ?? "🚏")
     : null;
 
   return (
@@ -383,14 +489,29 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
             ? "bg-green-500 border-green-600 text-white animate-pulse"
             : "bg-accent border-accent text-white hover:brightness-110"
         }`}
-        style={{ bottom: "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 3.5rem)" }}
+        style={{
+          bottom:
+            "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 3.5rem)",
+        }}
         title={activeCheckIn ? t.checkin.endCheckIn : t.checkin.checkIn}
-        aria-label={activeCheckIn ? `${t.checkin.activeCheckIn} — ${t.checkin.minutesLeft(minutesLeft)}` : t.checkin.checkIn}
+        aria-label={
+          activeCheckIn
+            ? `${t.checkin.activeCheckIn} — ${t.checkin.minutesLeft(minutesLeft)}`
+            : t.checkin.checkIn
+        }
       >
         {activeCheckIn ? (
           <span className="text-xl leading-none">{modeEmoji}</span>
         ) : (
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            className="w-6 h-6"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
             <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" />
             <path d="M12 8v6" />
@@ -403,80 +524,111 @@ export function CheckInFAB({ userLocation, buses = [], stops = [], bikeParks = [
       {activeCheckIn && minutesLeft > 0 && (
         <div
           className="absolute right-[3.75rem] z-[1001] bg-green-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow whitespace-nowrap"
-          style={{ bottom: "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 4.375rem)" }}
+          style={{
+            bottom:
+              "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 4.375rem)",
+          }}
         >
           {t.checkin.minutesLeft(minutesLeft)}
         </div>
       )}
 
       {/* Mode picker popover */}
-      {showPicker && createPortal(
-        <div className="fixed inset-0 z-[2000]" onClick={() => { setShowPicker(false); setNearbyCandidates([]); setSelectedMode(null); }}>
-          <div className="absolute inset-0 bg-black/30" />
+      {showPicker &&
+        createPortal(
           <div
-            className="absolute right-4 bg-surface-raised rounded-2xl shadow-xl p-3 flex flex-col gap-2 min-w-[220px] animate-fade-in"
-            style={{ bottom: "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 7rem)" }}
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[2000]"
+            onClick={() => {
+              setShowPicker(false);
+              setNearbyCandidates([]);
+              setSelectedMode(null);
+            }}
           >
-            {nearbyCandidates.length > 0 && selectedMode ? (
-              <>
-                <div className="flex items-center gap-2 px-1 mb-1">
-                  <button
-                    onClick={() => { setNearbyCandidates([]); setSelectedMode(null); }}
-                    className="text-content-secondary hover:text-content text-sm"
-                    aria-label={t.checkin.back}
-                  >
-                    ←
-                  </button>
-                  <p className="text-xs font-semibold text-content-secondary">{t.checkin.pickTarget}</p>
-                </div>
-                {nearbyCandidates.map((c, i) => (
-                  <button
-                    key={`${c.targetId}-${i}`}
-                    onClick={() => {
-                      // Don't send lat/lon for "cycling here" (privacy — user location)
-                      const isUserLoc = c.targetId === "bike-here";
-                      handleCheckIn(selectedMode, c.targetId, isUserLoc ? undefined : c.lat, isUserLoc ? undefined : c.lon);
-                    }}
-                    disabled={isLoading}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-surface-sunken transition-colors text-left disabled:opacity-50"
-                  >
-                    <span className="text-xl">{c.emoji}</span>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-medium text-content truncate">{c.label}</span>
-                      <span className="text-xs text-content-secondary">{Math.round(c.distance)}m</span>
-                    </div>
-                  </button>
-                ))}
-              </>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-content-secondary px-1 mb-1">{t.checkin.selectMode}</p>
-                {MODE_OPTIONS.map(({ mode, emoji, key }) => (
-                  <button
-                    key={mode}
-                    onClick={() => handleModeSelect(mode)}
-                    disabled={isLoading}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-surface-sunken transition-colors text-left disabled:opacity-50"
-                  >
-                    <span className="text-xl">{emoji}</span>
-                    <span className="text-sm font-medium text-content">{t.checkin[key] as string}</span>
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
+            <div className="absolute inset-0 bg-black/30" />
+            <div
+              className="absolute right-4 bg-surface-raised rounded-2xl shadow-xl p-3 flex flex-col gap-2 min-w-[220px] animate-fade-in"
+              style={{
+                bottom:
+                  "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 7rem)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {nearbyCandidates.length > 0 && selectedMode ? (
+                <>
+                  <div className="flex items-center gap-2 px-1 mb-1">
+                    <button
+                      onClick={() => {
+                        setNearbyCandidates([]);
+                        setSelectedMode(null);
+                      }}
+                      className="text-content-secondary hover:text-content text-sm"
+                      aria-label={t.checkin.back}
+                    >
+                      ←
+                    </button>
+                    <p className="text-xs font-semibold text-content-secondary">
+                      {t.checkin.pickTarget}
+                    </p>
+                  </div>
+                  {nearbyCandidates.map((c, i) => (
+                    <button
+                      key={`${c.targetId}-${i}`}
+                      onClick={() => {
+                        // Don't send lat/lon for "cycling here" (privacy — user location)
+                        const isUserLoc = c.targetId === "bike-here";
+                        handleCheckIn(
+                          selectedMode,
+                          c.targetId,
+                          isUserLoc ? undefined : c.lat,
+                          isUserLoc ? undefined : c.lon
+                        );
+                      }}
+                      disabled={isLoading}
+                      className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-surface-sunken transition-colors text-left disabled:opacity-50"
+                    >
+                      <span className="text-xl">{c.emoji}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-medium text-content truncate">{c.label}</span>
+                        <span className="text-xs text-content-secondary">
+                          {Math.round(c.distance)}m
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-semibold text-content-secondary px-1 mb-1">
+                    {t.checkin.selectMode}
+                  </p>
+                  {MODE_OPTIONS.map(({ mode, emoji, key }) => (
+                    <button
+                      key={mode}
+                      onClick={() => handleModeSelect(mode)}
+                      disabled={isLoading}
+                      className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-surface-sunken transition-colors text-left disabled:opacity-50"
+                    >
+                      <span className="text-xl">{emoji}</span>
+                      <span className="text-sm font-medium text-content">
+                        {t.checkin[key] as string}
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Toast */}
-      {toast && createPortal(
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[3000] bg-surface-raised text-content text-sm font-medium px-4 py-2 rounded-xl shadow-lg border border-border animate-fade-in">
-          {toast}
-        </div>,
-        document.body
-      )}
+      {toast &&
+        createPortal(
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[3000] bg-surface-raised text-content text-sm font-medium px-4 py-2 rounded-xl shadow-lg border border-border animate-fade-in">
+            {toast}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

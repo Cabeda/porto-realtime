@@ -40,7 +40,8 @@ export async function GET() {
       { total, byMode, todayTotal },
       {
         headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate, public, s-maxage=30, stale-while-revalidate=60",
+          "Cache-Control":
+            "no-cache, no-store, must-revalidate, public, s-maxage=30, stale-while-revalidate=60",
         },
       }
     );

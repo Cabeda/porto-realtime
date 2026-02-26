@@ -45,10 +45,7 @@ function formatAggregated(
 
 export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period") || "week";
-  const limit = Math.min(
-    parseInt(request.nextUrl.searchParams.get("limit") || "10", 10),
-    50
-  );
+  const limit = Math.min(parseInt(request.nextUrl.searchParams.get("limit") || "10", 10), 50);
 
   const days = PERIOD_DAYS[period] ?? 7;
   const since = new Date(Date.now() - days * 86400000);
@@ -224,9 +221,6 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("Trending API error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch trending data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch trending data" }, { status: 500 });
   }
 }

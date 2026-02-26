@@ -50,16 +50,20 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      const byVehicle = new Map<string, {
-        trips: number;
-        routes: Set<string>;
-        speeds: number[];
-        adherence: number[];
-      }>();
+      const byVehicle = new Map<
+        string,
+        {
+          trips: number;
+          routes: Set<string>;
+          speeds: number[];
+          adherence: number[];
+        }
+      >();
 
       for (const t of trips) {
         const v = t.vehicleNum!;
-        if (!byVehicle.has(v)) byVehicle.set(v, { trips: 0, routes: new Set(), speeds: [], adherence: [] });
+        if (!byVehicle.has(v))
+          byVehicle.set(v, { trips: 0, routes: new Set(), speeds: [], adherence: [] });
         const e = byVehicle.get(v)!;
         e.trips++;
         e.routes.add(t.route);
@@ -75,12 +79,14 @@ export async function GET(request: NextRequest) {
           vehicleNum,
           trips: d.trips,
           routes: [...d.routes].sort(),
-          avgSpeed: d.speeds.length > 0
-            ? Math.round((d.speeds.reduce((a, b) => a + b, 0) / d.speeds.length) * 10) / 10
-            : null,
-          avgAdherence: d.adherence.length > 0
-            ? Math.round((d.adherence.reduce((a, b) => a + b, 0) / d.adherence.length) * 10) / 10
-            : null,
+          avgSpeed:
+            d.speeds.length > 0
+              ? Math.round((d.speeds.reduce((a, b) => a + b, 0) / d.speeds.length) * 10) / 10
+              : null,
+          avgAdherence:
+            d.adherence.length > 0
+              ? Math.round((d.adherence.reduce((a, b) => a + b, 0) / d.adherence.length) * 10) / 10
+              : null,
         }))
         .sort((a, b) => b.trips - a.trips);
 
@@ -116,16 +122,23 @@ export async function GET(request: NextRequest) {
       const totalTrips = trips.length;
       const routesOperated = [...new Set(trips.map((t) => t.route))].sort();
 
-      const speeds = trips.map((t) => t.commercialSpeed ?? t.avgSpeed).filter((s): s is number => s !== null && s > 0);
-      const avgSpeed = speeds.length > 0 ? Math.round((speeds.reduce((a, b) => a + b, 0) / speeds.length) * 10) / 10 : null;
+      const speeds = trips
+        .map((t) => t.commercialSpeed ?? t.avgSpeed)
+        .filter((s): s is number => s !== null && s > 0);
+      const avgSpeed =
+        speeds.length > 0
+          ? Math.round((speeds.reduce((a, b) => a + b, 0) / speeds.length) * 10) / 10
+          : null;
 
       // Runtime adherence: actual / scheduled * 100 (100% = on time, >100% = slower)
       const adherenceValues = trips
         .filter((t) => t.runtimeSecs && t.scheduledRuntimeSecs && t.scheduledRuntimeSecs > 0)
         .map((t) => (t.runtimeSecs! / t.scheduledRuntimeSecs!) * 100);
-      const avgAdherence = adherenceValues.length > 0
-        ? Math.round((adherenceValues.reduce((a, b) => a + b, 0) / adherenceValues.length) * 10) / 10
-        : null;
+      const avgAdherence =
+        adherenceValues.length > 0
+          ? Math.round((adherenceValues.reduce((a, b) => a + b, 0) / adherenceValues.length) * 10) /
+            10
+          : null;
 
       // Daily breakdown
       const byDate = new Map<string, { trips: number; speed: number[]; adherence: number[] }>();
@@ -144,19 +157,28 @@ export async function GET(request: NextRequest) {
       const dailyPerformance = [...byDate.entries()].map(([date, d]) => ({
         date,
         trips: d.trips,
-        speed: d.speed.length > 0 ? Math.round((d.speed.reduce((a, b) => a + b, 0) / d.speed.length) * 10) / 10 : null,
-        adherence: d.adherence.length > 0 ? Math.round((d.adherence.reduce((a, b) => a + b, 0) / d.adherence.length) * 10) / 10 : null,
+        speed:
+          d.speed.length > 0
+            ? Math.round((d.speed.reduce((a, b) => a + b, 0) / d.speed.length) * 10) / 10
+            : null,
+        adherence:
+          d.adherence.length > 0
+            ? Math.round((d.adherence.reduce((a, b) => a + b, 0) / d.adherence.length) * 10) / 10
+            : null,
       }));
 
-      return NextResponse.json({
-        vehicle,
-        period: periodLabel,
-        totalTrips,
-        routesOperated,
-        avgSpeed,
-        avgRuntimeAdherence: avgAdherence,
-        dailyPerformance,
-      }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
+      return NextResponse.json(
+        {
+          vehicle,
+          period: periodLabel,
+          totalTrips,
+          routesOperated,
+          avgSpeed,
+          avgRuntimeAdherence: avgAdherence,
+          dailyPerformance,
+        },
+        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
+      );
     }
 
     if (view === "trips") {
@@ -177,23 +199,29 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      return NextResponse.json({
-        vehicle,
-        period: periodLabel,
-        trips: trips.map((t) => ({
-          date: t.date.toISOString().slice(0, 10),
-          route: t.route,
-          directionId: t.directionId,
-          startedAt: t.startedAt?.toISOString() ?? null,
-          endedAt: t.endedAt?.toISOString() ?? null,
-          runtimeMins: t.runtimeSecs ? Math.round(t.runtimeSecs / 60) : null,
-          scheduledRuntimeMins: t.scheduledRuntimeSecs ? Math.round(t.scheduledRuntimeSecs / 60) : null,
-          adherencePct: t.runtimeSecs && t.scheduledRuntimeSecs && t.scheduledRuntimeSecs > 0
-            ? Math.round((t.runtimeSecs / t.scheduledRuntimeSecs) * 1000) / 10
-            : null,
-          speed: t.commercialSpeed ?? t.avgSpeed,
-        })),
-      }, { headers: filter.mode === "today" ? NO_CACHE : CACHE });
+      return NextResponse.json(
+        {
+          vehicle,
+          period: periodLabel,
+          trips: trips.map((t) => ({
+            date: t.date.toISOString().slice(0, 10),
+            route: t.route,
+            directionId: t.directionId,
+            startedAt: t.startedAt?.toISOString() ?? null,
+            endedAt: t.endedAt?.toISOString() ?? null,
+            runtimeMins: t.runtimeSecs ? Math.round(t.runtimeSecs / 60) : null,
+            scheduledRuntimeMins: t.scheduledRuntimeSecs
+              ? Math.round(t.scheduledRuntimeSecs / 60)
+              : null,
+            adherencePct:
+              t.runtimeSecs && t.scheduledRuntimeSecs && t.scheduledRuntimeSecs > 0
+                ? Math.round((t.runtimeSecs / t.scheduledRuntimeSecs) * 1000) / 10
+                : null,
+            speed: t.commercialSpeed ?? t.avgSpeed,
+          })),
+        },
+        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
+      );
     }
 
     return NextResponse.json({ error: "Invalid view parameter" }, { status: 400 });

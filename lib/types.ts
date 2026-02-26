@@ -163,12 +163,7 @@ export interface FeedbackMetadata {
   lineContext?: string; // routeShortName the vehicle was on when rated
 }
 
-export type FeedbackStatus =
-  | "OPEN"
-  | "ACKNOWLEDGED"
-  | "UNDER_REVIEW"
-  | "PLANNED_FIX"
-  | "RESOLVED";
+export type FeedbackStatus = "OPEN" | "ACKNOWLEDGED" | "UNDER_REVIEW" | "PLANNED_FIX" | "RESOLVED";
 
 export interface OperatorResponse {
   status: FeedbackStatus;

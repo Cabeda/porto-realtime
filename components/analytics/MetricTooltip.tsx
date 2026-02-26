@@ -3,7 +3,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 
-interface TooltipPos { top: number; left: number }
+interface TooltipPos {
+  top: number;
+  left: number;
+}
 
 /**
  * Small "?" button that shows a tooltip explaining a metric.
@@ -15,7 +18,9 @@ export function MetricTooltip({ text }: { text: string }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const show = useCallback(() => {
     if (!btnRef.current) return;
@@ -25,19 +30,27 @@ export function MetricTooltip({ text }: { text: string }) {
 
   const hide = useCallback(() => setPos(null), []);
 
-  const bubble = pos && mounted ? createPortal(
-    <span
-      role="tooltip"
-      style={{ position: "absolute", top: pos.top - 8, left: pos.left, transform: "translate(-50%, -100%)" }}
-      className="pointer-events-none z-[9999] w-56 rounded-lg px-3 py-2 text-xs leading-relaxed
+  const bubble =
+    pos && mounted
+      ? createPortal(
+          <span
+            role="tooltip"
+            style={{
+              position: "absolute",
+              top: pos.top - 8,
+              left: pos.left,
+              transform: "translate(-50%, -100%)",
+            }}
+            className="pointer-events-none z-[9999] w-56 rounded-lg px-3 py-2 text-xs leading-relaxed
         bg-[var(--color-surface-raised)] border border-[var(--color-border)] shadow-lg
         text-[var(--color-content)]"
-    >
-      {text}
-      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--color-border)]" />
-    </span>,
-    document.body
-  ) : null;
+          >
+            {text}
+            <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--color-border)]" />
+          </span>,
+          document.body
+        )
+      : null;
 
   return (
     <span className="inline-flex items-center">
@@ -76,13 +89,12 @@ export const METRIC_TIPS = {
   headwayAdherence:
     "Percentagem de viagens em que o intervalo entre autocarros foi cumprido conforme o planeado. 100% significa pontualidade perfeita; valores baixos indicam irregularidade.",
   bunching:
-    "Percentagem de viagens em que dois autocarros da mesma linha chegaram muito próximos um do outro (\"comboio de autocarros\"). Acontece quando um autocarro atrasa e o seguinte o apanha. Quanto menor, melhor.",
+    'Percentagem de viagens em que dois autocarros da mesma linha chegaram muito próximos um do outro ("comboio de autocarros"). Acontece quando um autocarro atrasa e o seguinte o apanha. Quanto menor, melhor.',
   gapping:
     "Percentagem de viagens em que o intervalo entre autocarros foi muito maior do que o previsto, deixando passageiros à espera por muito tempo. Quanto menor, melhor.",
   grade:
     "Nota geral da linha de A (excelente) a F (mau), calculada com base no tempo de espera excessivo, aderência ao intervalo e velocidade comercial. Linhas abaixo de 13 km/h são penalizadas (referência: STCP 2024 = 15,4 km/h).",
   speed:
     "Velocidade comercial média da linha, incluindo paragens. Referência STCP 2024: 15,4 km/h (mínimo histórico). Meta EU para autocarros urbanos: 18 km/h.",
-  trips:
-    "Número de viagens completas observadas no período selecionado.",
+  trips: "Número de viagens completas observadas no período selecionado.",
 } as const;

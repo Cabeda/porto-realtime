@@ -37,10 +37,7 @@ export async function POST(request: NextRequest) {
   const { proposalId } = body;
 
   if (!proposalId || typeof proposalId !== "string") {
-    return NextResponse.json(
-      { error: "proposalId is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "proposalId is required" }, { status: 400 });
   }
 
   const proposal = await prisma.proposal.findUnique({
@@ -49,10 +46,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (!proposal) {
-    return NextResponse.json(
-      { error: "Proposal not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
   }
 
   try {
@@ -83,10 +77,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Auto-promote to UNDER_REVIEW when threshold is reached
-    if (
-      voteCount >= UNDER_REVIEW_THRESHOLD &&
-      proposal.status === "OPEN"
-    ) {
+    if (voteCount >= UNDER_REVIEW_THRESHOLD && proposal.status === "OPEN") {
       await prisma.proposal.update({
         where: { id: proposalId },
         data: { status: "UNDER_REVIEW" },
@@ -99,9 +90,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error toggling proposal vote:", error);
-    return NextResponse.json(
-      { error: "Failed to toggle vote" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to toggle vote" }, { status: 500 });
   }
 }

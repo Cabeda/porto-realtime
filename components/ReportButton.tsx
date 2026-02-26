@@ -81,58 +81,61 @@ export function ReportButton({ feedbackId, userReported = false }: ReportButtonP
         onClick={handleClick}
         disabled={reported}
         className={`text-xs transition-colors ${
-          reported
-            ? "text-content-muted cursor-default"
-            : "text-content-muted hover:text-red-500"
+          reported ? "text-content-muted cursor-default" : "text-content-muted hover:text-red-500"
         }`}
         title={reported ? t.feedback.reported : t.feedback.report}
       >
         {reported ? "🚩 " + t.feedback.reported : "🚩"}
       </button>
 
-      {showModal && createPortal(
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50"
-          onClick={() => setShowModal(false)}
-        >
+      {showModal &&
+        createPortal(
           <div
-            className="bg-surface rounded-xl shadow-xl p-5 mx-4 max-w-sm w-full"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50"
+            onClick={() => setShowModal(false)}
           >
-            <h3 className="text-base font-semibold text-content mb-3">{t.feedback.reportTitle}</h3>
-            <div className="space-y-2">
-              {REASONS.map((reason) => (
-                <button
-                  key={reason}
-                  onClick={() => handleReport(reason)}
-                  disabled={isSubmitting}
-                  className="w-full text-left px-4 py-2.5 rounded-lg text-sm text-content hover:bg-surface-sunken transition-colors disabled:opacity-50"
-                >
-                  {reasonLabels[reason]}
-                </button>
-              ))}
-            </div>
-            {message && (
-              <p className="text-xs text-center mt-3 text-content-muted">{message}</p>
-            )}
-            <button
-              onClick={() => setShowModal(false)}
-              className="w-full mt-3 py-2 text-sm text-content-muted hover:text-content transition-colors"
+            <div
+              className="bg-surface rounded-xl shadow-xl p-5 mx-4 max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
             >
-              {t.auth.close}
-            </button>
-          </div>
-        </div>,
-        document.body
-      )}
+              <h3 className="text-base font-semibold text-content mb-3">
+                {t.feedback.reportTitle}
+              </h3>
+              <div className="space-y-2">
+                {REASONS.map((reason) => (
+                  <button
+                    key={reason}
+                    onClick={() => handleReport(reason)}
+                    disabled={isSubmitting}
+                    className="w-full text-left px-4 py-2.5 rounded-lg text-sm text-content hover:bg-surface-sunken transition-colors disabled:opacity-50"
+                  >
+                    {reasonLabels[reason]}
+                  </button>
+                ))}
+              </div>
+              {message && <p className="text-xs text-center mt-3 text-content-muted">{message}</p>}
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-full mt-3 py-2 text-sm text-content-muted hover:text-content transition-colors"
+              >
+                {t.auth.close}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
 
-      {showAuthModal && createPortal(
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={() => { setShowAuthModal(false); setShowModal(true); }}
-        />,
-        document.body
-      )}
+      {showAuthModal &&
+        createPortal(
+          <AuthModal
+            onClose={() => setShowAuthModal(false)}
+            onSuccess={() => {
+              setShowAuthModal(false);
+              setShowModal(true);
+            }}
+          />,
+          document.body
+        )}
     </>
   );
 }

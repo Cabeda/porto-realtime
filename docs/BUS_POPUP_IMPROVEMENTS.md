@@ -5,21 +5,24 @@
 ### 1. Enhanced Bus Popup UI (app/map/page.tsx)
 
 **Before:**
+
 - Small route number text
 - Plain layout
 - Equal emphasis on all info
 
 **After:**
+
 - **Prominent line number** with blue badge (e.g., `502`)
 - **Direction/destination** displayed inline with arrow (e.g., `→ Hospital São João`)
 - **Better visual hierarchy**: Line info is most prominent, then destination, then technical details
-- **Improved formatting**: 
+- **Improved formatting**:
   - Speed shows "Stopped" when 0 km/h
   - Speed rounded to integer (cleaner display)
   - Better spacing and borders
 - **Fallback message**: Shows "Destination not available" when API doesn't provide it
 
 **New Layout:**
+
 ```
 ┌────────────────────────────┐
 │ [502] → Hospital São João  │  ← Line + Destination (prominent)
@@ -34,8 +37,9 @@
 ### 2. Improved API Field Extraction (pages/api/buses.tsx)
 
 Added more field name variations for destination/direction:
+
 - `routeLongName` (standard)
-- `destination` 
+- `destination`
 - `tripHeadsign`
 - `headsign` ← NEW
 - `direction` ← NEW
@@ -44,6 +48,7 @@ Added more field name variations for destination/direction:
 ### 3. Debug Logging
 
 Added console.log in the API to output sample FIWARE entity structure. This helps identify:
+
 - What fields are actually available
 - Field names used by Porto's FIWARE instance
 - Data format and structure
@@ -61,9 +66,11 @@ Added console.log in the API to output sample FIWARE entity structure. This help
 ## What to Look For
 
 ### If destination shows correctly:
+
 ✅ Perfect! The FIWARE API provides destination data.
 
 ### If "Destination not available" appears:
+
 ⚠️ The FIWARE API might use different field names. Check the console log to see what fields are available and update the API parsing logic accordingly.
 
 ## Next Steps (If Destination Missing)
@@ -78,6 +85,7 @@ If the destination is still not showing:
 ## Alternative: Get Destination from GTFS
 
 If FIWARE doesn't provide destination, we could:
+
 1. Cross-reference with the OTP GraphQL API (already used for stations)
 2. Match route number to GTFS trip data
 3. Get destination from trip headsign
@@ -87,6 +95,7 @@ This would require an additional API call but would provide complete route infor
 ## Visual Comparison
 
 **Before:**
+
 ```
 🚌 Route 502
 → [blank if no data]
@@ -95,6 +104,7 @@ Speed: 15.0 km/h
 ```
 
 **After:**
+
 ```
 [502] → Hospital São João
 ─────────────────────────

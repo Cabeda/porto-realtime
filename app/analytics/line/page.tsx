@@ -34,11 +34,17 @@ function buildLineUrl(route: string, period: PeriodValue, view: string): string 
 
 function GradeBadge({ grade }: { grade: string }) {
   const colors: Record<string, string> = {
-    A: "bg-green-500", B: "bg-green-400", C: "bg-yellow-400",
-    D: "bg-orange-400", F: "bg-red-500", "N/A": "bg-gray-400",
+    A: "bg-green-500",
+    B: "bg-green-400",
+    C: "bg-yellow-400",
+    D: "bg-orange-400",
+    F: "bg-red-500",
+    "N/A": "bg-gray-400",
   };
   return (
-    <span className={`inline-flex items-center justify-center w-10 h-10 rounded-full text-white text-lg font-bold ${colors[grade] || "bg-gray-400"}`}>
+    <span
+      className={`inline-flex items-center justify-center w-10 h-10 rounded-full text-white text-lg font-bold ${colors[grade] || "bg-gray-400"}`}
+    >
       {grade}
     </span>
   );
@@ -46,7 +52,13 @@ function GradeBadge({ grade }: { grade: string }) {
 
 export default function LineAnalyticsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--color-surface-sunken)] flex items-center justify-center text-[var(--color-content-secondary)]">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[var(--color-surface-sunken)] flex items-center justify-center text-[var(--color-content-secondary)]">
+          Loading...
+        </div>
+      }
+    >
       <LineAnalyticsContent />
     </Suspense>
   );
@@ -58,10 +70,7 @@ function LineAnalyticsContent() {
   const [route, setRoute] = useState(routeParam);
   const [period, setPeriod] = useState<PeriodValue>("7d");
 
-  const { data: summary } = useSWR(
-    route ? buildLineUrl(route, period, "summary") : null,
-    fetcher
-  );
+  const { data: summary } = useSWR(route ? buildLineUrl(route, period, "summary") : null, fetcher);
 
   const { data: headways } = useSWR(
     route ? buildLineUrl(route, period, "headways") : null,
@@ -80,7 +89,9 @@ function LineAnalyticsContent() {
       <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">&larr;</Link>
+            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">
+              &larr;
+            </Link>
             <h1 className="text-xl font-bold text-content">Line Analytics</h1>
           </div>
           <DesktopNav />
@@ -103,11 +114,7 @@ function LineAnalyticsContent() {
             ))}
           </select>
           <div className="ml-auto">
-            <PeriodSelector
-              value={period}
-              onChange={setPeriod}
-              presets={["7d", "30d"]}
-            />
+            <PeriodSelector value={period} onChange={setPeriod} presets={["7d", "30d"]} />
           </div>
         </div>
 
@@ -141,7 +148,9 @@ function LineAnalyticsContent() {
                   EWT <MetricTooltip text={METRIC_TIPS.ewt} />
                 </div>
                 <div className="text-xl font-bold">
-                  {summary.avgEwt !== null ? `${Math.floor(summary.avgEwt / 60)}m ${summary.avgEwt % 60}s` : "—"}
+                  {summary.avgEwt !== null
+                    ? `${Math.floor(summary.avgEwt / 60)}m ${summary.avgEwt % 60}s`
+                    : "—"}
                 </div>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
@@ -172,11 +181,17 @@ function LineAnalyticsContent() {
                     <XAxis dataKey="minutes" tick={{ fontSize: 12 }} unit=" min" />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="var(--color-accent)" radius={[4, 4, 0, 0]} name="Trips" />
+                    <Bar
+                      dataKey="count"
+                      fill="var(--color-accent)"
+                      radius={[4, 4, 0, 0]}
+                      name="Trips"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
                 <div className="mt-2 text-sm text-[var(--color-content-secondary)]">
-                  Average headway: {headways.avgHeadwayMins ?? "—"} min | Total observations: {headways.totalHeadways}
+                  Average headway: {headways.avgHeadwayMins ?? "—"} min | Total observations:{" "}
+                  {headways.totalHeadways}
                 </div>
               </div>
             )}
@@ -195,7 +210,8 @@ function LineAnalyticsContent() {
                   </BarChart>
                 </ResponsiveContainer>
                 <div className="mt-2 text-sm text-[var(--color-content-secondary)]">
-                  Average: {runtimes.avgRuntimeMins ?? "—"} min | Median: {runtimes.medianRuntimeMins ?? "—"} min
+                  Average: {runtimes.avgRuntimeMins ?? "—"} min | Median:{" "}
+                  {runtimes.medianRuntimeMins ?? "—"} min
                 </div>
               </div>
             )}
@@ -211,10 +227,48 @@ function LineAnalyticsContent() {
                     <YAxis yAxisId="left" tick={{ fontSize: 12 }} unit=" km/h" />
                     <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} unit="%" />
                     <Tooltip />
-                    <Line yAxisId="left" type="monotone" dataKey="speed" stroke="var(--color-accent)" strokeWidth={2} dot={false} name="Speed (km/h)" />
-                    <ReferenceLine yAxisId="left" y={15.4} stroke="#f59e0b" strokeDasharray="4 3" label={{ value: "STCP 2024 (15.4)", fontSize: 10, fill: "#f59e0b", position: "insideTopRight" }} />
-                    <ReferenceLine yAxisId="left" y={18} stroke="#22c55e" strokeDasharray="4 3" label={{ value: "EU target (18)", fontSize: 10, fill: "#22c55e", position: "insideTopRight" }} />
-                    <Line yAxisId="right" type="monotone" dataKey="adherence" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Adherence (%)" />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="speed"
+                      stroke="var(--color-accent)"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Speed (km/h)"
+                    />
+                    <ReferenceLine
+                      yAxisId="left"
+                      y={15.4}
+                      stroke="#f59e0b"
+                      strokeDasharray="4 3"
+                      label={{
+                        value: "STCP 2024 (15.4)",
+                        fontSize: 10,
+                        fill: "#f59e0b",
+                        position: "insideTopRight",
+                      }}
+                    />
+                    <ReferenceLine
+                      yAxisId="left"
+                      y={18}
+                      stroke="#22c55e"
+                      strokeDasharray="4 3"
+                      label={{
+                        value: "EU target (18)",
+                        fontSize: 10,
+                        fill: "#22c55e",
+                        position: "insideTopRight",
+                      }}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="adherence"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Adherence (%)"
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -223,7 +277,8 @@ function LineAnalyticsContent() {
             {/* No data state */}
             {!summary.totalTrips && (
               <div className="text-center py-12 text-[var(--color-content-secondary)]">
-                No trip data available for route {route} in this period. Data will appear after the aggregation pipeline runs.
+                No trip data available for route {route} in this period. Data will appear after the
+                aggregation pipeline runs.
               </div>
             )}
           </>
