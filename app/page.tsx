@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense, useCallback } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -14,8 +14,7 @@ import { LeafletMap } from "@/components/LeafletMap";
 import { RouteFilterPanel } from "@/components/RouteFilterPanel";
 import { MapLayerChips } from "@/components/MapLayerChips";
 import { SettingsModal } from "@/components/SettingsModal";
-import { BottomSheet } from "@/components/BottomSheet";
-import { FeedbackForm } from "@/components/FeedbackForm";
+import { FeedbackBottomSheet } from "@/components/FeedbackBottomSheet";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import {
   busesFetcher,
@@ -25,10 +24,13 @@ import {
   bikeParksFetcher,
   bikeLanesFetcher,
 } from "@/lib/fetchers";
-import { useFeedbackList } from "@/lib/hooks/useFeedback";
 import { DesktopNav } from "@/components/DesktopNav";
 import { CheckInFAB } from "@/components/CheckInFAB";
 import { ActivityBubbles } from "@/components/ActivityBubbles";
+import { useMapLayers } from "@/lib/hooks/useMapLayers";
+import { useRouteFilter } from "@/lib/hooks/useRouteFilter";
+import { useMapSettings } from "@/lib/hooks/useMapSettings";
+import { useFeedbackSheets } from "@/lib/hooks/useFeedbackSheets";
 import type { Map as LMap } from "leaflet";
 import type {
   BusesResponse,
@@ -36,7 +38,6 @@ import type {
   RoutePatternsResponse,
   RoutesResponse,
   RouteInfo,
-  FeedbackItem,
   BikeParksResponse,
   BikeLanesResponse,
   ActiveCheckInsResponse,
@@ -49,192 +50,75 @@ function MapPageContent() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
-  const [showStops, setShowStops] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("showStops");
-      return saved ? JSON.parse(saved) : false;
-    }
-    return false;
-  });
-  const [showRoutes, setShowRoutes] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("showRoutes");
-      return saved ? JSON.parse(saved) : true;
-    }
-    return true;
-  });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [secondsSinceRefresh, setSecondsSinceRefresh] = useState<number | null>(null);
-  const [showRouteFilter, setShowRouteFilter] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("showRouteFilter");
-      return saved ? JSON.parse(saved) : false;
-    }
-    return false;
-  });
-  const [showBikeParks, setShowBikeParks] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("showBikeParks");
-      return saved ? JSON.parse(saved) : false;
-    }
-    return false;
-  });
-  const [showBikeLanes, setShowBikeLanes] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("showBikeLanes");
-      return saved ? JSON.parse(saved) : false;
-    }
-    return false;
-  });
-  const [selectedBikeLanes, setSelectedBikeLanes] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("selectedBikeLanes");
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [, setHasCompletedOnboarding] = useState(false);
   const [showLocationSuccess, setShowLocationSuccess] = useState(false);
   const [degradedDismissed, setDegradedDismissed] = useState(false);
-  const [mapStyle, setMapStyle] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("mapStyle") || "standard";
-    }
-    return "standard";
-  });
   const [leafletMap, setLeafletMap] = useState<LMap | null>(null);
-  const [showActivity, setShowActivity] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("showActivity");
-      return saved !== null ? JSON.parse(saved) : true;
-    }
-    return true;
-  });
-  const [showAnimations, setShowAnimations] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("showAnimations");
-      return saved !== null ? JSON.parse(saved) : true;
-    }
-    return true;
-  });
-  const [_busNumberFilter, _setBusNumberFilter] = useState("");
 
-  // Feedback state for bottom sheet (triggered by bus popup custom event)
-  const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
-  const [feedbackLineId, setFeedbackLineId] = useState("");
-  const [feedbackLineName, setFeedbackLineName] = useState("");
-  const { data: feedbackList } = useFeedbackList("LINE", showFeedbackSheet ? feedbackLineId : null);
-
-  // Vehicle feedback state
-  const [showVehicleFeedbackSheet, setShowVehicleFeedbackSheet] = useState(false);
-  const [feedbackVehicleId, setFeedbackVehicleId] = useState("");
-  const [feedbackVehicleName, setFeedbackVehicleName] = useState("");
-  const [feedbackVehicleLineContext, setFeedbackVehicleLineContext] = useState("");
-  const { data: vehicleFeedbackList } = useFeedbackList(
-    "VEHICLE",
-    showVehicleFeedbackSheet ? feedbackVehicleId : null
-  );
-
-  // Bike park feedback state
-  const [showBikeParkFeedbackSheet, setShowBikeParkFeedbackSheet] = useState(false);
-  const [feedbackBikeParkId, setFeedbackBikeParkId] = useState("");
-  const [feedbackBikeParkName, setFeedbackBikeParkName] = useState("");
-  const { data: bikeParkFeedbackList } = useFeedbackList(
-    "BIKE_PARK",
-    showBikeParkFeedbackSheet ? feedbackBikeParkId : null
-  );
-
-  // Bike lane feedback state
-  const [showBikeLaneFeedbackSheet, setShowBikeLaneFeedbackSheet] = useState(false);
-  const [feedbackBikeLaneId, setFeedbackBikeLaneId] = useState("");
-  const [feedbackBikeLaneName, setFeedbackBikeLaneName] = useState("");
-  const { data: bikeLaneFeedbackList } = useFeedbackList(
-    "BIKE_LANE",
-    showBikeLaneFeedbackSheet ? feedbackBikeLaneId : null
-  );
-
-  // Listen for custom event from bus popup "Rate Line" button
-  useEffect(() => {
-    const handleLineFeedback = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.routeShortName) {
-        setFeedbackLineId(detail.routeShortName);
-        setFeedbackLineName(`${t.reviews.line} ${detail.routeShortName}`);
-        setShowFeedbackSheet(true);
-      }
-    };
-    window.addEventListener("open-line-feedback", handleLineFeedback);
-    return () => window.removeEventListener("open-line-feedback", handleLineFeedback);
-  }, [t]);
-
-  // Listen for custom event from bus popup "Rate Vehicle" button
-  useEffect(() => {
-    const handleVehicleFeedback = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.vehicleNumber) {
-        setFeedbackVehicleId(detail.vehicleNumber);
-        setFeedbackVehicleName(`${t.reviews.vehicle} ${detail.vehicleNumber}`);
-        setFeedbackVehicleLineContext(detail.lineContext || "");
-        setShowVehicleFeedbackSheet(true);
-      }
-    };
-    window.addEventListener("open-vehicle-feedback", handleVehicleFeedback);
-    return () => window.removeEventListener("open-vehicle-feedback", handleVehicleFeedback);
-  }, [t]);
-
-  // Listen for custom event from bike park popup
-  useEffect(() => {
-    const handleBikeParkFeedback = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.parkId) {
-        setFeedbackBikeParkId(detail.parkName || detail.parkId);
-        setFeedbackBikeParkName(detail.parkName || `Parque ${detail.parkId}`);
-        setShowBikeParkFeedbackSheet(true);
-      }
-    };
-    window.addEventListener("open-bike-park-feedback", handleBikeParkFeedback);
-    return () => window.removeEventListener("open-bike-park-feedback", handleBikeParkFeedback);
-  }, []);
-
-  // Listen for custom event from bike lane popup
-  useEffect(() => {
-    const handleBikeLaneFeedback = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.laneId) {
-        setFeedbackBikeLaneId(detail.laneName || detail.laneId);
-        setFeedbackBikeLaneName(detail.laneName || `Ciclovia ${detail.laneId}`);
-        setShowBikeLaneFeedbackSheet(true);
-      }
-    };
-    window.addEventListener("open-bike-lane-feedback", handleBikeLaneFeedback);
-    return () => window.removeEventListener("open-bike-lane-feedback", handleBikeLaneFeedback);
-  }, []);
-
-  const handleFeedbackSuccess = useCallback((_feedback: FeedbackItem) => {
-    // Feedback saved — BottomSheet stays open so user sees success message
-  }, []);
+  // Custom hooks
+  const {
+    showStops,
+    setShowStops,
+    showRoutes,
+    setShowRoutes,
+    showBikeParks,
+    setShowBikeParks,
+    showBikeLanes,
+    setShowBikeLanes,
+    selectedBikeLanes,
+  } = useMapLayers();
+  const {
+    selectedRoutes,
+    setSelectedRoutes,
+    favoriteRoutes,
+    setFavoriteRoutes,
+    showRouteFilter,
+    setShowRouteFilter,
+    favoritesAppliedOnLoad,
+    setFavoritesAppliedOnLoad,
+    toggleRoute,
+    toggleFavorite,
+    clearFilters: _clearFilters,
+  } = useRouteFilter();
+  const {
+    mapStyle,
+    setMapStyle,
+    showActivity,
+    setShowActivity,
+    showAnimations,
+    setShowAnimations,
+  } = useMapSettings();
+  const {
+    showFeedbackSheet,
+    setShowFeedbackSheet,
+    feedbackLineId,
+    feedbackLineName,
+    feedbackList,
+    showVehicleFeedbackSheet,
+    setShowVehicleFeedbackSheet,
+    feedbackVehicleId,
+    feedbackVehicleName,
+    feedbackVehicleLineContext,
+    vehicleFeedbackList,
+    showBikeParkFeedbackSheet,
+    setShowBikeParkFeedbackSheet,
+    feedbackBikeParkId,
+    feedbackBikeParkName,
+    bikeParkFeedbackList,
+    showBikeLaneFeedbackSheet,
+    setShowBikeLaneFeedbackSheet,
+    feedbackBikeLaneId,
+    feedbackBikeLaneName,
+    bikeLaneFeedbackList,
+    handleFeedbackSuccess,
+  } = useFeedbackSheets(t);
 
   const highlightedStationId = searchParams?.get("station");
-
-  const [selectedRoutes, setSelectedRoutes] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("selectedRoutes");
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
-
-  const [favoriteRoutes, setFavoriteRoutes] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("favoriteRoutes");
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
-  const [favoritesAppliedOnLoad, setFavoritesAppliedOnLoad] = useState(false);
 
   const simulateParam = searchParams?.get("simulate");
   const busesUrl = simulateParam
@@ -433,63 +317,18 @@ function MapPageContent() {
     }
   }, []);
 
-  // Persist state to localStorage
-  useEffect(() => {
-    localStorage.setItem("selectedRoutes", JSON.stringify(selectedRoutes));
-  }, [selectedRoutes]);
-  useEffect(() => {
-    localStorage.setItem("favoriteRoutes", JSON.stringify(favoriteRoutes));
-  }, [favoriteRoutes]);
-  useEffect(() => {
-    localStorage.setItem("showStops", JSON.stringify(showStops));
-  }, [showStops]);
-  useEffect(() => {
-    localStorage.setItem("showRoutes", JSON.stringify(showRoutes));
-  }, [showRoutes]);
-  useEffect(() => {
-    localStorage.setItem("mapStyle", mapStyle);
-  }, [mapStyle]);
-  useEffect(() => {
-    localStorage.setItem("showRouteFilter", JSON.stringify(showRouteFilter));
-  }, [showRouteFilter]);
-  useEffect(() => {
-    localStorage.setItem("showBikeParks", JSON.stringify(showBikeParks));
-  }, [showBikeParks]);
-  useEffect(() => {
-    localStorage.setItem("showBikeLanes", JSON.stringify(showBikeLanes));
-  }, [showBikeLanes]);
-  useEffect(() => {
-    localStorage.setItem("selectedBikeLanes", JSON.stringify(selectedBikeLanes));
-  }, [selectedBikeLanes]);
-  useEffect(() => {
-    localStorage.setItem("showActivity", JSON.stringify(showActivity));
-  }, [showActivity]);
-  useEffect(() => {
-    localStorage.setItem("showAnimations", JSON.stringify(showAnimations));
-  }, [showAnimations]);
+  // Persist state to localStorage — handled by custom hooks above
 
-  const _handleRateLine = useCallback(
-    (route: string) => {
-      setFeedbackLineId(route);
-      setFeedbackLineName(`${t.reviews.line} ${route}`);
-      setShowFeedbackSheet(true);
-    },
-    [t]
-  );
-
-  // Auto-filter to favorite routes on first data load
+  // Auto-filter to favorite routes on first data load.
+  // Only runs once (favoritesAppliedOnLoad guard). Does NOT require
+  // selectedRoutes to be empty — favorites always win on first load.
   useEffect(() => {
-    if (
-      !favoritesAppliedOnLoad &&
-      favoriteRoutes.length > 0 &&
-      availableRouteNames.length > 0 &&
-      selectedRoutes.length === 0
-    ) {
+    if (!favoritesAppliedOnLoad && favoriteRoutes.length > 0 && availableRouteNames.length > 0) {
       const validFavorites = favoriteRoutes.filter((r) => availableRouteNames.includes(r));
       if (validFavorites.length > 0) setSelectedRoutes(validFavorites);
       setFavoritesAppliedOnLoad(true);
     }
-  }, [favoriteRoutes, availableRouteNames, favoritesAppliedOnLoad, selectedRoutes.length]);
+  }, [favoriteRoutes, availableRouteNames, favoritesAppliedOnLoad]);
 
   // Set of individual bus IDs (FIWARE entity IDs) with active check-ins
   // Used to override route filters — buses with activity are always shown on the map
@@ -516,28 +355,6 @@ function MapPageContent() {
         return buses;
       })()
     : [];
-
-  const toggleRoute = (route: string) => {
-    setSelectedRoutes((prev) =>
-      prev.includes(route) ? prev.filter((r) => r !== route) : [...prev, route]
-    );
-  };
-
-  const toggleFavorite = (route: string) => {
-    setFavoriteRoutes((prev) =>
-      prev.includes(route) ? prev.filter((r) => r !== route) : [...prev, route]
-    );
-  };
-
-  const _toggleBikeLane = (laneId: string) => {
-    setSelectedBikeLanes((prev) =>
-      prev.includes(laneId) ? prev.filter((id) => id !== laneId) : [...prev, laneId]
-    );
-  };
-
-  const _clearBikeLaneFilters = () => {
-    setSelectedBikeLanes([]);
-  };
 
   const handleOnboardingComplete = (routes: string[], locationGranted: boolean) => {
     if (routes.length > 0) {
@@ -776,9 +593,9 @@ function MapPageContent() {
               <div>
                 <p className="text-blue-900 dark:text-blue-200 text-sm font-semibold">
                   {stopsData.data.stops.find((s) => s.gtfsId === highlightedStationId)?.name ||
-                    "Estação selecionada"}
+                    t.map.selectedStation}
                 </p>
-                <p className="text-blue-700 dark:text-blue-300 text-xs">Centrado no mapa</p>
+                <p className="text-blue-700 dark:text-blue-300 text-xs">{t.map.centeredOnMap}</p>
               </div>
             </div>
           </div>
@@ -823,7 +640,7 @@ function MapPageContent() {
 
         {data && data.buses.length === 0 && (
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-surface-raised rounded-lg shadow-lg p-6">
-            <p className="text-content-secondary">No buses currently tracked.</p>
+            <p className="text-content-secondary">{t.map.noBusesTracked}</p>
           </div>
         )}
 
@@ -846,176 +663,59 @@ function MapPageContent() {
         )}
 
         {/* Line Feedback Bottom Sheet */}
-        <BottomSheet
+        <FeedbackBottomSheet
           isOpen={showFeedbackSheet}
           onClose={() => setShowFeedbackSheet(false)}
           title={t.feedback.lineFeedback}
-        >
-          <FeedbackForm
-            type="LINE"
-            targetId={feedbackLineId}
-            targetName={feedbackLineName}
-            existingFeedback={feedbackList?.userFeedback}
-            onSuccess={handleFeedbackSuccess}
-          />
-          {feedbackList && feedbackList.feedbacks.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-content-secondary mb-3">
-                {t.feedback.recentComments}
-              </h3>
-              <div className="space-y-3">
-                {feedbackList.feedbacks
-                  .filter((f) => f.comment)
-                  .slice(0, 5)
-                  .map((f) => (
-                    <div key={f.id} className="bg-surface-sunken rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-yellow-400 text-xs">
-                          {"★".repeat(f.rating)}
-                          {"☆".repeat(5 - f.rating)}
-                        </span>
-                        <span className="text-xs text-content-muted">
-                          {new Date(f.createdAt).toLocaleDateString("pt-PT")}
-                        </span>
-                      </div>
-                      <p className="text-sm text-content-secondary">{f.comment}</p>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-        </BottomSheet>
+          type="LINE"
+          targetId={feedbackLineId}
+          targetName={feedbackLineName}
+          feedbackList={feedbackList}
+          existingFeedback={feedbackList?.userFeedback}
+          onSuccess={handleFeedbackSuccess}
+        />
 
         {/* Vehicle Feedback Bottom Sheet */}
-        <BottomSheet
+        <FeedbackBottomSheet
           isOpen={showVehicleFeedbackSheet}
           onClose={() => setShowVehicleFeedbackSheet(false)}
           title={t.feedback.vehicleFeedback}
-        >
-          <FeedbackForm
-            type="VEHICLE"
-            targetId={feedbackVehicleId}
-            targetName={feedbackVehicleName}
-            existingFeedback={vehicleFeedbackList?.userFeedback}
-            metadata={
-              feedbackVehicleLineContext ? { lineContext: feedbackVehicleLineContext } : undefined
-            }
-            onSuccess={handleFeedbackSuccess}
-          />
-          {vehicleFeedbackList && vehicleFeedbackList.feedbacks.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-content-secondary mb-3">
-                {t.feedback.recentComments}
-              </h3>
-              <div className="space-y-3">
-                {vehicleFeedbackList.feedbacks
-                  .filter((f) => f.comment)
-                  .slice(0, 5)
-                  .map((f) => (
-                    <div key={f.id} className="bg-surface-sunken rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-yellow-400 text-xs">
-                          {"★".repeat(f.rating)}
-                          {"☆".repeat(5 - f.rating)}
-                        </span>
-                        {f.metadata?.lineContext && (
-                          <span className="text-xs text-indigo-500 dark:text-indigo-400 font-medium">
-                            Linha {f.metadata.lineContext}
-                          </span>
-                        )}
-                        <span className="text-xs text-content-muted">
-                          {new Date(f.createdAt).toLocaleDateString("pt-PT")}
-                        </span>
-                      </div>
-                      <p className="text-sm text-content-secondary">{f.comment}</p>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-        </BottomSheet>
+          type="VEHICLE"
+          targetId={feedbackVehicleId}
+          targetName={feedbackVehicleName}
+          feedbackList={vehicleFeedbackList}
+          existingFeedback={vehicleFeedbackList?.userFeedback}
+          metadata={
+            feedbackVehicleLineContext ? { lineContext: feedbackVehicleLineContext } : undefined
+          }
+          onSuccess={handleFeedbackSuccess}
+        />
 
         {/* Bike Park Feedback Bottom Sheet */}
-        <BottomSheet
+        <FeedbackBottomSheet
           isOpen={showBikeParkFeedbackSheet}
           onClose={() => setShowBikeParkFeedbackSheet(false)}
-          title="Avaliar Parque de Bicicletas"
-        >
-          <FeedbackForm
-            type="BIKE_PARK"
-            targetId={feedbackBikeParkId}
-            targetName={feedbackBikeParkName}
-            existingFeedback={bikeParkFeedbackList?.userFeedback}
-            onSuccess={handleFeedbackSuccess}
-          />
-          {bikeParkFeedbackList && bikeParkFeedbackList.feedbacks.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-content-secondary mb-3">
-                {t.feedback.recentComments}
-              </h3>
-              <div className="space-y-3">
-                {bikeParkFeedbackList.feedbacks
-                  .filter((f) => f.comment)
-                  .slice(0, 5)
-                  .map((f) => (
-                    <div key={f.id} className="bg-surface-sunken rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-yellow-400 text-xs">
-                          {"★".repeat(f.rating)}
-                          {"☆".repeat(5 - f.rating)}
-                        </span>
-                        <span className="text-xs text-content-muted">
-                          {new Date(f.createdAt).toLocaleDateString("pt-PT")}
-                        </span>
-                      </div>
-                      <p className="text-sm text-content-secondary">{f.comment}</p>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-        </BottomSheet>
+          title={t.feedback.bikeParkFeedback}
+          type="BIKE_PARK"
+          targetId={feedbackBikeParkId}
+          targetName={feedbackBikeParkName}
+          feedbackList={bikeParkFeedbackList}
+          existingFeedback={bikeParkFeedbackList?.userFeedback}
+          onSuccess={handleFeedbackSuccess}
+        />
 
         {/* Bike Lane Feedback Bottom Sheet */}
-        <BottomSheet
+        <FeedbackBottomSheet
           isOpen={showBikeLaneFeedbackSheet}
           onClose={() => setShowBikeLaneFeedbackSheet(false)}
-          title="Avaliar Ciclovia"
-        >
-          <FeedbackForm
-            type="BIKE_LANE"
-            targetId={feedbackBikeLaneId}
-            targetName={feedbackBikeLaneName}
-            existingFeedback={bikeLaneFeedbackList?.userFeedback}
-            onSuccess={handleFeedbackSuccess}
-          />
-          {bikeLaneFeedbackList && bikeLaneFeedbackList.feedbacks.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-content-secondary mb-3">
-                {t.feedback.recentComments}
-              </h3>
-              <div className="space-y-3">
-                {bikeLaneFeedbackList.feedbacks
-                  .filter((f) => f.comment)
-                  .slice(0, 5)
-                  .map((f) => (
-                    <div key={f.id} className="bg-surface-sunken rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-yellow-400 text-xs">
-                          {"★".repeat(f.rating)}
-                          {"☆".repeat(5 - f.rating)}
-                        </span>
-                        <span className="text-xs text-content-muted">
-                          {new Date(f.createdAt).toLocaleDateString("pt-PT")}
-                        </span>
-                      </div>
-                      <p className="text-sm text-content-secondary">{f.comment}</p>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-        </BottomSheet>
+          title={t.feedback.bikeLaneFeedback}
+          type="BIKE_LANE"
+          targetId={feedbackBikeLaneId}
+          targetName={feedbackBikeLaneName}
+          feedbackList={bikeLaneFeedbackList}
+          existingFeedback={bikeLaneFeedbackList?.userFeedback}
+          onSuccess={handleFeedbackSuccess}
+        />
 
         {/* Check-in FAB (#49) */}
         <CheckInFAB
