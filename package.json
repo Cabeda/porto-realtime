@@ -23,6 +23,8 @@
     "test:watch": "vitest",
     "test:perf": "playwright test tests/performance",
     "test:perf:ui": "playwright test tests/performance --ui",
+    "test:load": "k6 run tests/performance/analytics.k6.js",
+    "test:load:api": "k6 run tests/performance/api.k6.js",
     "test:e2e": "playwright test tests/e2e",
     "test:e2e:ui": "playwright test tests/e2e --ui",
     "prepare": "husky",

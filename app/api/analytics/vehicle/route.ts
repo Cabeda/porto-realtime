@@ -6,15 +6,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
+import { cacheFor } from "@/lib/analytics/cache";
+import { KeyedStaleCache } from "@/lib/api-fetch";
 
-const CACHE = { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=3600" };
-const NO_CACHE = { "Cache-Control": "no-store" };
+const CACHE = cacheFor(3600);
+const memCache = new KeyedStaleCache<unknown>(5 * 60 * 1000);
 
 export async function GET(request: NextRequest) {
   const vehicle = request.nextUrl.searchParams.get("vehicle");
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
   const view = request.nextUrl.searchParams.get("view") || "fleet";
+  const cacheKey = request.nextUrl.search || "default";
+
+  const cached = memCache.get(cacheKey);
+  if (cached?.fresh) return NextResponse.json(cached.data);
 
   try {
     const filter = parseDateFilter(period || "7d", dateParam);
@@ -90,10 +96,11 @@ export async function GET(request: NextRequest) {
         }))
         .sort((a, b) => b.trips - a.trips);
 
-      return NextResponse.json(
-        { period: periodLabel, totalVehicles: fleet.length, fleet },
-        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-      );
+      const fleetData = { period: periodLabel, totalVehicles: fleet.length, fleet };
+      memCache.set(cacheKey, fleetData);
+      return NextResponse.json(fleetData, {
+        headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+      });
     }
 
     if (!vehicle) {
@@ -167,18 +174,19 @@ export async function GET(request: NextRequest) {
             : null,
       }));
 
-      return NextResponse.json(
-        {
-          vehicle,
-          period: periodLabel,
-          totalTrips,
-          routesOperated,
-          avgSpeed,
-          avgRuntimeAdherence: avgAdherence,
-          dailyPerformance,
-        },
-        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-      );
+      const summaryData = {
+        vehicle,
+        period: periodLabel,
+        totalTrips,
+        routesOperated,
+        avgSpeed,
+        avgRuntimeAdherence: avgAdherence,
+        dailyPerformance,
+      };
+      memCache.set(cacheKey, summaryData);
+      return NextResponse.json(summaryData, {
+        headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+      });
     }
 
     if (view === "trips") {
@@ -199,29 +207,30 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      return NextResponse.json(
-        {
-          vehicle,
-          period: periodLabel,
-          trips: trips.map((t) => ({
-            date: t.date.toISOString().slice(0, 10),
-            route: t.route,
-            directionId: t.directionId,
-            startedAt: t.startedAt?.toISOString() ?? null,
-            endedAt: t.endedAt?.toISOString() ?? null,
-            runtimeMins: t.runtimeSecs ? Math.round(t.runtimeSecs / 60) : null,
-            scheduledRuntimeMins: t.scheduledRuntimeSecs
-              ? Math.round(t.scheduledRuntimeSecs / 60)
+      const tripsData = {
+        vehicle,
+        period: periodLabel,
+        trips: trips.map((t) => ({
+          date: t.date.toISOString().slice(0, 10),
+          route: t.route,
+          directionId: t.directionId,
+          startedAt: t.startedAt?.toISOString() ?? null,
+          endedAt: t.endedAt?.toISOString() ?? null,
+          runtimeMins: t.runtimeSecs ? Math.round(t.runtimeSecs / 60) : null,
+          scheduledRuntimeMins: t.scheduledRuntimeSecs
+            ? Math.round(t.scheduledRuntimeSecs / 60)
+            : null,
+          adherencePct:
+            t.runtimeSecs && t.scheduledRuntimeSecs && t.scheduledRuntimeSecs > 0
+              ? Math.round((t.runtimeSecs / t.scheduledRuntimeSecs) * 1000) / 10
               : null,
-            adherencePct:
-              t.runtimeSecs && t.scheduledRuntimeSecs && t.scheduledRuntimeSecs > 0
-                ? Math.round((t.runtimeSecs / t.scheduledRuntimeSecs) * 1000) / 10
-                : null,
-            speed: t.commercialSpeed ?? t.avgSpeed,
-          })),
-        },
-        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-      );
+          speed: t.commercialSpeed ?? t.avgSpeed,
+        })),
+      };
+      memCache.set(cacheKey, tripsData);
+      return NextResponse.json(tripsData, {
+        headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+      });
     }
 
     return NextResponse.json({ error: "Invalid view parameter" }, { status: 400 });

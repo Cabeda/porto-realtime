@@ -9,9 +9,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
+import { CACHE_1DAY, cacheFor } from "@/lib/analytics/cache";
+import { KeyedStaleCache, SingleFlight } from "@/lib/api-fetch";
 
-const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
-const NO_CACHE = { "Cache-Control": "no-store" };
+const CACHE = CACHE_1DAY;
+const memCache = new KeyedStaleCache<unknown>(5 * 60 * 1000);
+const sf = new SingleFlight();
 
 export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period");
@@ -19,6 +22,11 @@ export async function GET(request: NextRequest) {
   const route = request.nextUrl.searchParams.get("route");
   const hourFrom = request.nextUrl.searchParams.get("hourFrom");
   const hourTo = request.nextUrl.searchParams.get("hourTo");
+  const cacheKey = request.nextUrl.search || "default";
+
+  const cached = memCache.get(cacheKey);
+  if (cached?.fresh) return NextResponse.json(cached.data);
+
   const filter = parseDateFilter(period, dateParam);
 
   const hFrom = hourFrom ? parseInt(hourFrom) : null;
@@ -55,17 +63,18 @@ export async function GET(request: NextRequest) {
       if (segments.length === 0) {
         return NextResponse.json(
           { segments: [], period: periodLabel },
-          { headers: filter.mode === "today" ? NO_CACHE : CACHE }
+          { headers: filter.mode === "today" ? cacheFor(300) : CACHE }
         );
       }
-
       // First try pre-aggregated hourly data
-      const rawSpeeds = await prisma.segmentSpeedHourly.findMany({
-        where: {
-          hourStart: { gte: dayStart, lte: dayEnd },
-          ...(route ? { route } : {}),
-        },
-      });
+      const rawSpeeds = await sf.do(cacheKey + ":hourly", () =>
+        prisma.segmentSpeedHourly.findMany({
+          where: {
+            hourStart: { gte: dayStart, lte: dayEnd },
+            ...(route ? { route } : {}),
+          },
+        })
+      );
       const speeds = rawSpeeds.filter((s) => matchesHour(s.hourStart));
 
       if (speeds.length > 0) {
@@ -78,29 +87,30 @@ export async function GET(request: NextRequest) {
           a.speeds.push(s.avgSpeed);
           a.samples += s.sampleCount;
         }
-        return NextResponse.json(
-          {
-            period: periodLabel,
-            segments: segments.map((seg) => {
-              const a = segAgg.get(seg.id);
-              const avgSpeed =
-                a && a.speeds.length > 0
-                  ? Math.round((a.speeds.reduce((x, y) => x + y, 0) / a.speeds.length) * 10) / 10
-                  : null;
-              return {
-                id: seg.id,
-                route: seg.route,
-                directionId: seg.directionId,
-                geometry: seg.geometry,
-                lengthM: seg.lengthM,
-                avgSpeed,
-                medianSpeed: null,
-                sampleCount: a?.samples ?? 0,
-              };
-            }),
-          },
-          { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-        );
+        const aggData = {
+          period: periodLabel,
+          segments: segments.map((seg) => {
+            const a = segAgg.get(seg.id);
+            const avgSpeed =
+              a && a.speeds.length > 0
+                ? Math.round((a.speeds.reduce((x, y) => x + y, 0) / a.speeds.length) * 10) / 10
+                : null;
+            return {
+              id: seg.id,
+              route: seg.route,
+              directionId: seg.directionId,
+              geometry: seg.geometry,
+              lengthM: seg.lengthM,
+              avgSpeed,
+              medianSpeed: null,
+              sampleCount: a?.samples ?? 0,
+            };
+          }),
+        };
+        memCache.set(cacheKey, aggData);
+        return NextResponse.json(aggData, {
+          headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+        });
       }
 
       // Fallback: compute live average speed per route from raw positions
@@ -112,16 +122,18 @@ export async function GET(request: NextRequest) {
             }
           : { gte: dayStart, lte: dayEnd };
 
-      const routeSpeeds = await prisma.busPositionLog.groupBy({
-        by: ["route"],
-        where: {
-          recordedAt: liveTimeFilter,
-          speed: { gt: 0 },
-          route: route ? route : { not: null },
-        },
-        _avg: { speed: true },
-        _count: { speed: true },
-      });
+      const routeSpeeds = await sf.do(cacheKey + ":live", () =>
+        prisma.busPositionLog.groupBy({
+          by: ["route"],
+          where: {
+            recordedAt: liveTimeFilter,
+            speed: { gt: 0 },
+            route: route ? route : { not: null },
+          },
+          _avg: { speed: true },
+          _count: { speed: true },
+        })
+      );
 
       const routeSpeedMap = new Map(
         routeSpeeds
@@ -135,26 +147,27 @@ export async function GET(request: NextRequest) {
           ])
       );
 
-      return NextResponse.json(
-        {
-          period: periodLabel,
-          source: "live",
-          segments: segments.map((seg) => {
-            const rs = routeSpeedMap.get(seg.route);
-            return {
-              id: seg.id,
-              route: seg.route,
-              directionId: seg.directionId,
-              geometry: seg.geometry,
-              lengthM: seg.lengthM,
-              avgSpeed: rs?.avgSpeed ?? null,
-              medianSpeed: null,
-              sampleCount: rs?.count ?? 0,
-            };
-          }),
-        },
-        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-      );
+      const liveData = {
+        period: periodLabel,
+        source: "live",
+        segments: segments.map((seg) => {
+          const rs = routeSpeedMap.get(seg.route);
+          return {
+            id: seg.id,
+            route: seg.route,
+            directionId: seg.directionId,
+            geometry: seg.geometry,
+            lengthM: seg.lengthM,
+            avgSpeed: rs?.avgSpeed ?? null,
+            medianSpeed: null,
+            sampleCount: rs?.count ?? 0,
+          };
+        }),
+      };
+      memCache.set(cacheKey, liveData);
+      return NextResponse.json(liveData, {
+        headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+      });
     }
 
     // Historical periods (7d, 30d) — filter.mode === "period"
@@ -181,28 +194,27 @@ export async function GET(request: NextRequest) {
       agg.samples += s.sampleCount;
     }
 
-    return NextResponse.json(
-      {
-        period: filter.period,
-        segments: segments.map((seg) => {
-          const agg = segAgg.get(seg.id);
-          const avgSpeed =
-            agg && agg.speeds.length > 0
-              ? Math.round((agg.speeds.reduce((a, b) => a + b, 0) / agg.speeds.length) * 10) / 10
-              : null;
-          return {
-            id: seg.id,
-            route: seg.route,
-            directionId: seg.directionId,
-            geometry: seg.geometry,
-            lengthM: seg.lengthM,
-            avgSpeed,
-            sampleCount: agg?.samples ?? 0,
-          };
-        }),
-      },
-      { headers: CACHE }
-    );
+    const historicalData = {
+      period: filter.period,
+      segments: segments.map((seg) => {
+        const agg = segAgg.get(seg.id);
+        const avgSpeed =
+          agg && agg.speeds.length > 0
+            ? Math.round((agg.speeds.reduce((a, b) => a + b, 0) / agg.speeds.length) * 10) / 10
+            : null;
+        return {
+          id: seg.id,
+          route: seg.route,
+          directionId: seg.directionId,
+          geometry: seg.geometry,
+          lengthM: seg.lengthM,
+          avgSpeed,
+          sampleCount: agg?.samples ?? 0,
+        };
+      }),
+    };
+    memCache.set(cacheKey, historicalData);
+    return NextResponse.json(historicalData, { headers: CACHE });
   } catch (error) {
     console.error("Segment speeds error:", error);
     return NextResponse.json({ error: "Failed to fetch segment speeds" }, { status: 500 });

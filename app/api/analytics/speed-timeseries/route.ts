@@ -6,9 +6,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
+import { CACHE_1DAY, cacheUntilNextHour } from "@/lib/analytics/cache";
+import { KeyedStaleCache, SingleFlight } from "@/lib/api-fetch";
 
-const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
-const NO_CACHE = { "Cache-Control": "no-store" };
+const CACHE = CACHE_1DAY;
+const memCache = new KeyedStaleCache<unknown>(5 * 60 * 1000);
+const sf = new SingleFlight();
 
 function buildHourlyTimeseries(hourly: Map<number, number[]>) {
   const timeseries = [];
@@ -30,6 +33,11 @@ export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
   const route = request.nextUrl.searchParams.get("route");
+  const cacheKey = request.nextUrl.search || "default";
+
+  const cached = memCache.get(cacheKey);
+  if (cached?.fresh) return NextResponse.json(cached.data);
+
   const filter = parseDateFilter(period, dateParam);
 
   try {
@@ -38,14 +46,16 @@ export async function GET(request: NextRequest) {
       const todayStart = new Date(now);
       todayStart.setUTCHours(0, 0, 0, 0);
 
-      const positions = await prisma.busPositionLog.findMany({
-        where: {
-          recordedAt: { gte: todayStart },
-          speed: { gt: 0 },
-          ...(route ? { route } : {}),
-        },
-        select: { recordedAt: true, speed: true },
-      });
+      const positions = await sf.do(cacheKey, () =>
+        prisma.busPositionLog.findMany({
+          where: {
+            recordedAt: { gte: todayStart },
+            speed: { gt: 0 },
+            ...(route ? { route } : {}),
+          },
+          select: { recordedAt: true, speed: true },
+        })
+      );
 
       const hourly = new Map<number, number[]>();
       for (const p of positions) {
@@ -54,10 +64,9 @@ export async function GET(request: NextRequest) {
         hourly.get(h)!.push(p.speed!);
       }
 
-      return NextResponse.json(
-        { period: "today", timeseries: buildHourlyTimeseries(hourly) },
-        { headers: NO_CACHE }
-      );
+      const todayData = { period: "today", timeseries: buildHourlyTimeseries(hourly) };
+      memCache.set(cacheKey, todayData);
+      return NextResponse.json(todayData, { headers: cacheUntilNextHour() });
     }
 
     if (filter.mode === "date") {
@@ -81,10 +90,9 @@ export async function GET(request: NextRequest) {
           if (!hourly.has(h)) hourly.set(h, []);
           hourly.get(h)!.push(p.speed!);
         }
-        return NextResponse.json(
-          { period: filter.dateStr, timeseries: buildHourlyTimeseries(hourly) },
-          { headers: CACHE }
-        );
+        const dateRawData = { period: filter.dateStr, timeseries: buildHourlyTimeseries(hourly) };
+        memCache.set(cacheKey, dateRawData);
+        return NextResponse.json(dateRawData, { headers: CACHE });
       }
 
       // Fall back to SegmentSpeedHourly for this date
@@ -114,7 +122,9 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({ period: filter.dateStr, timeseries }, { headers: CACHE });
+      const dateFallbackData = { period: filter.dateStr, timeseries };
+      memCache.set(cacheKey, dateFallbackData);
+      return NextResponse.json(dateFallbackData, { headers: CACHE });
     }
 
     // Historical periods: 7d, 30d
@@ -144,7 +154,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ period: filter.period, timeseries }, { headers: CACHE });
+    const periodData = { period: filter.period, timeseries };
+    memCache.set(cacheKey, periodData);
+    return NextResponse.json(periodData, { headers: CACHE });
   } catch (error) {
     console.error("Speed timeseries error:", error);
     return NextResponse.json({ error: "Failed to fetch speed timeseries" }, { status: 500 });

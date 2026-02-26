@@ -6,9 +6,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
+import { CACHE_1DAY, cacheUntilNextHour } from "@/lib/analytics/cache";
+import { KeyedStaleCache, SingleFlight } from "@/lib/api-fetch";
 
-const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
-const NO_CACHE = { "Cache-Control": "no-store" };
+const CACHE = CACHE_1DAY;
+const memCache = new KeyedStaleCache<unknown>(5 * 60 * 1000);
+const sf = new SingleFlight(); // 5 minutes
 
 function buildFleetTimeseries(
   positions: { recordedAt: Date; vehicleId: string; route: string | null }[]
@@ -57,7 +60,13 @@ function buildFleetTimeseries(
 export async function GET(request: NextRequest) {
   const dateParam = request.nextUrl.searchParams.get("date");
   const route = request.nextUrl.searchParams.get("route");
+
   const filter = parseDateFilter(null, dateParam);
+  // Normalize cache key: fleet-activity ignores period, only date matters
+  const normalizedKey = filter.mode === "date" ? `date=${filter.dateStr}` : "today";
+
+  const cached = memCache.get(normalizedKey);
+  if (cached?.fresh) return NextResponse.json(cached.data);
 
   try {
     let dayStart: Date;
@@ -73,18 +82,21 @@ export async function GET(request: NextRequest) {
       dayEnd = new Date();
     }
 
-    const positions = await prisma.busPositionLog.findMany({
-      where: { recordedAt: { gte: dayStart, lte: dayEnd }, ...(route ? { route } : {}) },
-      select: { recordedAt: true, vehicleId: true, route: true },
-    });
-
-    return NextResponse.json(
-      {
-        period: filter.mode === "date" ? filter.dateStr : "today",
-        timeseries: buildFleetTimeseries(positions),
-      },
-      { headers: filter.mode === "date" ? CACHE : NO_CACHE }
+    const positions = await sf.do(normalizedKey, () =>
+      prisma.busPositionLog.findMany({
+        where: { recordedAt: { gte: dayStart, lte: dayEnd }, ...(route ? { route } : {}) },
+        select: { recordedAt: true, vehicleId: true, route: true },
+      })
     );
+
+    const data = {
+      period: filter.mode === "date" ? filter.dateStr : "today",
+      timeseries: buildFleetTimeseries(positions),
+    };
+    memCache.set(normalizedKey, data);
+    return NextResponse.json(data, {
+      headers: filter.mode === "date" ? CACHE : cacheUntilNextHour(),
+    });
   } catch (error) {
     console.error("Fleet activity error:", error);
     return NextResponse.json({ error: "Failed to fetch fleet activity" }, { status: 500 });

@@ -7,19 +7,25 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeGrade } from "@/lib/analytics/metrics";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
+import { CACHE_1DAY, cacheFor } from "@/lib/analytics/cache";
+import { KeyedStaleCache } from "@/lib/api-fetch";
 
-const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
-const NO_CACHE = { "Cache-Control": "no-store" };
+const CACHE = CACHE_1DAY;
+const memCache = new KeyedStaleCache<unknown>(5 * 60 * 1000);
 
 export async function GET(request: NextRequest) {
   const route = request.nextUrl.searchParams.get("route");
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
   const view = request.nextUrl.searchParams.get("view") || "summary";
+  const cacheKey = request.nextUrl.search || "default";
 
   if (!route) {
     return NextResponse.json({ error: "route parameter required" }, { status: 400 });
   }
+
+  const cached = memCache.get(cacheKey);
+  if (cached?.fresh) return NextResponse.json(cached.data);
 
   try {
     const now = new Date();
@@ -77,47 +83,53 @@ export async function GET(request: NextRequest) {
             perf.filter((p) => p.avgCommercialSpeed !== null).length
           : null;
 
-      return NextResponse.json(
-        {
-          route,
-          period: periodLabel,
-          grade: computeGrade(avgEwt, avgAdherence),
-          totalTrips: trips.length,
-          avgEwt: avgEwt ? Math.round(avgEwt) : null,
-          avgHeadwayAdherence: avgAdherence ? Math.round(avgAdherence * 10) / 10 : null,
-          avgCommercialSpeed: avgSpeed ? Math.round(avgSpeed * 10) / 10 : null,
-          avgBunching:
-            perf.length > 0
-              ? Math.round(
-                  (perf
-                    .filter((p) => p.bunchingPct !== null)
-                    .reduce((a, p) => a + p.bunchingPct!, 0) /
-                    perf.filter((p) => p.bunchingPct !== null).length) *
-                    10
-                ) / 10
-              : null,
-          avgGapping:
-            perf.length > 0
-              ? Math.round(
-                  (perf
-                    .filter((p) => p.gappingPct !== null)
-                    .reduce((a, p) => a + p.gappingPct!, 0) /
-                    perf.filter((p) => p.gappingPct !== null).length) *
-                    10
-                ) / 10
-              : null,
-          dailyPerformance: perf.map((p) => ({
-            date: p.date.toISOString().slice(0, 10),
-            trips: p.tripsObserved,
-            ewt: p.excessWaitTimeSecs,
-            adherence: p.headwayAdherencePct,
-            speed: p.avgCommercialSpeed,
-            bunching: p.bunchingPct,
-            gapping: p.gappingPct,
-          })),
-        },
-        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-      );
+      const summaryData = {
+        route,
+        period: periodLabel,
+        grade: computeGrade(avgEwt, avgAdherence),
+        totalTrips: trips.length,
+        avgEwt: avgEwt ? Math.round(avgEwt) : null,
+        avgHeadwayAdherence: avgAdherence ? Math.round(avgAdherence * 10) / 10 : null,
+        avgCommercialSpeed: avgSpeed ? Math.round(avgSpeed * 10) / 10 : null,
+        avgBunching:
+          perf.length > 0
+            ? Math.round(
+                (perf
+                  .filter((p) => p.bunchingPct !== null)
+                  .reduce((a, p) => a + p.bunchingPct!, 0) /
+                  perf.filter((p) => p.bunchingPct !== null).length) *
+                  10
+              ) / 10
+            : null,
+        avgGapping:
+          perf.length > 0
+            ? Math.round(
+                (perf.filter((p) => p.gappingPct !== null).reduce((a, p) => a + p.gappingPct!, 0) /
+                  perf.filter((p) => p.gappingPct !== null).length) *
+                  10
+              ) / 10
+            : null,
+        avgCanceledPct: (() => {
+          const vals = perf.filter((p) => p.canceledPct !== null).map((p) => p.canceledPct!);
+          return vals.length > 0
+            ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
+            : null;
+        })(),
+        dailyPerformance: perf.map((p) => ({
+          date: p.date.toISOString().slice(0, 10),
+          trips: p.tripsObserved,
+          ewt: p.excessWaitTimeSecs,
+          adherence: p.headwayAdherencePct,
+          speed: p.avgCommercialSpeed,
+          bunching: p.bunchingPct,
+          gapping: p.gappingPct,
+          canceledPct: p.canceledPct ?? null,
+        })),
+      };
+      memCache.set(cacheKey, summaryData);
+      return NextResponse.json(summaryData, {
+        headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+      });
     }
 
     if (view === "stringline") {
@@ -161,17 +173,16 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      return NextResponse.json(
-        {
-          route,
-          date: todayStart.toISOString().slice(0, 10),
-          vehicles: [...vehicleTrails.entries()].map(([id, trail]) => ({
-            vehicleId: id,
-            positions: trail,
-          })),
-        },
-        { headers: NO_CACHE }
-      );
+      const stringlineData = {
+        route,
+        date: todayStart.toISOString().slice(0, 10),
+        vehicles: [...vehicleTrails.entries()].map(([id, trail]) => ({
+          vehicleId: id,
+          positions: trail,
+        })),
+      };
+      memCache.set(cacheKey, stringlineData);
+      return NextResponse.json(stringlineData, { headers: cacheFor(300) });
     }
 
     if (view === "headways") {
@@ -206,23 +217,24 @@ export async function GET(request: NextRequest) {
         buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
       }
 
-      return NextResponse.json(
-        {
-          route,
-          period: periodLabel,
-          headways: [...buckets.entries()]
-            .sort((a, b) => a[0] - b[0])
-            .map(([minutes, count]) => ({ minutes, count })),
-          totalHeadways: headways.length,
-          avgHeadwayMins:
-            headways.length > 0
-              ? Math.round(
-                  (headways.reduce((a: number, b: number) => a + b, 0) / headways.length / 60) * 10
-                ) / 10
-              : null,
-        },
-        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-      );
+      const headwaysData = {
+        route,
+        period: periodLabel,
+        headways: [...buckets.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([minutes, count]) => ({ minutes, count })),
+        totalHeadways: headways.length,
+        avgHeadwayMins:
+          headways.length > 0
+            ? Math.round(
+                (headways.reduce((a: number, b: number) => a + b, 0) / headways.length / 60) * 10
+              ) / 10
+            : null,
+      };
+      memCache.set(cacheKey, headwaysData);
+      return NextResponse.json(headwaysData, {
+        headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+      });
     }
 
     if (view === "runtimes") {
@@ -244,27 +256,28 @@ export async function GET(request: NextRequest) {
         buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
       }
 
-      return NextResponse.json(
-        {
-          route,
-          period: periodLabel,
-          runtimes: [...buckets.entries()]
-            .sort((a, b) => a[0] - b[0])
-            .map(([minutes, count]) => ({ minutes, count })),
-          totalTrips: runtimes.length,
-          avgRuntimeMins:
-            runtimes.length > 0
-              ? Math.round((runtimes.reduce((a, b) => a + b, 0) / runtimes.length / 60) * 10) / 10
-              : null,
-          medianRuntimeMins:
-            runtimes.length > 0
-              ? Math.round(
-                  ([...runtimes].sort((a, b) => a - b)[Math.floor(runtimes.length / 2)]! / 60) * 10
-                ) / 10
-              : null,
-        },
-        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-      );
+      const runtimesData = {
+        route,
+        period: periodLabel,
+        runtimes: [...buckets.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([minutes, count]) => ({ minutes, count })),
+        totalTrips: runtimes.length,
+        avgRuntimeMins:
+          runtimes.length > 0
+            ? Math.round((runtimes.reduce((a, b) => a + b, 0) / runtimes.length / 60) * 10) / 10
+            : null,
+        medianRuntimeMins:
+          runtimes.length > 0
+            ? Math.round(
+                ([...runtimes].sort((a, b) => a - b)[Math.floor(runtimes.length / 2)]! / 60) * 10
+              ) / 10
+            : null,
+      };
+      memCache.set(cacheKey, runtimesData);
+      return NextResponse.json(runtimesData, {
+        headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+      });
     }
 
     return NextResponse.json({ error: "Invalid view parameter" }, { status: 400 });
