@@ -28,6 +28,7 @@ import { DesktopNav } from "@/components/DesktopNav";
 import { CheckInFAB } from "@/components/CheckInFAB";
 import { ActivityBubbles } from "@/components/ActivityBubbles";
 import { useMapLayers } from "@/lib/hooks/useMapLayers";
+import { msUntilNextBurst } from "@/lib/bus-refresh";
 import { useRouteFilter } from "@/lib/hooks/useRouteFilter";
 import { useMapSettings } from "@/lib/hooks/useMapSettings";
 import { useFeedbackSheets } from "@/lib/hooks/useFeedbackSheets";
@@ -126,7 +127,10 @@ function MapPageContent() {
     : "/api/buses";
 
   const { data, error, isLoading, mutate } = useSWR<BusesResponse>(busesUrl, busesFetcher, {
-    refreshInterval: 30000,
+    // FIWARE refreshes in a burst at seconds :25–:28 of every minute.
+    // Fire the next fetch at :24 so data arrives within ~1s of the upstream refresh.
+    // This halves API calls (1 req/min) vs the previous 30s interval.
+    refreshInterval: () => msUntilNextBurst(),
     revalidateOnFocus: true,
   });
 

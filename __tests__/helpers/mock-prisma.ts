@@ -9,6 +9,7 @@ export const mockPrisma = {
   feedback: {
     findMany: vi.fn(),
     findFirst: vi.fn(),
+    findUnique: vi.fn(),
     count: vi.fn(),
     upsert: vi.fn(),
     groupBy: vi.fn(),
@@ -17,6 +18,10 @@ export const mockPrisma = {
   feedbackVote: {
     upsert: vi.fn(),
     groupBy: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    delete: vi.fn(),
+    count: vi.fn(),
   },
   report: {
     create: vi.fn(),
