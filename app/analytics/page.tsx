@@ -132,8 +132,8 @@ export default function AnalyticsDashboard() {
               className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm"
             >
               <option value="">All routes</option>
-              {routes?.routes?.map((r: { shortName: string; longName: string }) => (
-                <option key={r.shortName} value={r.shortName}>
+              {routes?.routes?.map((r: { gtfsId: string; shortName: string; longName: string }) => (
+                <option key={r.gtfsId} value={r.shortName}>
                   {r.shortName} — {r.longName}
                 </option>
               ))}
