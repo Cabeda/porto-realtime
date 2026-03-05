@@ -38,7 +38,7 @@ export function GlobalSearch({ availableRoutes }: { availableRoutes?: RouteInfo[
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<SearchResult[]>([]);
+  const [recentSearches, setRecentSearches] = useState<SearchResult[]>(getRecentSearches);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -55,10 +55,6 @@ export function GlobalSearch({ availableRoutes }: { availableRoutes?: RouteInfo[
   const routes: RouteInfo[] = (availableRoutes ?? []).map((r) =>
     typeof r === "string" ? { shortName: r, longName: "", mode: "BUS" as const, gtfsId: "" } : r
   );
-
-  useEffect(() => {
-    setRecentSearches(getRecentSearches());
-  }, []);
 
   // Close on outside click
   useEffect(() => {

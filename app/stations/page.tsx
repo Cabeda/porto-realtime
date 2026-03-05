@@ -97,8 +97,16 @@ function StationCard({
 
 export default function StationsPage() {
   const t = useTranslations();
-  const [favoriteStationIds, setFavoriteStationIds] = useState<string[]>([]);
-  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
+  const [favoriteStationIds, setFavoriteStationIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem("favoriteStations");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [favoritesLoaded] = useState(true);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [filter, setFilter] = useState("");
 
@@ -109,12 +117,6 @@ export default function StationsPage() {
         () => logger.warn("Location denied")
       );
     }
-  }, []);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("favoriteStations");
-    setFavoriteStationIds(saved ? JSON.parse(saved) : []);
-    setFavoritesLoaded(true);
   }, []);
 
   useEffect(() => {

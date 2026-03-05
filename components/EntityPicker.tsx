@@ -63,7 +63,9 @@ export function EntityPicker({
 
   // Use ref for onLineDetail to avoid it triggering the effect
   const onLineDetailRef = useRef(onLineDetail);
-  onLineDetailRef.current = onLineDetail;
+  useEffect(() => {
+    onLineDetailRef.current = onLineDetail;
+  });
 
   // Fetch line detail (stops + polyline) when a LINE is selected
   const { data: lineDetailData, isLoading: lineDetailLoading } = useSWR(

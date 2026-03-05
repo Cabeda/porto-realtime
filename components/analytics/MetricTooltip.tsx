@@ -1,8 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useCallback, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "@/lib/hooks/useTranslations";
+
+const emptySubscribe = () => () => {};
+function useMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
 
 interface TooltipPos {
   top: number;
@@ -18,11 +27,7 @@ interface TooltipPos {
 export function MetricTooltip({ text }: { text: string }) {
   const [pos, setPos] = useState<TooltipPos | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   const show = useCallback(() => {
     if (!btnRef.current) return;

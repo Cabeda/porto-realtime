@@ -10,25 +10,34 @@ interface BottomSheetProps {
 }
 
 export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetProps) {
-  const [isVisible, setIsVisible] = useState(false);
+  // isVisible stays true for 300ms after isOpen becomes false (exit animation)
+  const [isVisible, setIsVisible] = useState(isOpen);
   const [isAnimating, setIsAnimating] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
 
-  // Open animation
+  // When isOpen becomes true, immediately show (synchronous state update during render is OK)
+  if (isOpen && !isVisible) {
+    setIsVisible(true);
+  }
+  // When isOpen becomes false, immediately stop animating (derive from prop)
+  if (!isOpen && isAnimating) {
+    setIsAnimating(false);
+  }
+
+  // Handle enter animation and exit delay
   useEffect(() => {
     if (isOpen) {
-      setIsVisible(true);
-      // Trigger animation on next frame
+      // Trigger enter animation on next frame
       requestAnimationFrame(() => {
         requestAnimationFrame(() => setIsAnimating(true));
       });
-      return undefined;
     } else {
-      setIsAnimating(false);
+      // Delay hiding for exit animation
       const timeout = setTimeout(() => setIsVisible(false), 300);
       return () => clearTimeout(timeout);
     }
+    return undefined;
   }, [isOpen]);
 
   // Close on Escape

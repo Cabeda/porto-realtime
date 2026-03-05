@@ -30,17 +30,15 @@ const LocaleContext = createContext<LocaleContextValue>({
 });
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  // Always start with the default to match server-rendered HTML
-  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    if (typeof window === "undefined") return DEFAULT_LOCALE;
+    return getSavedLocale();
+  });
 
-  // Sync from localStorage after hydration
+  // Sync document lang attribute after hydration
   useEffect(() => {
-    const saved = getSavedLocale();
-    if (saved !== DEFAULT_LOCALE) {
-      setLocaleState(saved);
-    }
-    document.documentElement.lang = saved;
-  }, []);
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);

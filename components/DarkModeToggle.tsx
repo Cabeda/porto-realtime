@@ -1,23 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+
+const emptySubscribe = () => () => {};
+/** Returns true only on the client after hydration. */
+function useMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
 
 export function DarkModeToggle() {
-  const [isDark, setIsDark] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    // Check localStorage or system preference
+  const mounted = useMounted();
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") return false;
     const stored = localStorage.getItem("darkMode");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldBeDark = stored ? stored === "true" : prefersDark;
+    return stored ? stored === "true" : prefersDark;
+  });
 
-    setIsDark(shouldBeDark);
-    if (shouldBeDark) {
+  // Sync DOM class with state
+  useEffect(() => {
+    if (isDark) {
       document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
     }
-  }, []);
+  }, [isDark]);
 
   const toggleDarkMode = () => {
     const newValue = !isDark;
