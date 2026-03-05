@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import useSWR from "swr";
-import Link from "next/link";
+
 import type L from "leaflet";
-import { DesktopNav } from "@/components/DesktopNav";
+import { PageHeader } from "@/components/PageHeader";
 import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
 import "leaflet/dist/leaflet.css";
 
@@ -150,17 +150,7 @@ export default function HeatmapPage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
-      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">
-              &larr;
-            </Link>
-            <h1 className="text-xl font-bold text-content">Velocity Heatmap</h1>
-          </div>
-          <DesktopNav />
-        </div>
-      </header>
+      <PageHeader title="Velocity Heatmap" backHref="/analytics" />
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex flex-wrap items-center gap-4 mb-4">
           <select

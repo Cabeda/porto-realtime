@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import useSWR from "swr";
-import Link from "next/link";
+
 import { useSearchParams } from "next/navigation";
 import {
   BarChart,
@@ -18,7 +18,7 @@ import {
   Cell,
 } from "recharts";
 
-import { DesktopNav } from "@/components/DesktopNav";
+import { PageHeader } from "@/components/PageHeader";
 import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
 import { MetricTooltip, useMetricTips } from "@/components/analytics/MetricTooltip";
 
@@ -270,17 +270,7 @@ function LineAnalyticsContent() {
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
-      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">
-              &larr;
-            </Link>
-            <h1 className="text-xl font-bold text-content">Line Analytics</h1>
-          </div>
-          <DesktopNav />
-        </div>
-      </header>
+      <PageHeader title="Line Analytics" backHref="/analytics" />
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Route selector */}
         <div className="flex items-center gap-4 mb-6">

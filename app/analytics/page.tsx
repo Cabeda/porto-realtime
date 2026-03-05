@@ -16,7 +16,7 @@ import {
 } from "recharts";
 import Link from "next/link";
 
-import { DesktopNav } from "@/components/DesktopNav";
+import { PageHeader } from "@/components/PageHeader";
 import { PeriodSelector, type PeriodValue } from "@/components/analytics/PeriodSelector";
 import { MetricTooltip, useMetricTips } from "@/components/analytics/MetricTooltip";
 
@@ -113,12 +113,7 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
-      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
-          <h1 className="text-xl font-bold text-content flex-shrink-0">Transit Analytics</h1>
-          <DesktopNav />
-        </div>
-      </header>
+      <PageHeader title="Transit Analytics" />
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Period selector + route filter */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DesktopNav } from "@/components/DesktopNav";
+import { PageHeader } from "@/components/PageHeader";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -17,17 +17,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
-      <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <Link href="/analytics" className="text-sm text-accent hover:text-accent-hover">
-              &larr;
-            </Link>
-            <h1 className="text-xl font-bold text-content">Methodology</h1>
-          </div>
-          <DesktopNav />
-        </div>
-      </header>
+      <PageHeader title="Methodology" backHref="/analytics" maxWidth="max-w-3xl" />
       <div className="max-w-3xl mx-auto px-4 py-6">
         <p className="text-sm text-[var(--color-content-secondary)] mb-8">
           How PortoMove collects, processes, and presents transit performance data for Porto&apos;s
