@@ -47,37 +47,32 @@ export async function GET(request: NextRequest) {
         route: true,
         tripsObserved: true,
         tripsScheduled: true,
-        canceledTrips: true,
-        canceledPct: true,
       },
     });
 
     // Aggregate per route (combine directions)
-    const routeAgg = new Map<
-      string,
-      { observed: number; scheduled: number; canceled: number; canceledPcts: number[] }
-    >();
+    // canceledTrips is derived: scheduled - observed (upper bound)
+    const routeAgg = new Map<string, { observed: number; scheduled: number }>();
 
     for (const r of perf) {
       if (!routeAgg.has(r.route)) {
-        routeAgg.set(r.route, { observed: 0, scheduled: 0, canceled: 0, canceledPcts: [] });
+        routeAgg.set(r.route, { observed: 0, scheduled: 0 });
       }
       const agg = routeAgg.get(r.route)!;
       agg.observed += r.tripsObserved;
       agg.scheduled += r.tripsScheduled ?? 0;
-      agg.canceled += r.canceledTrips ?? 0;
-      if (r.canceledPct !== null) agg.canceledPcts.push(r.canceledPct);
     }
 
     const routes = [...routeAgg.entries()]
       .map(([route, agg]) => {
+        const canceled = Math.max(0, agg.scheduled - agg.observed);
         const canceledPct =
-          agg.scheduled > 0 ? Math.round((agg.canceled / agg.scheduled) * 1000) / 10 : null;
+          agg.scheduled > 0 ? Math.round((canceled / agg.scheduled) * 1000) / 10 : null;
         return {
           route,
           tripsScheduled: agg.scheduled,
           tripsObserved: agg.observed,
-          canceledTrips: agg.canceled,
+          canceledTrips: canceled,
           canceledPct,
         };
       })
