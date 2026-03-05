@@ -81,6 +81,7 @@
   },
   "pnpm": {
     "overrides": {
+      "better-auth": "1.5.3",
       "form-data": ">=2.5.4",
       "qs": ">=6.14.1",
       "minimatch": ">=10.2.1",
