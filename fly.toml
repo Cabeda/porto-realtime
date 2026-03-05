@@ -1,0 +1,21 @@
+# fly.toml — PortoMove Worker (Go collector)
+# Lives at repo root so the Fly.io GitHub integration can find it.
+
+app = 'portomove-collector'
+primary_region = 'cdg'
+
+[build]
+  dockerfile = "worker/Dockerfile"
+
+[env]
+  TZ = 'UTC'
+
+# No http_service — this is a background worker, not a web server
+[processes]
+  worker = "/worker"
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
+  cpus = 1
+  memory_mb = 512
