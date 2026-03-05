@@ -9,12 +9,11 @@ function makeRequest(params: Record<string, string> = {}) {
   return new NextRequest(url);
 }
 
-const perfRow = (route: string, scheduled: number, canceled: number, pct: number) => ({
+// The route handler selects { route, tripsObserved, tripsScheduled } and derives canceledTrips
+const perfRow = (route: string, scheduled: number, observed: number) => ({
   route,
-  tripsObserved: scheduled - canceled,
+  tripsObserved: observed,
   tripsScheduled: scheduled,
-  canceledTrips: canceled,
-  canceledPct: pct,
 });
 
 describe("GET /api/analytics/cancellations", () => {
@@ -33,8 +32,8 @@ describe("GET /api/analytics/cancellations", () => {
 
   it("computes networkCanceledPct correctly across routes", async () => {
     mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([
-      perfRow("205", 100, 5, 5.0),
-      perfRow("206", 200, 10, 5.0),
+      perfRow("205", 100, 95), // 5 canceled
+      perfRow("206", 200, 190), // 10 canceled
     ]);
     const res = await GET(makeRequest({ period: "7d" }));
     expect(res.status).toBe(200);
@@ -47,8 +46,8 @@ describe("GET /api/analytics/cancellations", () => {
 
   it("combines directions for the same route", async () => {
     mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([
-      { route: "205", tripsObserved: 45, tripsScheduled: 50, canceledTrips: 5, canceledPct: 10 },
-      { route: "205", tripsObserved: 45, tripsScheduled: 50, canceledTrips: 5, canceledPct: 10 },
+      { route: "205", tripsObserved: 45, tripsScheduled: 50 },
+      { route: "205", tripsObserved: 45, tripsScheduled: 50 },
     ]);
     const res = await GET(makeRequest({ period: "7d" }));
     const data = await res.json();
@@ -61,9 +60,9 @@ describe("GET /api/analytics/cancellations", () => {
 
   it("sorts routes by canceledPct descending", async () => {
     mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([
-      perfRow("205", 100, 2, 2.0),
-      perfRow("207", 100, 8, 8.0),
-      perfRow("206", 100, 5, 5.0),
+      perfRow("205", 100, 98), // 2% canceled
+      perfRow("207", 100, 92), // 8% canceled
+      perfRow("206", 100, 95), // 5% canceled
     ]);
     const res = await GET(makeRequest({ period: "7d" }));
     const data = await res.json();
@@ -71,7 +70,7 @@ describe("GET /api/analytics/cancellations", () => {
   });
 
   it("accepts date param", async () => {
-    mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([perfRow("205", 50, 3, 6.0)]);
+    mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([perfRow("205", 50, 47)]);
     const res = await GET(makeRequest({ date: "2026-02-25" }));
     expect(res.status).toBe(200);
     const data = await res.json();

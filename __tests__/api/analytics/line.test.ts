@@ -9,10 +9,11 @@ function makeRequest(params: Record<string, string> = {}) {
   return new NextRequest(url);
 }
 
+// The route handler derives canceledPct from tripsScheduled - tripsObserved
 const perfRow = (
   date: string,
   overrides: Partial<{
-    canceledPct: number | null;
+    tripsScheduled: number | null;
     excessWaitTimeSecs: number | null;
     headwayAdherencePct: number | null;
     avgCommercialSpeed: number | null;
@@ -23,12 +24,12 @@ const perfRow = (
 ) => ({
   date: new Date(date),
   tripsObserved: 80,
+  tripsScheduled: null as number | null,
   excessWaitTimeSecs: 120,
   headwayAdherencePct: 75,
   avgCommercialSpeed: 14,
   bunchingPct: 10,
   gappingPct: 5,
-  canceledPct: null,
   ...overrides,
 });
 
@@ -40,10 +41,10 @@ describe("GET /api/analytics/line (view=summary)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns avgCanceledPct null when no snapshot data", async () => {
+  it("returns avgCanceledPct null when no tripsScheduled data", async () => {
     mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([
-      perfRow("2026-02-24", { canceledPct: null }),
-      perfRow("2026-02-25", { canceledPct: null }),
+      perfRow("2026-02-24", { tripsScheduled: null }),
+      perfRow("2026-02-25", { tripsScheduled: null }),
     ]);
     mockPrisma.tripLog.findMany.mockResolvedValue([]);
 
@@ -53,10 +54,12 @@ describe("GET /api/analytics/line (view=summary)", () => {
     expect(data.avgCanceledPct).toBeNull();
   });
 
-  it("computes avgCanceledPct as mean of non-null values", async () => {
+  it("computes avgCanceledPct from tripsScheduled - tripsObserved", async () => {
     mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([
-      perfRow("2026-02-24", { canceledPct: 4.0 }),
-      perfRow("2026-02-25", { canceledPct: 6.0 }),
+      // 4% canceled: (100-96)/100
+      perfRow("2026-02-24", { tripsScheduled: 100, tripsObserved: 96 }),
+      // 6% canceled: (100-94)/100
+      perfRow("2026-02-25", { tripsScheduled: 100, tripsObserved: 94 }),
     ]);
     mockPrisma.tripLog.findMany.mockResolvedValue([]);
 
@@ -65,11 +68,13 @@ describe("GET /api/analytics/line (view=summary)", () => {
     expect(data.avgCanceledPct).toBe(5);
   });
 
-  it("ignores null canceledPct rows when computing average", async () => {
+  it("ignores rows without tripsScheduled when computing avgCanceledPct", async () => {
     mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([
-      perfRow("2026-02-23", { canceledPct: null }),
-      perfRow("2026-02-24", { canceledPct: 3.0 }),
-      perfRow("2026-02-25", { canceledPct: 7.0 }),
+      perfRow("2026-02-23", { tripsScheduled: null }),
+      // 3% canceled: (100-97)/100
+      perfRow("2026-02-24", { tripsScheduled: 100, tripsObserved: 97 }),
+      // 7% canceled: (100-93)/100
+      perfRow("2026-02-25", { tripsScheduled: 100, tripsObserved: 93 }),
     ]);
     mockPrisma.tripLog.findMany.mockResolvedValue([]);
 
@@ -81,8 +86,9 @@ describe("GET /api/analytics/line (view=summary)", () => {
 
   it("includes canceledPct per day in dailyPerformance", async () => {
     mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([
-      perfRow("2026-02-24", { canceledPct: 2.5 }),
-      perfRow("2026-02-25", { canceledPct: null }),
+      // 2.5% canceled: (200-195)/200 = 2.5%
+      perfRow("2026-02-24", { tripsScheduled: 200, tripsObserved: 195 }),
+      perfRow("2026-02-25", { tripsScheduled: null }),
     ]);
     mockPrisma.tripLog.findMany.mockResolvedValue([]);
 

@@ -1,5 +1,35 @@
 import { vi } from "vitest";
 
+// Mock KeyedStaleCache so module-level caches in route handlers never return
+// stale data between tests. The real class lives in @/lib/api-fetch.
+vi.mock("@/lib/api-fetch", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  class NoOpKeyedStaleCache<T> {
+    get(_key: string): { data: T; fresh: boolean } | null {
+      return null; // always miss — forces handler to use mocked Prisma
+    }
+    set(_key: string, _data: T): void {
+      /* no-op */
+    }
+  }
+  class NoOpStaleCache<T> {
+    get(): { data: T; fresh: boolean } | null {
+      return null;
+    }
+    set(_data: T): void {
+      /* no-op */
+    }
+    hasData(): boolean {
+      return false;
+    }
+  }
+  return {
+    ...actual,
+    KeyedStaleCache: NoOpKeyedStaleCache,
+    StaleCache: NoOpStaleCache,
+  };
+});
+
 // Mock Prisma client for testing
 export const mockPrisma = {
   user: {

@@ -9,6 +9,7 @@ function makeRequest(params: Record<string, string> = {}) {
   return new NextRequest(url);
 }
 
+// The route handler derives canceledTrips from tripsScheduled - tripsObserved
 const perfRow = (
   overrides: Partial<{
     route: string;
@@ -16,27 +17,23 @@ const perfRow = (
     date: Date;
     tripsObserved: number;
     tripsScheduled: number | null;
-    canceledTrips: number | null;
     excessWaitTimeSecs: number | null;
     headwayAdherencePct: number | null;
     avgCommercialSpeed: number | null;
     bunchingPct: number | null;
     gappingPct: number | null;
-    canceledPct: number | null;
   }> = {}
 ) => ({
   route: "205",
   directionId: 0,
   date: new Date("2026-02-25"),
   tripsObserved: 80,
-  tripsScheduled: null,
-  canceledTrips: null,
+  tripsScheduled: null as number | null,
   excessWaitTimeSecs: 120,
   headwayAdherencePct: 75,
   avgCommercialSpeed: 14,
   bunchingPct: 10,
   gappingPct: 5,
-  canceledPct: null,
   ...overrides,
 });
 
@@ -68,12 +65,12 @@ describe("GET /api/analytics/reliability", () => {
   });
 
   it("computes networkCanceledPct as weighted ratio (not avg of pcts)", async () => {
-    // route 205: 5 canceled / 100 scheduled = 5%
-    // route 206: 1 canceled / 1000 scheduled = 0.1%
-    // weighted: 6/1100 = 0.5% — NOT avg(5%, 0.1%) = 2.55%
+    // route 205: scheduled 100, observed 95 → 5 canceled = 5%
+    // route 206: scheduled 1000, observed 999 → 1 canceled = 0.1%
+    // weighted: 6/1100 = 0.5%
     mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([
-      perfRow({ route: "205", tripsScheduled: 100, canceledTrips: 5, canceledPct: 5.0 }),
-      perfRow({ route: "206", tripsScheduled: 1000, canceledTrips: 1, canceledPct: 0.1 }),
+      perfRow({ route: "205", tripsScheduled: 100, tripsObserved: 95 }),
+      perfRow({ route: "206", tripsScheduled: 1000, tripsObserved: 999 }),
     ]);
     const res = await GET(makeRequest({ period: "7d" }));
     const data = await res.json();
@@ -82,21 +79,21 @@ describe("GET /api/analytics/reliability", () => {
   });
 
   it("computes per-route canceledPct as weighted ratio across days/directions", async () => {
-    // dir 0: 4 canceled / 80 scheduled; dir 1: 6 canceled / 120 scheduled
-    // weighted: 10/200 = 5% — NOT avg(5%, 5%) which happens to be same here
-    // Use asymmetric case: dir 0: 2/100=2%, dir 1: 18/100=18% → 20/200=10%
+    // dir 0: scheduled 100, observed 98 → 2 canceled
+    // dir 1: scheduled 100, observed 82 → 18 canceled
+    // weighted: 20/200 = 10%
     mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([
-      perfRow({ directionId: 0, tripsScheduled: 100, canceledTrips: 2, canceledPct: 2.0 }),
-      perfRow({ directionId: 1, tripsScheduled: 100, canceledTrips: 18, canceledPct: 18.0 }),
+      perfRow({ directionId: 0, tripsScheduled: 100, tripsObserved: 98 }),
+      perfRow({ directionId: 1, tripsScheduled: 100, tripsObserved: 82 }),
     ]);
     const res = await GET(makeRequest({ period: "7d" }));
     const data = await res.json();
     expect(data.rankings[0].canceledPct).toBe(10);
   });
 
-  it("sets canceledPct to null when no snapshot data for route", async () => {
+  it("sets canceledPct to null when no tripsScheduled data for route", async () => {
     mockPrisma.routePerformanceDaily.findMany.mockResolvedValue([
-      perfRow({ route: "205", tripsScheduled: null, canceledTrips: null, canceledPct: null }),
+      perfRow({ route: "205", tripsScheduled: null }),
     ]);
     const res = await GET(makeRequest({ period: "7d" }));
     const data = await res.json();
