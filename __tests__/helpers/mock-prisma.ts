@@ -33,6 +33,16 @@ export const mockPrisma = {
     update: vi.fn(),
     count: vi.fn(),
   },
+  routePerformanceDaily: {
+    findMany: vi.fn(),
+    groupBy: vi.fn(),
+    aggregate: vi.fn(),
+  },
+  tripLog: {
+    findMany: vi.fn(),
+    groupBy: vi.fn(),
+    aggregate: vi.fn(),
+  },
 };
 
 // Mock the @/lib/prisma module
