@@ -6,7 +6,7 @@ const eslintConfig = [
   ...coreWebVitals,
   {
     // Ignore generated / non-app code
-    ignores: ["worker-node/**", "coverage/**", "public/**", "scripts/**", "prisma/generated/**"],
+    ignores: ["coverage/**", "public/**", "scripts/**", "prisma/generated/**"],
   },
   {
     // TypeScript-specific overrides (plugin registered by eslint-config-next for TS files)

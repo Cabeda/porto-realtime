@@ -5,5 +5,4 @@ prisma/generated
 pnpm-lock.yaml
 public
 worker
-worker-node
 CHANGELOG.md
