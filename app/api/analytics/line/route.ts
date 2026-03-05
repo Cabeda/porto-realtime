@@ -5,21 +5,28 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getR2Json } from "@/lib/r2-client";
 import { computeGrade } from "@/lib/analytics/metrics";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
+import { CACHE_1DAY, cacheFor } from "@/lib/analytics/cache";
+import { KeyedStaleCache } from "@/lib/api-fetch";
 
-const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
-const NO_CACHE = { "Cache-Control": "no-store" };
+const CACHE = CACHE_1DAY;
+const memCache = new KeyedStaleCache<unknown>(5 * 60 * 1000);
 
 export async function GET(request: NextRequest) {
   const route = request.nextUrl.searchParams.get("route");
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
   const view = request.nextUrl.searchParams.get("view") || "summary";
+  const cacheKey = request.nextUrl.search || "default";
 
   if (!route) {
     return NextResponse.json({ error: "route parameter required" }, { status: 400 });
   }
+
+  const cached = memCache.get(cacheKey);
+  if (cached?.fresh) return NextResponse.json(cached.data);
 
   try {
     const now = new Date();
@@ -77,101 +84,152 @@ export async function GET(request: NextRequest) {
             perf.filter((p) => p.avgCommercialSpeed !== null).length
           : null;
 
-      return NextResponse.json(
-        {
-          route,
-          period: periodLabel,
-          grade: computeGrade(avgEwt, avgAdherence),
-          totalTrips: trips.length,
-          avgEwt: avgEwt ? Math.round(avgEwt) : null,
-          avgHeadwayAdherence: avgAdherence ? Math.round(avgAdherence * 10) / 10 : null,
-          avgCommercialSpeed: avgSpeed ? Math.round(avgSpeed * 10) / 10 : null,
-          avgBunching:
-            perf.length > 0
-              ? Math.round(
-                  (perf
-                    .filter((p) => p.bunchingPct !== null)
-                    .reduce((a, p) => a + p.bunchingPct!, 0) /
-                    perf.filter((p) => p.bunchingPct !== null).length) *
-                    10
-                ) / 10
-              : null,
-          avgGapping:
-            perf.length > 0
-              ? Math.round(
-                  (perf
-                    .filter((p) => p.gappingPct !== null)
-                    .reduce((a, p) => a + p.gappingPct!, 0) /
-                    perf.filter((p) => p.gappingPct !== null).length) *
-                    10
-                ) / 10
-              : null,
-          dailyPerformance: perf.map((p) => ({
-            date: p.date.toISOString().slice(0, 10),
-            trips: p.tripsObserved,
-            ewt: p.excessWaitTimeSecs,
-            adherence: p.headwayAdherencePct,
-            speed: p.avgCommercialSpeed,
-            bunching: p.bunchingPct,
-            gapping: p.gappingPct,
-          })),
-        },
-        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-      );
+      const summaryData = {
+        route,
+        period: periodLabel,
+        grade: computeGrade(avgEwt, avgAdherence),
+        totalTrips: trips.length,
+        avgEwt: avgEwt ? Math.round(avgEwt) : null,
+        avgHeadwayAdherence: avgAdherence ? Math.round(avgAdherence * 10) / 10 : null,
+        avgCommercialSpeed: avgSpeed ? Math.round(avgSpeed * 10) / 10 : null,
+        avgBunching:
+          perf.length > 0
+            ? Math.round(
+                (perf
+                  .filter((p) => p.bunchingPct !== null)
+                  .reduce((a, p) => a + p.bunchingPct!, 0) /
+                  perf.filter((p) => p.bunchingPct !== null).length) *
+                  10
+              ) / 10
+            : null,
+        avgGapping:
+          perf.length > 0
+            ? Math.round(
+                (perf.filter((p) => p.gappingPct !== null).reduce((a, p) => a + p.gappingPct!, 0) /
+                  perf.filter((p) => p.gappingPct !== null).length) *
+                  10
+              ) / 10
+            : null,
+        avgCanceledPct: (() => {
+          const vals = perf.filter((p) => p.canceledPct !== null).map((p) => p.canceledPct!);
+          return vals.length > 0
+            ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
+            : null;
+        })(),
+        dailyPerformance: perf.map((p) => ({
+          date: p.date.toISOString().slice(0, 10),
+          trips: p.tripsObserved,
+          ewt: p.excessWaitTimeSecs,
+          adherence: p.headwayAdherencePct,
+          speed: p.avgCommercialSpeed,
+          bunching: p.bunchingPct,
+          gapping: p.gappingPct,
+          canceledPct: p.canceledPct ?? null,
+        })),
+      };
+      memCache.set(cacheKey, summaryData);
+      return NextResponse.json(summaryData, {
+        headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+      });
     }
 
     if (view === "stringline") {
-      // Return trip trajectories for Marey chart
+      // Return trip trajectories for Marey chart — read from R2 snapshots
       const todayStart = new Date(now);
       todayStart.setUTCHours(0, 0, 0, 0);
-      const todayEnd = new Date(todayStart);
-      todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
+      const dateStr = todayStart.toISOString().slice(0, 10);
+      const [yyyy, mm, dd] = dateStr.split("-");
+      const prefix = `snapshots/${yyyy}/${mm}/${dd}/`;
 
-      const positions = await prisma.busPositionLog.findMany({
-        where: {
-          route,
-          recordedAt: { gte: todayStart, lt: todayEnd },
-        },
-        orderBy: { recordedAt: "asc" },
-        select: {
-          recordedAt: true,
-          vehicleId: true,
-          vehicleNum: true,
-          lat: true,
-          lon: true,
-          speed: true,
-          directionId: true,
-        },
+      // List today's snapshot keys from R2 via a lightweight helper
+      interface SnapshotFile {
+        recordedAt: string;
+        positions: {
+          vehicleId: string;
+          vehicleNum?: string;
+          route?: string;
+          directionId?: number;
+          lat: number;
+          lon: number;
+          speed?: number;
+        }[];
+      }
+
+      // We need to list snapshot keys — use S3 ListObjects via the r2-client
+      const { S3Client, ListObjectsV2Command } = await import("@aws-sdk/client-s3");
+      const endpoint = process.env.R2_ENDPOINT;
+      const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+      const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+      const bucket = process.env.R2_BUCKET ?? "porto-move";
+
+      if (!endpoint || !accessKeyId || !secretAccessKey) {
+        return NextResponse.json(
+          {
+            route,
+            date: dateStr,
+            vehicles: [],
+          },
+          { headers: cacheFor(300) }
+        );
+      }
+
+      const s3 = new S3Client({
+        endpoint,
+        region: "auto",
+        credentials: { accessKeyId, secretAccessKey },
+        forcePathStyle: false,
       });
 
-      // Group by vehicle
+      // List all snapshot files for today
+      const keys: string[] = [];
+      let continuationToken: string | undefined;
+      do {
+        const listRes = await s3.send(
+          new ListObjectsV2Command({
+            Bucket: bucket,
+            Prefix: prefix,
+            ContinuationToken: continuationToken,
+          })
+        );
+        for (const obj of listRes.Contents ?? []) {
+          if (obj.Key) keys.push(obj.Key);
+        }
+        continuationToken = listRes.IsTruncated ? listRes.NextContinuationToken : undefined;
+      } while (continuationToken);
+
+      // Read snapshots and extract positions for this route
       const vehicleTrails = new Map<
         string,
         { time: string; lat: number; lon: number; speed: number | null }[]
       >();
-      for (const p of positions) {
-        if (!vehicleTrails.has(p.vehicleId)) {
-          vehicleTrails.set(p.vehicleId, []);
+
+      for (const key of keys) {
+        const snap = await getR2Json<SnapshotFile>(key);
+        if (!snap) continue;
+        for (const p of snap.positions) {
+          if (p.route !== route) continue;
+          if (!vehicleTrails.has(p.vehicleId)) {
+            vehicleTrails.set(p.vehicleId, []);
+          }
+          vehicleTrails.get(p.vehicleId)!.push({
+            time: snap.recordedAt,
+            lat: p.lat,
+            lon: p.lon,
+            speed: p.speed ?? null,
+          });
         }
-        vehicleTrails.get(p.vehicleId)!.push({
-          time: p.recordedAt.toISOString(),
-          lat: p.lat,
-          lon: p.lon,
-          speed: p.speed,
-        });
       }
 
-      return NextResponse.json(
-        {
-          route,
-          date: todayStart.toISOString().slice(0, 10),
-          vehicles: [...vehicleTrails.entries()].map(([id, trail]) => ({
-            vehicleId: id,
-            positions: trail,
-          })),
-        },
-        { headers: NO_CACHE }
-      );
+      const stringlineData = {
+        route,
+        date: dateStr,
+        vehicles: [...vehicleTrails.entries()].map(([id, trail]) => ({
+          vehicleId: id,
+          positions: trail,
+        })),
+      };
+      memCache.set(cacheKey, stringlineData);
+      return NextResponse.json(stringlineData, { headers: cacheFor(300) });
     }
 
     if (view === "headways") {
@@ -206,23 +264,24 @@ export async function GET(request: NextRequest) {
         buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
       }
 
-      return NextResponse.json(
-        {
-          route,
-          period: periodLabel,
-          headways: [...buckets.entries()]
-            .sort((a, b) => a[0] - b[0])
-            .map(([minutes, count]) => ({ minutes, count })),
-          totalHeadways: headways.length,
-          avgHeadwayMins:
-            headways.length > 0
-              ? Math.round(
-                  (headways.reduce((a: number, b: number) => a + b, 0) / headways.length / 60) * 10
-                ) / 10
-              : null,
-        },
-        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-      );
+      const headwaysData = {
+        route,
+        period: periodLabel,
+        headways: [...buckets.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([minutes, count]) => ({ minutes, count })),
+        totalHeadways: headways.length,
+        avgHeadwayMins:
+          headways.length > 0
+            ? Math.round(
+                (headways.reduce((a: number, b: number) => a + b, 0) / headways.length / 60) * 10
+              ) / 10
+            : null,
+      };
+      memCache.set(cacheKey, headwaysData);
+      return NextResponse.json(headwaysData, {
+        headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+      });
     }
 
     if (view === "runtimes") {
@@ -244,27 +303,28 @@ export async function GET(request: NextRequest) {
         buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
       }
 
-      return NextResponse.json(
-        {
-          route,
-          period: periodLabel,
-          runtimes: [...buckets.entries()]
-            .sort((a, b) => a[0] - b[0])
-            .map(([minutes, count]) => ({ minutes, count })),
-          totalTrips: runtimes.length,
-          avgRuntimeMins:
-            runtimes.length > 0
-              ? Math.round((runtimes.reduce((a, b) => a + b, 0) / runtimes.length / 60) * 10) / 10
-              : null,
-          medianRuntimeMins:
-            runtimes.length > 0
-              ? Math.round(
-                  ([...runtimes].sort((a, b) => a - b)[Math.floor(runtimes.length / 2)]! / 60) * 10
-                ) / 10
-              : null,
-        },
-        { headers: filter.mode === "today" ? NO_CACHE : CACHE }
-      );
+      const runtimesData = {
+        route,
+        period: periodLabel,
+        runtimes: [...buckets.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([minutes, count]) => ({ minutes, count })),
+        totalTrips: runtimes.length,
+        avgRuntimeMins:
+          runtimes.length > 0
+            ? Math.round((runtimes.reduce((a, b) => a + b, 0) / runtimes.length / 60) * 10) / 10
+            : null,
+        medianRuntimeMins:
+          runtimes.length > 0
+            ? Math.round(
+                ([...runtimes].sort((a, b) => a - b)[Math.floor(runtimes.length / 2)]! / 60) * 10
+              ) / 10
+            : null,
+      };
+      memCache.set(cacheKey, runtimesData);
+      return NextResponse.json(runtimesData, {
+        headers: filter.mode === "today" ? cacheFor(300) : CACHE,
+      });
     }
 
     return NextResponse.json({ error: "Invalid view parameter" }, { status: 400 });

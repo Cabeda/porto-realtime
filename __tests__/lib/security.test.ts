@@ -2,31 +2,49 @@ import { describe, it, expect, vi } from "vitest";
 import { validateOrigin, safeGetSession } from "@/lib/security";
 import { NextRequest } from "next/server";
 
-function makeRequest(headers: Record<string, string>) {
+function makeRequest(method: string, headers: Record<string, string>) {
   const url = new URL("http://localhost:3000/api/test");
-  const req = new NextRequest(url, {
-    method: "GET",
-    headers,
-  });
+  const req = new NextRequest(url, { method, headers });
   return req;
 }
 
 describe("validateOrigin", () => {
-  it("allows requests with no origin or referer", () => {
-    const req = makeRequest({ host: "localhost:3000" });
-    expect(validateOrigin(req)).toBeNull();
+  // Safe methods — always allowed regardless of origin
+  it("allows GET with no origin or referer", () => {
+    expect(validateOrigin(makeRequest("GET", { host: "localhost:3000" }))).toBeNull();
   });
 
-  it("allows requests where origin matches host", () => {
-    const req = makeRequest({
+  it("allows HEAD with no origin or referer", () => {
+    expect(validateOrigin(makeRequest("HEAD", { host: "localhost:3000" }))).toBeNull();
+  });
+
+  it("allows OPTIONS with no origin or referer", () => {
+    expect(validateOrigin(makeRequest("OPTIONS", { host: "localhost:3000" }))).toBeNull();
+  });
+
+  // Mutating methods — require matching origin/referer
+  it("rejects POST with no origin or referer", () => {
+    const result = validateOrigin(makeRequest("POST", { host: "localhost:3000" }));
+    expect(result).not.toBeNull();
+    expect(result!.status).toBe(403);
+  });
+
+  it("rejects DELETE with no origin or referer", () => {
+    const result = validateOrigin(makeRequest("DELETE", { host: "localhost:3000" }));
+    expect(result).not.toBeNull();
+    expect(result!.status).toBe(403);
+  });
+
+  it("allows POST where origin matches host", () => {
+    const req = makeRequest("POST", {
       host: "localhost:3000",
       origin: "http://localhost:3000",
     });
     expect(validateOrigin(req)).toBeNull();
   });
 
-  it("rejects requests where origin does not match host", () => {
-    const req = makeRequest({
+  it("rejects POST where origin does not match host", () => {
+    const req = makeRequest("POST", {
       host: "localhost:3000",
       origin: "http://evil.com",
     });
@@ -35,16 +53,16 @@ describe("validateOrigin", () => {
     expect(result!.status).toBe(403);
   });
 
-  it("allows requests where referer matches host (no origin)", () => {
-    const req = makeRequest({
+  it("allows POST where referer matches host (no origin)", () => {
+    const req = makeRequest("POST", {
       host: "localhost:3000",
       referer: "http://localhost:3000/page",
     });
     expect(validateOrigin(req)).toBeNull();
   });
 
-  it("rejects requests where referer does not match host", () => {
-    const req = makeRequest({
+  it("rejects POST where referer does not match host", () => {
+    const req = makeRequest("POST", {
       host: "localhost:3000",
       referer: "http://evil.com/page",
     });
@@ -53,8 +71,8 @@ describe("validateOrigin", () => {
     expect(result!.status).toBe(403);
   });
 
-  it("rejects requests with invalid origin URL", () => {
-    const req = makeRequest({
+  it("rejects POST with invalid origin URL", () => {
+    const req = makeRequest("POST", {
       host: "localhost:3000",
       origin: "not-a-url",
     });

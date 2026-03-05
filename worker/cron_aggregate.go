@@ -4,18 +4,97 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const aggregateChunkSize = 5000
 
-func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
+// listSnapshotKeys returns all snapshot keys for a given date from R2.
+func listSnapshotKeys(ctx context.Context, r2 *s3.Client, bucket, dateStr string) ([]string, error) {
+	prefix := fmt.Sprintf("snapshots/%s/", strings.ReplaceAll(dateStr, "-", "/"))
+	var keys []string
+	var continuationToken *string
+
+	for {
+		out, err := r2.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+			Bucket:            &bucket,
+			Prefix:            &prefix,
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list R2 objects: %w", err)
+		}
+		for _, obj := range out.Contents {
+			if obj.Key != nil {
+				keys = append(keys, *obj.Key)
+			}
+		}
+		if out.IsTruncated == nil || !*out.IsTruncated {
+			break
+		}
+		continuationToken = out.NextContinuationToken
+	}
+	return keys, nil
+}
+
+// loadSnapshotPositions streams all positions from R2 snapshot files for a date.
+func loadSnapshotPositions(ctx context.Context, r2 *s3.Client, bucket string, keys []string) ([]PositionPoint, error) {
+	var all []PositionPoint
+	for _, key := range keys {
+		out, err := r2.GetObject(ctx, &s3.GetObjectInput{Bucket: &bucket, Key: &key})
+		if err != nil {
+			log.Printf("[aggregate] WARNING: failed to fetch %s: %v", key, err)
+			continue
+		}
+		body, err := io.ReadAll(out.Body)
+		out.Body.Close()
+		if err != nil {
+			log.Printf("[aggregate] WARNING: failed to read %s: %v", key, err)
+			continue
+		}
+		var snap SnapshotFile
+		if err := json.Unmarshal(body, &snap); err != nil {
+			log.Printf("[aggregate] WARNING: failed to parse %s: %v", key, err)
+			continue
+		}
+		recordedAt, err := time.Parse(time.RFC3339, snap.RecordedAt)
+		if err != nil {
+			continue
+		}
+		for _, p := range snap.Positions {
+			if p.Route == "" {
+				continue
+			}
+			pp := PositionPoint{
+				RecordedAt: recordedAt,
+				VehicleID:  p.VehicleID,
+				Route:      p.Route,
+				Lat:        p.Lat,
+				Lon:        p.Lon,
+				Speed:      p.Speed,
+			}
+			if p.VehicleNum != "" {
+				pp.VehicleNum = &p.VehicleNum
+			}
+			if p.TripID != "" {
+				pp.TripID = &p.TripID
+			}
+			pp.DirectionID = p.DirectionID
+			all = append(all, pp)
+		}
+	}
+	return all, nil
+}
+
+func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool, r2 *s3.Client, bucket string) error {
 	startTime := time.Now()
 
 	now := time.Now().UTC()
@@ -25,22 +104,16 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 
 	log.Printf("[aggregate] Starting for %s", dateStr)
 
-	// Count positions
-	var totalCount int64
-	err := pool.QueryRow(ctx,
-		`SELECT COUNT(*) FROM "BusPositionLog" WHERE "recordedAt" >= $1 AND "recordedAt" < $2 AND route IS NOT NULL`,
-		yesterday, today,
-	).Scan(&totalCount)
+	// List snapshot files for yesterday from R2
+	keys, err := listSnapshotKeys(ctx, r2, bucket, dateStr)
 	if err != nil {
-		return fmt.Errorf("count positions: %w", err)
+		return fmt.Errorf("list snapshots: %w", err)
 	}
-
-	if totalCount == 0 {
-		log.Printf("[aggregate] No positions found for %s", dateStr)
+	if len(keys) == 0 {
+		log.Printf("[aggregate] No snapshots found for %s", dateStr)
 		return nil
 	}
-
-	log.Printf("[aggregate] Processing %d positions in chunks of %d", totalCount, aggregateChunkSize)
+	log.Printf("[aggregate] Found %d snapshot files for %s", len(keys), dateStr)
 
 	// Pre-load segments
 	segRows, err := pool.Query(ctx, `SELECT id, route, "directionId", "segmentIndex", "startLat", "startLon", "endLat", "endLon", "midLat", "midLon", "lengthM", geometry FROM "RouteSegment"`)
@@ -63,7 +136,7 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	segRows.Close()
 
-	// Pre-load route stops, indexed by route
+	// Pre-load route stops
 	type routeStop struct {
 		Route       string
 		DirectionID int
@@ -88,119 +161,66 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	rsRows.Close()
 
+	// Load all positions from R2 snapshots
+	allPositions, err := loadSnapshotPositions(ctx, r2, bucket, keys)
+	if err != nil {
+		return fmt.Errorf("load snapshot positions: %w", err)
+	}
+	totalPositions := int64(len(allPositions))
+	log.Printf("[aggregate] Loaded %d positions from snapshots", totalPositions)
+
 	// Accumulators
 	vehicleGroups := make(map[string][]PositionPoint)
 	hourlySegmentSpeeds := make(map[string][]float64)
 	stopArrivals := make(map[string][]int64)
 	lastSeenAt := make(map[string]int64)
 
-	var totalPositions int64
-	var cursorID int64
+	for _, pos := range allPositions {
+		r := pos.Route
+		dirStr := "x"
+		if pos.DirectionID != nil {
+			dirStr = fmt.Sprintf("%d", *pos.DirectionID)
+		}
+		vKey := pos.VehicleID + ":" + r + ":" + dirStr
+		vehicleGroups[vKey] = append(vehicleGroups[vKey], pos)
 
-	// Stream positions in chunks
-	for {
-		query := `SELECT id, "recordedAt", "vehicleId", "vehicleNum", route, "tripId", "directionId", lat, lon, speed
-			FROM "BusPositionLog"
-			WHERE "recordedAt" >= $1 AND "recordedAt" < $2 AND route IS NOT NULL AND id > $3
-			ORDER BY "recordedAt" ASC, id ASC
-			LIMIT $4`
-
-		rows, err := pool.Query(ctx, query, yesterday, today, cursorID, aggregateChunkSize)
-		if err != nil {
-			return fmt.Errorf("query positions: %w", err)
+		if pos.Speed != nil && *pos.Speed > 0 && len(segDefs) > 0 {
+			segID := snapToSegment(pos.Lat, pos.Lon, r, pos.DirectionID, segDefs, 150)
+			if segID != "" {
+				hour := time.Date(pos.RecordedAt.Year(), pos.RecordedAt.Month(), pos.RecordedAt.Day(), pos.RecordedAt.Hour(), 0, 0, 0, time.UTC)
+				key := segID + ":" + hour.Format(time.RFC3339)
+				hourlySegmentSpeeds[key] = append(hourlySegmentSpeeds[key], float64(*pos.Speed))
+			}
 		}
 
-		chunkCount := 0
-		for rows.Next() {
-			var id int64
-			var recordedAt time.Time
-			var vehicleID string
-			var vehicleNum, route, tripID *string
-			var directionID *int16
-			var lat, lon float64
-			var speed *float32
-
-			if err := rows.Scan(&id, &recordedAt, &vehicleID, &vehicleNum, &route, &tripID, &directionID, &lat, &lon, &speed); err != nil {
-				rows.Close()
-				return fmt.Errorf("scan position: %w", err)
-			}
-
-			cursorID = id
-			chunkCount++
-			totalPositions++
-
-			r := *route // route IS NOT NULL guaranteed by WHERE
-
-			// Vehicle grouping
-			dirStr := "x"
-			if directionID != nil {
-				dirStr = fmt.Sprintf("%d", *directionID)
-			}
-			vKey := vehicleID + ":" + r + ":" + dirStr
-			vehicleGroups[vKey] = append(vehicleGroups[vKey], PositionPoint{
-				RecordedAt:  recordedAt,
-				VehicleID:   vehicleID,
-				VehicleNum:  vehicleNum,
-				Route:       r,
-				TripID:      tripID,
-				DirectionID: directionID,
-				Lat:         lat,
-				Lon:         lon,
-				Speed:       speed,
-			})
-
-			// Segment speed accumulation
-			if speed != nil && *speed > 0 && len(segDefs) > 0 {
-				segID := snapToSegment(lat, lon, r, directionID, segDefs, 150)
-				if segID != "" {
-					hour := time.Date(recordedAt.Year(), recordedAt.Month(), recordedAt.Day(), recordedAt.Hour(), 0, 0, 0, time.UTC)
-					key := segID + ":" + hour.Format(time.RFC3339)
-					hourlySegmentSpeeds[key] = append(hourlySegmentSpeeds[key], float64(*speed))
+		stopsForRoute := stopsByRoute[r]
+		if len(stopsForRoute) > 0 {
+			var bestStop *routeStop
+			bestDist := math.Inf(1)
+			for i := range stopsForRoute {
+				rs := &stopsForRoute[i]
+				if pos.DirectionID != nil && rs.DirectionID != int(*pos.DirectionID) {
+					continue
+				}
+				dist := haversineM(pos.Lat, pos.Lon, rs.Lat, rs.Lon)
+				if dist < bestDist && dist <= 80 {
+					bestDist = dist
+					bestStop = rs
 				}
 			}
-
-			// Stop headway accumulation
-			stopsForRoute := stopsByRoute[r]
-			if len(stopsForRoute) > 0 {
-				var bestStop *routeStop
-				bestDist := math.Inf(1)
-				for i := range stopsForRoute {
-					rs := &stopsForRoute[i]
-					if directionID != nil && rs.DirectionID != int(*directionID) {
-						continue
-					}
-					dist := haversineM(lat, lon, rs.Lat, rs.Lon)
-					if dist < bestDist && dist <= 80 {
-						bestDist = dist
-						bestStop = rs
-					}
-				}
-				if bestStop != nil {
-					stopKey := r + ":" + dirStr + ":" + bestStop.StopID
-					dedupeKey := vehicleID + ":" + stopKey
-					ts := recordedAt.UnixMilli()
-					last, exists := lastSeenAt[dedupeKey]
-					if !exists || ts-last >= 3*60*1000 {
-						lastSeenAt[dedupeKey] = ts
-						stopArrivals[stopKey] = append(stopArrivals[stopKey], ts)
-					}
+			if bestStop != nil {
+				stopKey := r + ":" + dirStr + ":" + bestStop.StopID
+				dedupeKey := pos.VehicleID + ":" + stopKey
+				ts := pos.RecordedAt.UnixMilli()
+				last, exists := lastSeenAt[dedupeKey]
+				if !exists || ts-last >= 3*60*1000 {
+					lastSeenAt[dedupeKey] = ts
+					stopArrivals[stopKey] = append(stopArrivals[stopKey], ts)
 				}
 			}
 		}
-		rows.Close()
-
-		if chunkCount == 0 {
-			break
-		}
-		if chunkCount < aggregateChunkSize {
-			break
-		}
-		log.Printf("[aggregate] Processed %d/%d positions...", totalPositions, totalCount)
 	}
-
-	log.Printf("[aggregate] Streamed %d positions", totalPositions)
-
-	// Free lastSeenAt
+	allPositions = nil
 	lastSeenAt = nil
 
 	// Trip reconstruction
@@ -208,23 +228,20 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 	for _, groupPositions := range vehicleGroups {
 		allTrips = append(allTrips, reconstructTrips(groupPositions, 10)...)
 	}
-	// Free vehicle groups
 	vehicleGroups = nil
 
-	// Store trip logs (idempotent)
+	// Store trip logs
 	if len(allTrips) > 0 {
 		_, err := pool.Exec(ctx, `DELETE FROM "TripLog" WHERE date = $1`, yesterday)
 		if err != nil {
 			return fmt.Errorf("delete old trips: %w", err)
 		}
-
 		for i := 0; i < len(allTrips); i += 500 {
 			end := i + 500
 			if end > len(allTrips) {
 				end = len(allTrips)
 			}
 			batch := allTrips[i:end]
-
 			query := `INSERT INTO "TripLog" (date, "vehicleId", "vehicleNum", route, "tripId", "directionId", "startedAt", "endedAt", "runtimeSecs", positions, "avgSpeed") VALUES `
 			var args []interface{}
 			var placeholders []string
@@ -255,13 +272,10 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 		if err != nil {
 			return fmt.Errorf("delete old segment speeds: %w", err)
 		}
-
-		// Build segment lookup
 		segByID := make(map[string]*SegmentDef, len(segDefs))
 		for i := range segDefs {
 			segByID[segDefs[i].ID] = &segDefs[i]
 		}
-
 		type segSpeedRow struct {
 			segmentID   string
 			route       string
@@ -274,18 +288,11 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 			sampleCount int
 		}
 		var segSpeedRows []segSpeedRow
-
 		for key, speeds := range hourlySegmentSpeeds {
 			if len(speeds) < 2 {
 				continue
 			}
-			// key format: "segId:hourISO"
-			// segId can contain colons (route:dir:idx), so find the ISO timestamp at the end
-			// ISO timestamps start with a digit after the last colon-separated segment ID
-			// Actually the format is "route:dir:idx:2024-01-01T00:00:00Z"
-			// Find the segment ID by looking up in our map
 			var segID, hourISO string
-			// Try progressively longer prefixes
 			for i := len(key) - 1; i >= 0; i-- {
 				if key[i] == ':' {
 					candidate := key[:i]
@@ -304,13 +311,11 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 			if err != nil {
 				continue
 			}
-
 			avg := 0.0
 			for _, s := range speeds {
 				avg += s
 			}
 			avg /= float64(len(speeds))
-
 			segSpeedRows = append(segSpeedRows, segSpeedRow{
 				segmentID:   segID,
 				route:       seg.Route,
@@ -324,14 +329,12 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 			})
 		}
 		hourlySegmentSpeeds = nil
-
 		for i := 0; i < len(segSpeedRows); i += 500 {
 			end := i + 500
 			if end > len(segSpeedRows) {
 				end = len(segSpeedRows)
 			}
 			batch := segSpeedRows[i:end]
-
 			query := `INSERT INTO "SegmentSpeedHourly" ("segmentId", route, "directionId", "hourStart", "avgSpeed", "medianSpeed", "p10Speed", "p90Speed", "sampleCount") VALUES `
 			var args []interface{}
 			var placeholders []string
@@ -359,12 +362,10 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 		key := trip.Route + ":" + dirStr
 		routeTrips[key] = append(routeTrips[key], trip)
 	}
-
 	_, err = pool.Exec(ctx, `DELETE FROM "RoutePerformanceDaily" WHERE date = $1`, yesterday)
 	if err != nil {
 		return fmt.Errorf("delete old route perf: %w", err)
 	}
-
 	type routePerfRow struct {
 		route               string
 		directionID         *int16
@@ -378,7 +379,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 		gappingPct          *float64
 	}
 	var routePerfRows []routePerfRow
-
 	for key, trips := range routeTrips {
 		parts := strings.SplitN(key, ":", 2)
 		route := parts[0]
@@ -388,14 +388,12 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 			fmt.Sscanf(parts[1], "%d", &d)
 			directionID = &d
 		}
-
 		startTimes := make([]int64, len(trips))
 		for i, t := range trips {
 			startTimes[i] = t.StartedAt.UnixMilli()
 		}
 		sort.Slice(startTimes, func(i, j int) bool { return startTimes[i] < startTimes[j] })
 		headwayMetrics := computeHeadwayMetrics(startTimes, nil)
-
 		var runtimes []float64
 		for _, t := range trips {
 			if t.RuntimeSecs > 60 {
@@ -411,7 +409,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 			v := int(math.Round(sum / float64(len(runtimes))))
 			avgRuntime = &v
 		}
-
 		var speeds []float64
 		for _, t := range trips {
 			if t.AvgSpeed > 0 {
@@ -427,7 +424,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 			v := math.Round(sum/float64(len(speeds))*10) / 10
 			avgCommercialSpeed = &v
 		}
-
 		rp := routePerfRow{
 			route:              route,
 			directionID:        directionID,
@@ -446,7 +442,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 		routePerfRows = append(routePerfRows, rp)
 	}
-
 	if len(routePerfRows) > 0 {
 		for i := 0; i < len(routePerfRows); i += 500 {
 			end := i + 500
@@ -454,7 +449,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 				end = len(routePerfRows)
 			}
 			batch := routePerfRows[i:end]
-
 			query := `INSERT INTO "RoutePerformanceDaily" (date, route, "directionId", "tripsObserved", "avgHeadwaySecs", "headwayAdherencePct", "excessWaitTimeSecs", "avgRuntimeSecs", "avgCommercialSpeed", "bunchingPct", "gappingPct") VALUES `
 			var args []interface{}
 			var placeholders []string
@@ -478,7 +472,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 		if err != nil {
 			return fmt.Errorf("delete old stop headway: %w", err)
 		}
-
 		type headwayRow struct {
 			route          string
 			directionID    *int16
@@ -490,46 +483,37 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 			observations   int
 		}
 		var headwayRows []headwayRow
-
 		for stopKey, arrivals := range stopArrivals {
 			if len(arrivals) < 3 {
 				continue
 			}
 			sort.Slice(arrivals, func(i, j int) bool { return arrivals[i] < arrivals[j] })
-
 			headways := make([]float64, 0, len(arrivals)-1)
 			for i := 1; i < len(arrivals); i++ {
 				headways = append(headways, float64(arrivals[i]-arrivals[i-1])/1000.0)
 			}
-
 			avg := 0.0
 			for _, h := range headways {
 				avg += h
 			}
 			avg /= float64(len(headways))
-
 			variance := 0.0
 			for _, h := range headways {
 				variance += (h - avg) * (h - avg)
 			}
 			variance /= float64(len(headways))
 			stdDev := math.Sqrt(variance)
-
-			// Parse stopKey: "route:dir:stopId"
 			firstColon := strings.Index(stopKey, ":")
 			secondColon := strings.Index(stopKey[firstColon+1:], ":") + firstColon + 1
 			route := stopKey[:firstColon]
 			dirStr := stopKey[firstColon+1 : secondColon]
 			stopID := stopKey[secondColon+1:]
-
 			var directionID *int16
 			if dirStr != "x" {
 				var d int16
 				fmt.Sscanf(dirStr, "%d", &d)
 				directionID = &d
 			}
-
-			// Find stop name and sequence
 			var stopName *string
 			stopSeq := 0
 			stopsForRoute := stopsByRoute[route]
@@ -540,7 +524,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 					break
 				}
 			}
-
 			headwayRows = append(headwayRows, headwayRow{
 				route:          route,
 				directionID:    directionID,
@@ -552,14 +535,12 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 				observations:   len(arrivals),
 			})
 		}
-
 		for i := 0; i < len(headwayRows); i += 500 {
 			end := i + 500
 			if end > len(headwayRows) {
 				end = len(headwayRows)
 			}
 			batch := headwayRows[i:end]
-
 			query := `INSERT INTO "StopHeadwayDaily" (date, route, "directionId", "stopId", "stopName", "stopSequence", "avgHeadwaySecs", "headwayStdDev", observations) VALUES `
 			var args []interface{}
 			var placeholders []string
@@ -582,7 +563,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 	for _, t := range allTrips {
 		uniqueVehicles[t.VehicleID] = struct{}{}
 	}
-
 	var allSpeeds []float64
 	var allEwt []float64
 	for _, r := range routePerfRows {
@@ -593,7 +573,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 			allEwt = append(allEwt, *r.excessWaitTimeSecs)
 		}
 	}
-
 	var networkAvgSpeed, networkAvgEwt *float64
 	if len(allSpeeds) > 0 {
 		sum := 0.0
@@ -611,7 +590,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 		v := math.Round(sum / float64(len(allEwt)))
 		networkAvgEwt = &v
 	}
-
 	var worstRoute *string
 	var worstEwt *float64
 	for _, r := range routePerfRows {
@@ -620,7 +598,6 @@ func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool) error {
 			worstRoute = &r.route
 		}
 	}
-
 	_, err = pool.Exec(ctx, `
 		INSERT INTO "NetworkSummaryDaily" (date, "activeVehicles", "totalTrips", "avgCommercialSpeed", "avgExcessWaitTime", "worstRoute", "worstRouteEwt", "positionsCollected")
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

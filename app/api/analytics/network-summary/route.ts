@@ -2,81 +2,70 @@
  * API: Network summary for analytics dashboard (#68)
  * Returns KPIs, speed timeseries, and fleet activity data.
  * Supports: period=today|7d|30d or date=YYYY-MM-DD
+ *
+ * "today" mode reads live stats from R2 (snapshots/today.json) instead of
+ * querying BusPositionLog, allowing Neon to idle between user interactions.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getR2Json } from "@/lib/r2-client";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
+import { CACHE_1DAY, cacheFor } from "@/lib/analytics/cache";
+import { KeyedStaleCache, SingleFlight } from "@/lib/api-fetch";
 
-const CACHE = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600" };
-const NO_CACHE = { "Cache-Control": "no-store" };
+interface TodaySummary {
+  updatedAt: string;
+  date: string;
+  positionsCollected: number;
+  activeVehicles: number;
+  activeRoutes: number;
+  avgSpeed: number | null;
+  hourlySpeed: { hour: number; avgSpeed: number | null; samples: number }[];
+  hourlyFleet: { hour: number; vehicles: number; routes: number }[];
+}
+
+const CACHE = CACHE_1DAY;
+const memCache = new KeyedStaleCache<unknown>(5 * 60 * 1000);
+const sf = new SingleFlight(); // 5 minutes
 
 export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
+  const cacheKey = request.nextUrl.search || "default";
+
+  const cached = memCache.get(cacheKey);
+  if (cached?.fresh) return NextResponse.json(cached.data);
+
   const filter = parseDateFilter(period, dateParam);
 
   try {
     if (filter.mode === "today") {
-      const now = new Date();
-      const todayStart = new Date(now);
-      todayStart.setUTCHours(0, 0, 0, 0);
-
-      const [posCount, vehicleCount, routeCount, avgSpeedResult, lastSummary] = await Promise.all([
-        prisma.busPositionLog.count({
-          where: { recordedAt: { gte: todayStart } },
-        }),
-        prisma.busPositionLog
-          .findMany({
-            where: { recordedAt: { gte: todayStart } },
-            distinct: ["vehicleId"],
-            select: { vehicleId: true },
-          })
-          .then((r) => r.length),
-        prisma.busPositionLog
-          .findMany({
-            where: {
-              recordedAt: { gte: todayStart },
-              route: { not: null },
-            },
-            distinct: ["route"],
-            select: { route: true },
-          })
-          .then((r) => r.length),
-        prisma.busPositionLog.aggregate({
-          where: {
-            recordedAt: { gte: todayStart },
-            speed: { gt: 0 },
-          },
-          _avg: { speed: true },
-        }),
-        // Fetch most recent aggregated day for EWT + worst route
-        prisma.networkSummaryDaily.findFirst({
-          orderBy: { date: "desc" },
-        }),
-      ]);
-
-      return NextResponse.json(
-        {
-          period: "today",
-          activeVehicles: vehicleCount,
-          activeRoutes: routeCount,
-          positionsCollected: posCount,
-          avgSpeed: avgSpeedResult._avg.speed
-            ? Math.round(avgSpeedResult._avg.speed * 10) / 10
-            : null,
-          yesterdayAvgSpeed: lastSummary?.avgCommercialSpeed
-            ? Math.round(lastSummary.avgCommercialSpeed * 10) / 10
-            : null,
-          worstRoute: lastSummary?.worstRoute ?? null,
-          worstRouteEwt: lastSummary?.worstRouteEwt ?? null,
-          ewt: lastSummary?.avgExcessWaitTime ? Math.round(lastSummary.avgExcessWaitTime) : null,
-          lastAggregatedDate: lastSummary?.date
-            ? lastSummary.date.toISOString().slice(0, 10)
-            : null,
-        },
-        { headers: NO_CACHE }
+      const [todaySummary, lastSummary] = await sf.do(cacheKey, () =>
+        Promise.all([
+          getR2Json<TodaySummary>("snapshots/today.json"),
+          prisma.networkSummaryDaily.findFirst({
+            orderBy: { date: "desc" },
+          }),
+        ])
       );
+
+      const data = {
+        period: "today",
+        activeVehicles: todaySummary?.activeVehicles ?? 0,
+        activeRoutes: todaySummary?.activeRoutes ?? 0,
+        positionsCollected: todaySummary?.positionsCollected ?? 0,
+        avgSpeed: todaySummary?.avgSpeed ? Math.round(todaySummary.avgSpeed * 10) / 10 : null,
+        yesterdayAvgSpeed: lastSummary?.avgCommercialSpeed
+          ? Math.round(lastSummary.avgCommercialSpeed * 10) / 10
+          : null,
+        worstRoute: lastSummary?.worstRoute ?? null,
+        worstRouteEwt: lastSummary?.worstRouteEwt ?? null,
+        ewt: lastSummary?.avgExcessWaitTime ? Math.round(lastSummary.avgExcessWaitTime) : null,
+        lastAggregatedDate: lastSummary?.date ? lastSummary.date.toISOString().slice(0, 10) : null,
+      };
+      memCache.set(cacheKey, data);
+      return NextResponse.json(data, { headers: cacheFor(300) });
     }
 
     if (filter.mode === "date") {
@@ -114,33 +103,32 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      return NextResponse.json(
-        {
-          period: filter.dateStr,
-          date: filter.dateStr,
-          days: 1,
-          activeVehicles: summary.activeVehicles,
-          totalTrips: summary.totalTrips,
-          avgSpeed: summary.avgCommercialSpeed
-            ? Math.round(summary.avgCommercialSpeed * 10) / 10
-            : null,
-          ewt: summary.avgExcessWaitTime ? Math.round(summary.avgExcessWaitTime) : null,
-          worstRoute,
-          worstRouteEwt: worstEwt ? Math.round(worstEwt) : null,
-          positionsCollected: Number(summary.positionsCollected),
-          dailySummaries: [
-            {
-              date: filter.dateStr,
-              activeVehicles: summary.activeVehicles,
-              totalTrips: summary.totalTrips,
-              avgSpeed: summary.avgCommercialSpeed,
-              ewt: summary.avgExcessWaitTime,
-              positions: Number(summary.positionsCollected),
-            },
-          ],
-        },
-        { headers: CACHE }
-      );
+      const dateData = {
+        period: filter.dateStr,
+        date: filter.dateStr,
+        days: 1,
+        activeVehicles: summary.activeVehicles,
+        totalTrips: summary.totalTrips,
+        avgSpeed: summary.avgCommercialSpeed
+          ? Math.round(summary.avgCommercialSpeed * 10) / 10
+          : null,
+        ewt: summary.avgExcessWaitTime ? Math.round(summary.avgExcessWaitTime) : null,
+        worstRoute,
+        worstRouteEwt: worstEwt ? Math.round(worstEwt) : null,
+        positionsCollected: Number(summary.positionsCollected),
+        dailySummaries: [
+          {
+            date: filter.dateStr,
+            activeVehicles: summary.activeVehicles,
+            totalTrips: summary.totalTrips,
+            avgSpeed: summary.avgCommercialSpeed,
+            ewt: summary.avgExcessWaitTime,
+            positions: Number(summary.positionsCollected),
+          },
+        ],
+      };
+      memCache.set(cacheKey, dateData);
+      return NextResponse.json(dateData, { headers: CACHE });
     }
 
     // Historical periods: 7d, 30d
@@ -187,26 +175,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      {
-        period: filter.period,
-        days: summaries.length,
-        totalTrips,
-        avgSpeed: avgSpeed ? Math.round(avgSpeed * 10) / 10 : null,
-        ewt: avgEwt ? Math.round(avgEwt) : null,
-        worstRoute,
-        worstRouteEwt: worstEwt ? Math.round(worstEwt) : null,
-        dailySummaries: summaries.map((s) => ({
-          date: s.date.toISOString().slice(0, 10),
-          activeVehicles: s.activeVehicles,
-          totalTrips: s.totalTrips,
-          avgSpeed: s.avgCommercialSpeed,
-          ewt: s.avgExcessWaitTime,
-          positions: Number(s.positionsCollected),
-        })),
-      },
-      { headers: CACHE }
-    );
+    const periodData = {
+      period: filter.period,
+      days: summaries.length,
+      totalTrips,
+      avgSpeed: avgSpeed ? Math.round(avgSpeed * 10) / 10 : null,
+      ewt: avgEwt ? Math.round(avgEwt) : null,
+      worstRoute,
+      worstRouteEwt: worstEwt ? Math.round(worstEwt) : null,
+      dailySummaries: summaries.map((s) => ({
+        date: s.date.toISOString().slice(0, 10),
+        activeVehicles: s.activeVehicles,
+        totalTrips: s.totalTrips,
+        avgSpeed: s.avgCommercialSpeed,
+        ewt: s.avgExcessWaitTime,
+        positions: Number(s.positionsCollected),
+      })),
+    };
+    memCache.set(cacheKey, periodData);
+    return NextResponse.json(periodData, { headers: CACHE });
   } catch (error) {
     console.error("Network summary error:", error);
     return NextResponse.json({ error: "Failed to fetch network summary" }, { status: 500 });

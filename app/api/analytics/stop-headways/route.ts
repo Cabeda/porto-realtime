@@ -6,20 +6,26 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
+import { KeyedStaleCache } from "@/lib/api-fetch";
 
 const CACHE = {
   "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600",
 };
+const memCache = new KeyedStaleCache<unknown>(5 * 60 * 1000);
 
 export async function GET(request: NextRequest) {
   const route = request.nextUrl.searchParams.get("route");
   const directionParam = request.nextUrl.searchParams.get("direction");
   const period = request.nextUrl.searchParams.get("period");
   const dateParam = request.nextUrl.searchParams.get("date");
+  const cacheKey = request.nextUrl.search || "default";
 
   if (!route) {
     return NextResponse.json({ error: "route parameter required" }, { status: 400 });
   }
+
+  const cached = memCache.get(cacheKey);
+  if (cached?.fresh) return NextResponse.json(cached.data);
 
   const directionId =
     directionParam !== null && directionParam !== "" ? parseInt(directionParam) : null;
@@ -96,7 +102,9 @@ export async function GET(request: NextRequest) {
         observations: s.totalObs,
       }));
 
-    return NextResponse.json({ route, directionId, stops }, { headers: CACHE });
+    const data = { route, directionId, stops };
+    memCache.set(cacheKey, data);
+    return NextResponse.json(data, { headers: CACHE });
   } catch (err) {
     console.error("[stop-headways]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

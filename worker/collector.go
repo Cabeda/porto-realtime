@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,10 +10,10 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 // FIWARE entity types
@@ -47,19 +48,161 @@ type positionRow struct {
 	heading     *float32
 }
 
+// SnapshotPosition is the JSON shape written to R2 per position.
+type SnapshotPosition struct {
+	VehicleID   string   `json:"vehicleId"`
+	VehicleNum  string   `json:"vehicleNum,omitempty"`
+	Route       string   `json:"route,omitempty"`
+	TripID      string   `json:"tripId,omitempty"`
+	DirectionID *int16   `json:"directionId,omitempty"`
+	Lat         float64  `json:"lat"`
+	Lon         float64  `json:"lon"`
+	Speed       *float32 `json:"speed,omitempty"`
+	Heading     *float32 `json:"heading,omitempty"`
+}
+
+// SnapshotFile is the JSON written to snapshots/YYYY/MM/DD/HHMMSS.json
+type SnapshotFile struct {
+	RecordedAt string             `json:"recordedAt"`
+	Positions  []SnapshotPosition `json:"positions"`
+}
+
+// TodaySummary is the JSON written to snapshots/today.json
+type TodaySummary struct {
+	UpdatedAt          string           `json:"updatedAt"`
+	Date               string           `json:"date"`
+	PositionsCollected int64            `json:"positionsCollected"`
+	ActiveVehicles     int              `json:"activeVehicles"`
+	ActiveRoutes       int              `json:"activeRoutes"`
+	AvgSpeed           *float64         `json:"avgSpeed"`
+	HourlySpeed        []HourlySpeedBkt `json:"hourlySpeed"`
+	HourlyFleet        []HourlyFleetBkt `json:"hourlyFleet"`
+}
+
+type HourlySpeedBkt struct {
+	Hour     int      `json:"hour"`
+	AvgSpeed *float64 `json:"avgSpeed"`
+	Samples  int      `json:"samples"`
+}
+
+type HourlyFleetBkt struct {
+	Hour     int `json:"hour"`
+	Vehicles int `json:"vehicles"`
+	Routes   int `json:"routes"`
+}
+
+// rollingState accumulates stats across collection cycles for today.json
+type rollingState struct {
+	mu                 sync.Mutex
+	date               string
+	positionsCollected int64
+	vehicles           map[string]struct{}
+	routes             map[string]struct{}
+	speedSum           float64
+	speedCount         int64
+	hourlySpeedSum     [24]float64
+	hourlySpeedCount   [24]int64
+	hourlyVehicles     [24]map[string]struct{}
+	hourlyRoutes       [24]map[string]struct{}
+}
+
+var state = &rollingState{}
+
+func (s *rollingState) reset(date string) {
+	s.date = date
+	s.positionsCollected = 0
+	s.vehicles = make(map[string]struct{})
+	s.routes = make(map[string]struct{})
+	s.speedSum = 0
+	s.speedCount = 0
+	s.hourlySpeedSum = [24]float64{}
+	s.hourlySpeedCount = [24]int64{}
+	for i := range s.hourlyVehicles {
+		s.hourlyVehicles[i] = make(map[string]struct{})
+		s.hourlyRoutes[i] = make(map[string]struct{})
+	}
+}
+
+func (s *rollingState) ingest(rows []*positionRow, now time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	today := now.UTC().Format("2006-01-02")
+	if s.date != today {
+		s.reset(today)
+	}
+
+	h := now.UTC().Hour()
+	s.positionsCollected += int64(len(rows))
+
+	for _, r := range rows {
+		s.vehicles[r.vehicleID] = struct{}{}
+		if r.route != nil {
+			s.routes[*r.route] = struct{}{}
+		}
+		if r.speed != nil && *r.speed > 0 {
+			s.speedSum += float64(*r.speed)
+			s.speedCount++
+			s.hourlySpeedSum[h] += float64(*r.speed)
+			s.hourlySpeedCount[h]++
+		}
+		s.hourlyVehicles[h][r.vehicleID] = struct{}{}
+		if r.route != nil {
+			s.hourlyRoutes[h][*r.route] = struct{}{}
+		}
+	}
+}
+
+func (s *rollingState) summary(now time.Time) TodaySummary {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var avgSpeed *float64
+	if s.speedCount > 0 {
+		v := float64(int(s.speedSum/float64(s.speedCount)*10)) / 10
+		avgSpeed = &v
+	}
+
+	hourlySpeed := make([]HourlySpeedBkt, 24)
+	hourlyFleet := make([]HourlyFleetBkt, 24)
+	for h := 0; h < 24; h++ {
+		bkt := HourlySpeedBkt{Hour: h}
+		if s.hourlySpeedCount[h] > 0 {
+			v := float64(int(s.hourlySpeedSum[h]/float64(s.hourlySpeedCount[h])*10)) / 10
+			bkt.AvgSpeed = &v
+			bkt.Samples = int(s.hourlySpeedCount[h])
+		}
+		hourlySpeed[h] = bkt
+		hourlyFleet[h] = HourlyFleetBkt{
+			Hour:     h,
+			Vehicles: len(s.hourlyVehicles[h]),
+			Routes:   len(s.hourlyRoutes[h]),
+		}
+	}
+
+	return TodaySummary{
+		UpdatedAt:          now.UTC().Format(time.RFC3339),
+		Date:               s.date,
+		PositionsCollected: s.positionsCollected,
+		ActiveVehicles:     len(s.vehicles),
+		ActiveRoutes:       len(s.routes),
+		AvgSpeed:           avgSpeed,
+		HourlySpeed:        hourlySpeed,
+		HourlyFleet:        hourlyFleet,
+	}
+}
+
 // unwrapString extracts a string from either "value" or a raw string JSON value
 func unwrapString(raw json.RawMessage) string {
 	if len(raw) == 0 {
 		return ""
 	}
-	// Try {"value": "..."} first
 	var obj struct {
 		Value string `json:"value"`
 	}
 	if err := json.Unmarshal(raw, &obj); err == nil && obj.Value != "" {
 		return obj.Value
 	}
-	// Try raw string
 	var s string
 	if err := json.Unmarshal(raw, &s); err == nil {
 		return s
@@ -90,8 +233,6 @@ func unwrapLocation(raw json.RawMessage) (lon, lat float64, ok bool) {
 	if len(raw) == 0 {
 		return 0, 0, false
 	}
-
-	// Try {"value": {"coordinates": [lon, lat]}}
 	var nested struct {
 		Value struct {
 			Coordinates [2]float64 `json:"coordinates"`
@@ -100,15 +241,12 @@ func unwrapLocation(raw json.RawMessage) (lon, lat float64, ok bool) {
 	if err := json.Unmarshal(raw, &nested); err == nil && (nested.Value.Coordinates[0] != 0 || nested.Value.Coordinates[1] != 0) {
 		return nested.Value.Coordinates[0], nested.Value.Coordinates[1], true
 	}
-
-	// Try {"coordinates": [lon, lat]}
 	var direct struct {
 		Coordinates [2]float64 `json:"coordinates"`
 	}
 	if err := json.Unmarshal(raw, &direct); err == nil && (direct.Coordinates[0] != 0 || direct.Coordinates[1] != 0) {
 		return direct.Coordinates[0], direct.Coordinates[1], true
 	}
-
 	return 0, 0, false
 }
 
@@ -117,14 +255,12 @@ func unwrapAnnotations(raw json.RawMessage) []string {
 	if len(raw) == 0 {
 		return nil
 	}
-	// Try {"value": [...]}
 	var obj struct {
 		Value []string `json:"value"`
 	}
 	if err := json.Unmarshal(raw, &obj); err == nil && len(obj.Value) > 0 {
 		return obj.Value
 	}
-	// Try raw array
 	var arr []string
 	if err := json.Unmarshal(raw, &arr); err == nil {
 		return arr
@@ -141,7 +277,6 @@ func parseEntity(entity *fiwareEntity) *positionRow {
 		return nil
 	}
 
-	// Determine route
 	var route string
 	if rsn := unwrapString(entity.RouteShortName); rsn != "" {
 		route = rsn
@@ -162,13 +297,11 @@ func parseEntity(entity *fiwareEntity) *positionRow {
 		if vehicleID == "" {
 			vehicleID = unwrapString(entity.Name)
 		}
-
 		if vehicleID != "" {
 			if m := stcpRegex.FindStringSubmatch(vehicleID); len(m) > 1 {
 				route = m[1]
 			}
 		}
-
 		if route == "" && entity.ID != "" {
 			parts := strings.Split(entity.ID, ":")
 			for i := 2; i < len(parts)-1; i++ {
@@ -187,7 +320,6 @@ func parseEntity(entity *fiwareEntity) *positionRow {
 		}
 	}
 
-	// Parse annotations for directionId and tripId
 	var directionID *int16
 	var tripID *string
 	annotations := unwrapAnnotations(entity.Annotations)
@@ -203,7 +335,6 @@ func parseEntity(entity *fiwareEntity) *positionRow {
 		}
 	}
 
-	// Parse vehicle number
 	var vehicleNum *string
 	rawVehicleNum := unwrapString(entity.VehiclePlateIdentifier)
 	if rawVehicleNum == "" {
@@ -238,7 +369,6 @@ func parseEntity(entity *fiwareEntity) *positionRow {
 		}
 	}
 
-	// Parse speed and heading
 	var speed *float32
 	if s, ok := unwrapFloat64(entity.Speed); ok {
 		f := float32(s)
@@ -271,8 +401,8 @@ func parseEntity(entity *fiwareEntity) *positionRow {
 	}
 }
 
-func collectPositions(ctx context.Context, pool *pgxpool.Pool) (int, error) {
-	start := time.Now()
+func collectPositions(ctx context.Context, r2 *s3.Client, bucket string) (int, error) {
+	now := time.Now().UTC()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", fiwareURL, nil)
 	if err != nil {
@@ -307,7 +437,6 @@ func collectPositions(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 		return 0, fmt.Errorf("FIWARE returned empty response")
 	}
 
-	// Parse entities into rows
 	rows := make([]*positionRow, 0, len(entities))
 	for i := range entities {
 		if entities[i].ID == "" {
@@ -323,33 +452,71 @@ func collectPositions(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 		return 0, nil
 	}
 
-	// Insert in batches using COPY for speed
-	for i := 0; i < len(rows); i += batchSize {
-		end := i + batchSize
-		if end > len(rows) {
-			end = len(rows)
+	// Build snapshot positions
+	positions := make([]SnapshotPosition, 0, len(rows))
+	for _, r := range rows {
+		sp := SnapshotPosition{
+			VehicleID:   r.vehicleID,
+			DirectionID: r.directionID,
+			Lat:         r.lat,
+			Lon:         r.lon,
+			Speed:       r.speed,
+			Heading:     r.heading,
 		}
-		batch := rows[i:end]
-
-		copyRows := make([][]interface{}, len(batch))
-		for j, r := range batch {
-			copyRows[j] = []interface{}{
-				time.Now(), r.vehicleID, r.vehicleNum, r.route,
-				r.tripID, r.directionID, r.lat, r.lon, r.speed, r.heading,
-			}
+		if r.vehicleNum != nil {
+			sp.VehicleNum = *r.vehicleNum
 		}
-
-		_, err := pool.CopyFrom(ctx,
-			pgx.Identifier{"BusPositionLog"},
-			[]string{"recordedAt", "vehicleId", "vehicleNum", "route", "tripId", "directionId", "lat", "lon", "speed", "heading"},
-			pgx.CopyFromRows(copyRows),
-		)
-		if err != nil {
-			return 0, fmt.Errorf("insert batch: %w", err)
+		if r.route != nil {
+			sp.Route = *r.route
 		}
+		if r.tripID != nil {
+			sp.TripID = *r.tripID
+		}
+		positions = append(positions, sp)
 	}
 
-	elapsed := time.Since(start)
-	_ = elapsed // logged by caller
+	snapshot := SnapshotFile{
+		RecordedAt: now.Format(time.RFC3339),
+		Positions:  positions,
+	}
+
+	snapshotJSON, err := json.Marshal(snapshot)
+	if err != nil {
+		return 0, fmt.Errorf("marshal snapshot: %w", err)
+	}
+
+	// Write per-cycle snapshot: snapshots/YYYY/MM/DD/HHMMSS.json
+	snapshotKey := fmt.Sprintf("snapshots/%04d/%02d/%02d/%s.json",
+		now.Year(), now.Month(), now.Day(), now.Format("150405"))
+	contentType := "application/json"
+	if _, err := r2.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      &bucket,
+		Key:         &snapshotKey,
+		Body:        bytes.NewReader(snapshotJSON),
+		ContentType: &contentType,
+	}); err != nil {
+		return 0, fmt.Errorf("write snapshot to R2: %w", err)
+	}
+
+	// Update rolling state and overwrite today.json
+	state.ingest(rows, now)
+	summary := state.summary(now)
+
+	summaryJSON, err := json.Marshal(summary)
+	if err != nil {
+		return len(rows), fmt.Errorf("marshal today summary: %w", err)
+	}
+
+	todayKey := "snapshots/today.json"
+	if _, err := r2.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      &bucket,
+		Key:         &todayKey,
+		Body:        bytes.NewReader(summaryJSON),
+		ContentType: &contentType,
+	}); err != nil {
+		// Non-fatal: snapshot was written, today.json is best-effort
+		log.Printf("[collect] WARNING: failed to update today.json: %v", err)
+	}
+
 	return len(rows), nil
 }

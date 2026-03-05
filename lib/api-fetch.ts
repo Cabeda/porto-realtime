@@ -144,3 +144,24 @@ export class KeyedStaleCache<T> {
     this.entries.set(key, { data, timestamp: Date.now() });
   }
 }
+
+/**
+ * Single-flight deduplication: if multiple concurrent callers request the same
+ * key, only one DB query runs — the rest await the same promise.
+ * Combine with KeyedStaleCache: check cache first, then use singleFlight for
+ * the cold-miss case so concurrent requests don't all hit the DB.
+ */
+export class SingleFlight {
+  private inflight = new Map<string, Promise<unknown>>();
+
+  async do<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const existing = this.inflight.get(key);
+    if (existing) return existing as Promise<T>;
+
+    const promise = fn().finally(() => {
+      this.inflight.delete(key);
+    });
+    this.inflight.set(key, promise);
+    return promise;
+  }
+}

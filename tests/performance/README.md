@@ -16,6 +16,13 @@ pnpm test:perf
 
 # Run with UI (interactive mode)
 pnpm test:perf:ui
+
+# k6 load tests (requires k6 installed: https://k6.io/docs/get-started/installation/)
+pnpm test:load          # analytics endpoints
+pnpm test:load:api      # all core API endpoints (buses, stations, feedback, proposals, …)
+
+# Against a deployed environment
+BASE_URL=https://your-app.vercel.app pnpm test:load:api
 ```
 
 ## Performance Targets
