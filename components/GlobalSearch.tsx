@@ -91,7 +91,7 @@ export function GlobalSearch({ availableRoutes }: { availableRoutes?: RouteInfo[
         id: `line-${r.shortName}`,
         label: `${t.reviews.line} ${r.shortName}`,
         sublabel: r.longName || undefined,
-        href: `/reviews/line?id=${encodeURIComponent(r.shortName)}`,
+        href: `/analytics/line?route=${encodeURIComponent(r.shortName)}`,
       });
     }
 
