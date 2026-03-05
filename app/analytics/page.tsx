@@ -95,20 +95,29 @@ export default function AnalyticsDashboard() {
       ? "right now"
       : `over ${period}`;
 
+  // Fleet chart data: hourly timeseries for "today", daily series for 7d/30d/date.
   // For "today", null-out trailing hours with no data so the chart stops
   // at the current hour rather than misleadingly sloping to zero.
-  const fleetTimeseries = (() => {
-    const ts = fleet?.timeseries;
-    if (!ts) return ts;
-    if (period !== "today") return ts;
-    let last = ts.length - 1;
-    while (last > 0 && ts[last].totalVehicles === 0) last--;
-    return ts.map(
-      (
-        entry: { hour: number; label: string; totalVehicles: number; routes: unknown[] },
-        i: number
-      ) => (i > last ? { ...entry, totalVehicles: null } : entry)
-    );
+  const fleetChartData = (() => {
+    if (fleet?.timeseries) {
+      const ts = fleet.timeseries;
+      if (period !== "today") return ts;
+      let last = ts.length - 1;
+      while (last > 0 && ts[last].totalVehicles === 0) last--;
+      return ts.map(
+        (
+          entry: { hour: number; label: string; totalVehicles: number; routes: unknown[] },
+          i: number
+        ) => (i > last ? { ...entry, totalVehicles: null } : entry)
+      );
+    }
+    if (fleet?.dailySeries) {
+      return fleet.dailySeries.map((d: { date: string; activeVehicles: number }) => ({
+        label: d.date.slice(5), // "MM-DD"
+        totalVehicles: d.activeVehicles,
+      }));
+    }
+    return undefined;
   })();
 
   return (
@@ -308,10 +317,12 @@ export default function AnalyticsDashboard() {
 
         {/* Fleet Activity Chart */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-          <h2 className="text-lg font-semibold mb-4">Active Buses by Hour</h2>
-          {fleetTimeseries ? (
+          <h2 className="text-lg font-semibold mb-4">
+            {fleet?.dailySeries ? "Active Buses by Day" : "Active Buses by Hour"}
+          </h2>
+          {fleetChartData ? (
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={fleetTimeseries}>
+              <AreaChart data={fleetChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis
                   dataKey="label"

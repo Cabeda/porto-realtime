@@ -98,30 +98,42 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(dateData, { headers: CACHE });
     }
 
-    // Historical periods: 7d, 30d
-    const speeds = await prisma.segmentSpeedHourly.findMany({
-      where: { hourStart: { gte: filter.fromDate }, ...(route ? { route } : {}) },
-      select: { hourStart: true, avgSpeed: true, sampleCount: true },
-    });
+    // Historical periods: 7d, 30d — aggregate in SQL to avoid fetching all rows
+    const routeFilter = route ?? null;
+    const rows = await prisma.$queryRaw<
+      { hour: number; avg_speed: number | null; samples: bigint }[]
+    >`
+      SELECT
+        EXTRACT(HOUR FROM "hourStart")::int AS hour,
+        CASE WHEN SUM("sampleCount") > 0
+          THEN ROUND((SUM("avgSpeed" * "sampleCount") / SUM("sampleCount"))::numeric, 1)
+          ELSE NULL
+        END AS avg_speed,
+        SUM("sampleCount")::bigint AS samples
+      FROM "SegmentSpeedHourly"
+      WHERE "hourStart" >= ${filter.fromDate}
+        AND "avgSpeed" IS NOT NULL
+        AND (${routeFilter}::text IS NULL OR "route" = ${routeFilter})
+      GROUP BY EXTRACT(HOUR FROM "hourStart")
+      ORDER BY hour
+    `;
 
-    const hourly = new Map<number, { total: number; count: number }>();
-    for (const s of speeds) {
-      if (s.avgSpeed === null) continue;
-      const h = s.hourStart.getUTCHours();
-      if (!hourly.has(h)) hourly.set(h, { total: 0, count: 0 });
-      const agg = hourly.get(h)!;
-      agg.total += s.avgSpeed * s.sampleCount;
-      agg.count += s.sampleCount;
+    const hourMap = new Map<number, { avgSpeed: number | null; samples: number }>();
+    for (const r of rows) {
+      hourMap.set(r.hour, {
+        avgSpeed: r.avg_speed !== null ? Number(r.avg_speed) : null,
+        samples: Number(r.samples),
+      });
     }
 
     const timeseries = [];
     for (let h = 0; h < 24; h++) {
-      const agg = hourly.get(h);
+      const agg = hourMap.get(h);
       timeseries.push({
         hour: h,
         label: `${h.toString().padStart(2, "0")}:00`,
-        avgSpeed: agg && agg.count > 0 ? Math.round((agg.total / agg.count) * 10) / 10 : null,
-        samples: agg?.count ?? 0,
+        avgSpeed: agg?.avgSpeed ?? null,
+        samples: agg?.samples ?? 0,
       });
     }
 
