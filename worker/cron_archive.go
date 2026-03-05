@@ -3,14 +3,16 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/parquet-go/parquet-go"
 )
 
@@ -51,18 +53,14 @@ func getR2Client() (*s3.Client, string) {
 	return client, bucket
 }
 
-func runArchivePositions(ctx context.Context, pool *pgxpool.Pool) error {
+// runArchivePositions reads yesterday's R2 snapshot files and writes a single
+// Parquet archive to positions/YYYY/MM/DD.parquet. No database access needed.
+func runArchivePositions(ctx context.Context, r2 *s3.Client, bucket string) error {
 	startTime := time.Now()
-
-	r2, bucket := getR2Client()
-	if r2 == nil {
-		log.Println("[archive] R2 not configured — skipping archive")
-		return nil
-	}
 
 	now := time.Now().UTC()
 	yesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, time.UTC)
-	today := yesterday.AddDate(0, 0, 1)
+	dateStr := yesterday.Format("2006-01-02")
 
 	key := fmt.Sprintf("positions/%04d/%02d/%02d.parquet",
 		yesterday.Year(), yesterday.Month(), yesterday.Day())
@@ -77,81 +75,64 @@ func runArchivePositions(ctx context.Context, pool *pgxpool.Pool) error {
 		return nil
 	}
 
-	// Fetch positions in batches and write Parquet rows
-	const batchSize = 50000
-	var offset int
+	// List snapshot files for yesterday from R2
+	keys, err := listSnapshotKeys(ctx, r2, bucket, dateStr)
+	if err != nil {
+		return fmt.Errorf("list snapshots: %w", err)
+	}
+	if len(keys) == 0 {
+		log.Printf("[archive] No snapshots for %s", dateStr)
+		return nil
+	}
+	log.Printf("[archive] Reading %d snapshot files for %s", len(keys), dateStr)
+
+	// Read all snapshots and convert to Parquet rows
 	var rows []ParquetPosition
-
-	for {
-		dbRows, err := pool.Query(ctx,
-			`SELECT "recordedAt", "vehicleId", "vehicleNum", route, "tripId", "directionId", lat, lon, speed, heading
-			 FROM "BusPositionLog"
-			 WHERE "recordedAt" >= $1 AND "recordedAt" < $2
-			 ORDER BY "recordedAt" ASC
-			 OFFSET $3 LIMIT $4`,
-			yesterday, today, offset, batchSize)
+	for _, snapKey := range keys {
+		out, err := r2.GetObject(ctx, &s3.GetObjectInput{Bucket: &bucket, Key: &snapKey})
 		if err != nil {
-			return fmt.Errorf("query positions: %w", err)
+			log.Printf("[archive] WARNING: failed to fetch %s: %v", snapKey, err)
+			continue
 		}
-
-		batchCount := 0
-		for dbRows.Next() {
-			var recordedAt time.Time
-			var vehicleID string
-			var vehicleNum, route, tripID *string
-			var directionID *int16
-			var lat, lon float64
-			var speed, heading *float32
-
-			if err := dbRows.Scan(&recordedAt, &vehicleID, &vehicleNum, &route, &tripID, &directionID, &lat, &lon, &speed, &heading); err != nil {
-				dbRows.Close()
-				return fmt.Errorf("scan position: %w", err)
-			}
-
+		body, err := io.ReadAll(out.Body)
+		out.Body.Close()
+		if err != nil {
+			log.Printf("[archive] WARNING: failed to read %s: %v", snapKey, err)
+			continue
+		}
+		var snap SnapshotFile
+		if err := json.Unmarshal(body, &snap); err != nil {
+			log.Printf("[archive] WARNING: failed to parse %s: %v", snapKey, err)
+			continue
+		}
+		for _, p := range snap.Positions {
 			row := ParquetPosition{
-				RecordedAt: recordedAt.Format(time.RFC3339),
-				VehicleID:  vehicleID,
-				Lat:        lat,
-				Lon:        lon,
+				RecordedAt: snap.RecordedAt,
+				VehicleID:  p.VehicleID,
+				VehicleNum: p.VehicleNum,
+				Route:      p.Route,
+				TripID:     p.TripID,
+				Lat:        p.Lat,
+				Lon:        p.Lon,
 			}
-			if vehicleNum != nil {
-				row.VehicleNum = *vehicleNum
-			}
-			if route != nil {
-				row.Route = *route
-			}
-			if tripID != nil {
-				row.TripID = *tripID
-			}
-			if directionID != nil {
-				row.DirectionID = int32(*directionID)
+			if p.DirectionID != nil {
+				row.DirectionID = int32(*p.DirectionID)
 			} else {
 				row.DirectionID = -1
 			}
-			if speed != nil {
-				row.Speed = *speed
+			if p.Speed != nil {
+				row.Speed = float32(*p.Speed)
 			} else {
 				row.Speed = -1
 			}
-			if heading != nil {
-				row.Heading = *heading
-			} else {
-				row.Heading = -1
-			}
-
+			// Heading not available in snapshots
+			row.Heading = -1
 			rows = append(rows, row)
-			batchCount++
-		}
-		dbRows.Close()
-
-		offset += batchCount
-		if batchCount < batchSize {
-			break
 		}
 	}
 
 	if len(rows) == 0 {
-		log.Printf("[archive] No positions for %s", yesterday.Format("2006-01-02"))
+		log.Printf("[archive] No positions in snapshots for %s", dateStr)
 		return nil
 	}
 
@@ -177,7 +158,7 @@ func runArchivePositions(ctx context.Context, pool *pgxpool.Pool) error {
 		ContentType: &contentType,
 		Metadata: map[string]string{
 			"rows": fmt.Sprintf("%d", len(rows)),
-			"date": yesterday.Format("2006-01-02"),
+			"date": dateStr,
 		},
 	})
 	if err != nil {
@@ -190,6 +171,55 @@ func runArchivePositions(ctx context.Context, pool *pgxpool.Pool) error {
 
 	elapsed := time.Since(startTime)
 	sizeMB := float64(len(body)) / 1024 / 1024
-	log.Printf("[archive] Archived %d positions (%.2f MB) to %s in %s", offset, sizeMB, key, elapsed)
+	log.Printf("[archive] Archived %d positions (%.2f MB) to %s in %s",
+		len(body), sizeMB, key, elapsed)
 	return nil
+}
+
+// listSnapshotKeysForCleanup returns snapshot object keys older than the cutoff.
+// It lists all snapshots/ prefixed objects and filters by date directory.
+func listSnapshotKeysForCleanup(ctx context.Context, r2 *s3.Client, bucket string, beforeDate time.Time) ([]string, error) {
+	prefix := "snapshots/"
+	var keys []string
+	var continuationToken *string
+
+	for {
+		out, err := r2.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+			Bucket:            &bucket,
+			Prefix:            &prefix,
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list R2 objects: %w", err)
+		}
+		for _, obj := range out.Contents {
+			if obj.Key == nil {
+				continue
+			}
+			k := *obj.Key
+			// Skip today.json
+			if k == "snapshots/today.json" {
+				continue
+			}
+			// Keys look like snapshots/YYYY/MM/DD/HHMMSS.json
+			// Extract date from path
+			parts := strings.Split(strings.TrimPrefix(k, "snapshots/"), "/")
+			if len(parts) < 3 {
+				continue
+			}
+			dateStr := parts[0] + "-" + parts[1] + "-" + parts[2]
+			t, err := time.Parse("2006-01-02", dateStr)
+			if err != nil {
+				continue
+			}
+			if t.Before(beforeDate) {
+				keys = append(keys, k)
+			}
+		}
+		if out.IsTruncated == nil || !*out.IsTruncated {
+			break
+		}
+		continuationToken = out.NextContinuationToken
+	}
+	return keys, nil
 }

@@ -5,6 +5,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getR2Json } from "@/lib/r2-client";
 import { computeGrade } from "@/lib/analytics/metrics";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
 import { CACHE_1DAY, cacheFor } from "@/lib/analytics/cache";
@@ -133,49 +134,95 @@ export async function GET(request: NextRequest) {
     }
 
     if (view === "stringline") {
-      // Return trip trajectories for Marey chart
+      // Return trip trajectories for Marey chart — read from R2 snapshots
       const todayStart = new Date(now);
       todayStart.setUTCHours(0, 0, 0, 0);
-      const todayEnd = new Date(todayStart);
-      todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
+      const dateStr = todayStart.toISOString().slice(0, 10);
+      const [yyyy, mm, dd] = dateStr.split("-");
+      const prefix = `snapshots/${yyyy}/${mm}/${dd}/`;
 
-      const positions = await prisma.busPositionLog.findMany({
-        where: {
-          route,
-          recordedAt: { gte: todayStart, lt: todayEnd },
-        },
-        orderBy: { recordedAt: "asc" },
-        select: {
-          recordedAt: true,
-          vehicleId: true,
-          vehicleNum: true,
-          lat: true,
-          lon: true,
-          speed: true,
-          directionId: true,
-        },
+      // List today's snapshot keys from R2 via a lightweight helper
+      interface SnapshotFile {
+        recordedAt: string;
+        positions: {
+          vehicleId: string;
+          vehicleNum?: string;
+          route?: string;
+          directionId?: number;
+          lat: number;
+          lon: number;
+          speed?: number;
+        }[];
+      }
+
+      // We need to list snapshot keys — use S3 ListObjects via the r2-client
+      const { S3Client, ListObjectsV2Command } = await import("@aws-sdk/client-s3");
+      const endpoint = process.env.R2_ENDPOINT;
+      const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+      const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+      const bucket = process.env.R2_BUCKET ?? "porto-move";
+
+      if (!endpoint || !accessKeyId || !secretAccessKey) {
+        return NextResponse.json(
+          {
+            route,
+            date: dateStr,
+            vehicles: [],
+          },
+          { headers: cacheFor(300) }
+        );
+      }
+
+      const s3 = new S3Client({
+        endpoint,
+        region: "auto",
+        credentials: { accessKeyId, secretAccessKey },
+        forcePathStyle: false,
       });
 
-      // Group by vehicle
+      // List all snapshot files for today
+      const keys: string[] = [];
+      let continuationToken: string | undefined;
+      do {
+        const listRes = await s3.send(
+          new ListObjectsV2Command({
+            Bucket: bucket,
+            Prefix: prefix,
+            ContinuationToken: continuationToken,
+          })
+        );
+        for (const obj of listRes.Contents ?? []) {
+          if (obj.Key) keys.push(obj.Key);
+        }
+        continuationToken = listRes.IsTruncated ? listRes.NextContinuationToken : undefined;
+      } while (continuationToken);
+
+      // Read snapshots and extract positions for this route
       const vehicleTrails = new Map<
         string,
         { time: string; lat: number; lon: number; speed: number | null }[]
       >();
-      for (const p of positions) {
-        if (!vehicleTrails.has(p.vehicleId)) {
-          vehicleTrails.set(p.vehicleId, []);
+
+      for (const key of keys) {
+        const snap = await getR2Json<SnapshotFile>(key);
+        if (!snap) continue;
+        for (const p of snap.positions) {
+          if (p.route !== route) continue;
+          if (!vehicleTrails.has(p.vehicleId)) {
+            vehicleTrails.set(p.vehicleId, []);
+          }
+          vehicleTrails.get(p.vehicleId)!.push({
+            time: snap.recordedAt,
+            lat: p.lat,
+            lon: p.lon,
+            speed: p.speed ?? null,
+          });
         }
-        vehicleTrails.get(p.vehicleId)!.push({
-          time: p.recordedAt.toISOString(),
-          lat: p.lat,
-          lon: p.lon,
-          speed: p.speed,
-        });
       }
 
       const stringlineData = {
         route,
-        date: todayStart.toISOString().slice(0, 10),
+        date: dateStr,
         vehicles: [...vehicleTrails.entries()].map(([id, trail]) => ({
           vehicleId: id,
           positions: trail,

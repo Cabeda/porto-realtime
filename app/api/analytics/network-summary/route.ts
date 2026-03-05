@@ -2,13 +2,28 @@
  * API: Network summary for analytics dashboard (#68)
  * Returns KPIs, speed timeseries, and fleet activity data.
  * Supports: period=today|7d|30d or date=YYYY-MM-DD
+ *
+ * "today" mode reads live stats from R2 (snapshots/today.json) instead of
+ * querying BusPositionLog, allowing Neon to idle between user interactions.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getR2Json } from "@/lib/r2-client";
 import { parseDateFilter } from "@/lib/analytics/date-filter";
 import { CACHE_1DAY, cacheFor } from "@/lib/analytics/cache";
 import { KeyedStaleCache, SingleFlight } from "@/lib/api-fetch";
+
+interface TodaySummary {
+  updatedAt: string;
+  date: string;
+  positionsCollected: number;
+  activeVehicles: number;
+  activeRoutes: number;
+  avgSpeed: number | null;
+  hourlySpeed: { hour: number; avgSpeed: number | null; samples: number }[];
+  hourlyFleet: { hour: number; vehicles: number; routes: number }[];
+}
 
 const CACHE = CACHE_1DAY;
 const memCache = new KeyedStaleCache<unknown>(5 * 60 * 1000);
@@ -26,55 +41,21 @@ export async function GET(request: NextRequest) {
 
   try {
     if (filter.mode === "today") {
-      const now = new Date();
-      const todayStart = new Date(now);
-      todayStart.setUTCHours(0, 0, 0, 0);
-
-      const [posCount, vehicleCount, routeCount, avgSpeedResult, lastSummary] = await sf.do(
-        cacheKey,
-        () =>
-          Promise.all([
-            prisma.busPositionLog.count({
-              where: { recordedAt: { gte: todayStart } },
-            }),
-            prisma.busPositionLog
-              .findMany({
-                where: { recordedAt: { gte: todayStart } },
-                distinct: ["vehicleId"],
-                select: { vehicleId: true },
-              })
-              .then((r) => r.length),
-            prisma.busPositionLog
-              .findMany({
-                where: {
-                  recordedAt: { gte: todayStart },
-                  route: { not: null },
-                },
-                distinct: ["route"],
-                select: { route: true },
-              })
-              .then((r) => r.length),
-            prisma.busPositionLog.aggregate({
-              where: {
-                recordedAt: { gte: todayStart },
-                speed: { gt: 0 },
-              },
-              _avg: { speed: true },
-            }),
-            prisma.networkSummaryDaily.findFirst({
-              orderBy: { date: "desc" },
-            }),
-          ])
+      const [todaySummary, lastSummary] = await sf.do(cacheKey, () =>
+        Promise.all([
+          getR2Json<TodaySummary>("snapshots/today.json"),
+          prisma.networkSummaryDaily.findFirst({
+            orderBy: { date: "desc" },
+          }),
+        ])
       );
 
       const data = {
         period: "today",
-        activeVehicles: vehicleCount,
-        activeRoutes: routeCount,
-        positionsCollected: posCount,
-        avgSpeed: avgSpeedResult._avg.speed
-          ? Math.round(avgSpeedResult._avg.speed * 10) / 10
-          : null,
+        activeVehicles: todaySummary?.activeVehicles ?? 0,
+        activeRoutes: todaySummary?.activeRoutes ?? 0,
+        positionsCollected: todaySummary?.positionsCollected ?? 0,
+        avgSpeed: todaySummary?.avgSpeed ? Math.round(todaySummary.avgSpeed * 10) / 10 : null,
         yesterdayAvgSpeed: lastSummary?.avgCommercialSpeed
           ? Math.round(lastSummary.avgCommercialSpeed * 10) / 10
           : null,

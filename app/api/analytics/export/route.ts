@@ -10,6 +10,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { listArchiveDates, getArchiveUrl, isR2Configured } from "@/lib/r2";
+import { getR2Json } from "@/lib/r2-client";
 
 function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
@@ -72,33 +73,82 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Check if date is today — serve from Neon
+      // Check if date is today — read from R2 snapshots
       const today = new Date().toISOString().slice(0, 10);
       if (date === today) {
-        const dayStart = new Date(date + "T00:00:00Z");
-        const dayEnd = new Date(date + "T23:59:59Z");
+        interface SnapshotFile {
+          recordedAt: string;
+          positions: {
+            vehicleId: string;
+            vehicleNum?: string;
+            route?: string;
+            tripId?: string;
+            directionId?: number;
+            lat: number;
+            lon: number;
+            speed?: number;
+            heading?: number;
+          }[];
+        }
 
-        const positions = await prisma.busPositionLog.findMany({
-          where: {
-            recordedAt: { gte: dayStart, lte: dayEnd },
-            ...(route ? { route } : {}),
-          },
-          orderBy: { recordedAt: "asc" },
-          take: 500000,
+        const { S3Client, ListObjectsV2Command } = await import("@aws-sdk/client-s3");
+        const endpoint = process.env.R2_ENDPOINT;
+        const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+        const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+        const bucket = process.env.R2_BUCKET ?? "porto-move";
+
+        if (!endpoint || !accessKeyId || !secretAccessKey) {
+          return NextResponse.json(
+            { error: "R2 not configured — cannot export today's positions" },
+            { status: 503 }
+          );
+        }
+
+        const s3 = new S3Client({
+          endpoint,
+          region: "auto",
+          credentials: { accessKeyId, secretAccessKey },
+          forcePathStyle: false,
         });
 
-        const data = positions.map((p) => ({
-          recorded_at: p.recordedAt.toISOString(),
-          vehicle_id: p.vehicleId,
-          vehicle_num: p.vehicleNum,
-          route: p.route,
-          trip_id: p.tripId,
-          direction_id: p.directionId,
-          lat: p.lat,
-          lon: p.lon,
-          speed: p.speed,
-          heading: p.heading,
-        }));
+        const [yyyy, mm, dd] = date.split("-");
+        const prefix = `snapshots/${yyyy}/${mm}/${dd}/`;
+        const keys: string[] = [];
+        let continuationToken: string | undefined;
+        do {
+          const listRes = await s3.send(
+            new ListObjectsV2Command({
+              Bucket: bucket,
+              Prefix: prefix,
+              ContinuationToken: continuationToken,
+            })
+          );
+          for (const obj of listRes.Contents ?? []) {
+            if (obj.Key) keys.push(obj.Key);
+          }
+          continuationToken = listRes.IsTruncated ? listRes.NextContinuationToken : undefined;
+        } while (continuationToken);
+
+        const data: Record<string, unknown>[] = [];
+        for (const key of keys) {
+          const snap = await getR2Json<SnapshotFile>(key);
+          if (!snap) continue;
+          for (const p of snap.positions) {
+            if (route && p.route !== route) continue;
+            data.push({
+              recorded_at: snap.recordedAt,
+              vehicle_id: p.vehicleId,
+              vehicle_num: p.vehicleNum ?? null,
+              route: p.route ?? null,
+              trip_id: p.tripId ?? null,
+              direction_id: p.directionId ?? null,
+              lat: p.lat,
+              lon: p.lon,
+              speed: p.speed ?? null,
+              heading: p.heading ?? null,
+            });
+          }
+        }
 
         if (format === "csv") {
           return new NextResponse(toCsv(data), {
@@ -114,7 +164,7 @@ export async function GET(request: NextRequest) {
           meta: {
             type: "positions",
             date,
-            source: "live",
+            source: "r2-snapshots",
             route: route || "all",
             count: data.length,
             methodology: "/analytics/about",
@@ -122,7 +172,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Historical date — try R2 first, then fall back to Neon (if data still exists)
+      // Historical date — try R2 Parquet archive
       const archiveUrl = await getArchiveUrl(date);
       if (archiveUrl) {
         return NextResponse.json({
@@ -139,61 +189,12 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Fall back to Neon (data might still be within retention window)
-      const dayStart = new Date(date + "T00:00:00Z");
-      const dayEnd = new Date(date + "T23:59:59Z");
-
-      const positions = await prisma.busPositionLog.findMany({
-        where: {
-          recordedAt: { gte: dayStart, lte: dayEnd },
-          ...(route ? { route } : {}),
+      return NextResponse.json(
+        {
+          error: `No position data available for ${date}. Today's data is in R2 snapshots; older data is archived as Parquet.`,
         },
-        orderBy: { recordedAt: "asc" },
-        take: 500000,
-      });
-
-      if (positions.length === 0) {
-        return NextResponse.json(
-          {
-            error: `No position data available for ${date}. Data older than 1 day is archived to R2 as Parquet.`,
-          },
-          { status: 404 }
-        );
-      }
-
-      const data = positions.map((p) => ({
-        recorded_at: p.recordedAt.toISOString(),
-        vehicle_id: p.vehicleId,
-        vehicle_num: p.vehicleNum,
-        route: p.route,
-        trip_id: p.tripId,
-        direction_id: p.directionId,
-        lat: p.lat,
-        lon: p.lon,
-        speed: p.speed,
-        heading: p.heading,
-      }));
-
-      if (format === "csv") {
-        return new NextResponse(toCsv(data), {
-          headers: {
-            "Content-Type": "text/csv",
-            "Content-Disposition": `attachment; filename="positions-${date}.csv"`,
-          },
-        });
-      }
-
-      return NextResponse.json({
-        data,
-        meta: {
-          type: "positions",
-          date,
-          source: "neon",
-          route: route || "all",
-          count: data.length,
-          methodology: "/analytics/about",
-        },
-      });
+        { status: 404 }
+      );
     }
 
     if (type === "route-performance") {

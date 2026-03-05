@@ -25,53 +25,57 @@ type scheduledJob struct {
 	fn        func(ctx context.Context) error
 }
 
-// jobRegistry maps job names to their run functions (populated after pool init)
-type jobEntry struct {
-	name string
-	fn   func(ctx context.Context) error
-}
-
 func main() {
 	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("FATAL: DATABASE_URL environment variable is not set")
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pool, err := newPool(ctx, dbURL)
-	if err != nil {
-		log.Fatalf("FATAL: Database connection failed: %v", err)
+	// R2 is required for collection
+	r2, bucket := getR2Client()
+	if r2 == nil {
+		log.Fatal("FATAL: R2 not configured — set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY")
 	}
-	defer pool.Close()
 
-	// Verify DB connectivity
-	var ok int
-	if err := pool.QueryRow(ctx, "SELECT 1 as ok").Scan(&ok); err != nil {
-		log.Fatalf("FATAL: Database connection failed: %v", err)
-	}
-	log.Println("Database connection: OK")
+	// DB pool is only needed for scheduled jobs (aggregate, archive, cleanup, segments, snapshot)
+	// Collection loop does not touch the DB.
+	var jobs []scheduledJob
+	if dbURL != "" {
+		pool, err := newPool(ctx, dbURL)
+		if err != nil {
+			log.Fatalf("FATAL: Database connection failed: %v", err)
+		}
+		defer pool.Close()
 
-	var count int64
-	if err := pool.QueryRow(ctx, `SELECT COUNT(*) FROM "BusPositionLog" LIMIT 1`).Scan(&count); err != nil {
-		log.Fatalf("FATAL: BusPositionLog table check failed: %v", err)
-	}
-	log.Println("BusPositionLog table: OK")
+		var ok int
+		if err := pool.QueryRow(ctx, "SELECT 1 as ok").Scan(&ok); err != nil {
+			log.Fatalf("FATAL: Database ping failed: %v", err)
+		}
+		log.Println("Database connection: OK")
 
-	// Define scheduled jobs
-	monday := time.Monday
-	jobs := []scheduledJob{
-		{name: "aggregate-daily", hour: 3, dayOfWeek: nil, fn: func(ctx context.Context) error { return runAggregateDaily(ctx, pool) }},
-		{name: "archive-positions", hour: 3, dayOfWeek: nil, fn: func(ctx context.Context) error { return runArchivePositions(ctx, pool) }},
-		{name: "cleanup-positions", hour: 4, dayOfWeek: nil, fn: func(ctx context.Context) error { return runCleanupPositions(ctx, pool) }},
-		{name: "refresh-segments", hour: 5, dayOfWeek: &monday, fn: func(ctx context.Context) error { return runRefreshSegments(ctx, pool) }},
+		monday := time.Monday
+		jobs = []scheduledJob{
+			{name: "snapshot-schedule", hour: 1, dayOfWeek: nil, fn: func(ctx context.Context) error {
+				return runSnapshotSchedule(ctx, pool)
+			}},
+			{name: "aggregate-daily", hour: 3, dayOfWeek: nil, fn: func(ctx context.Context) error {
+				return runAggregateDaily(ctx, pool, r2, bucket)
+			}},
+			{name: "archive-positions", hour: 3, dayOfWeek: nil, fn: func(ctx context.Context) error {
+				return runArchivePositions(ctx, r2, bucket)
+			}},
+			{name: "cleanup-positions", hour: 4, dayOfWeek: nil, fn: func(ctx context.Context) error {
+				return runCleanupPositions(ctx, r2, bucket)
+			}},
+			{name: "refresh-segments", hour: 5, dayOfWeek: &monday, fn: func(ctx context.Context) error {
+				return runRefreshSegments(ctx, pool)
+			}},
+		}
+	} else {
+		log.Println("WARNING: DATABASE_URL not set — scheduled jobs (aggregate, archive, cleanup) disabled")
 	}
 
 	// --- CLI mode: run a specific job and exit ---
-	// Usage: worker run <job-name>
-	//   e.g. worker run aggregate-daily
-	//        worker run cleanup-positions
 	if len(os.Args) >= 3 && os.Args[1] == "run" {
 		jobName := os.Args[2]
 		var target *scheduledJob
@@ -114,7 +118,6 @@ func main() {
 	log.Println("")
 	log.Println("Starting main loop...")
 
-	// Graceful shutdown
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 
@@ -128,7 +131,7 @@ func main() {
 	defer ticker.Stop()
 
 	// Run first collection immediately
-	collected, err := collectPositions(ctx, pool)
+	collected, err := collectPositions(ctx, r2, bucket)
 	if err != nil {
 		totalErrors++
 		log.Printf("[collect] Failed: %v", err)
@@ -147,7 +150,7 @@ func main() {
 			cancel()
 			return
 		case <-ticker.C:
-			collected, err := collectPositions(ctx, pool)
+			collected, err := collectPositions(ctx, r2, bucket)
 			if err != nil {
 				totalErrors++
 				log.Printf("[collect] Failed: %v", err)
@@ -195,7 +198,9 @@ func checkScheduledJobs(ctx context.Context, jobs []scheduledJob, lastRun map[st
 }
 
 func maskDatabaseURL(url string) string {
-	// Mask password in postgres://user:password@host/db
+	if url == "" {
+		return "(not set)"
+	}
 	atIdx := strings.Index(url, "@")
 	if atIdx == -1 {
 		return url

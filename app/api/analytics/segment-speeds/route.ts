@@ -1,8 +1,8 @@
 /**
  * API: Segment speeds for heatmap and dashboard maps (#69)
  *
- * For "today": computes live average speed per route from raw BusPositionLog,
- * then maps it onto route segments for visualization.
+ * For "today": reads from pre-aggregated SegmentSpeedHourly if available,
+ * otherwise returns null speeds (raw positions are in R2, not Postgres).
  * For historical periods: reads from pre-aggregated SegmentSpeedHourly.
  */
 
@@ -113,59 +113,23 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Fallback: compute live average speed per route from raw positions
-      const liveTimeFilter =
-        hFrom !== null && hTo !== null
-          ? {
-              gte: new Date(dayStart.getTime() + hFrom * 3600_000),
-              lt: new Date(dayStart.getTime() + hTo * 3600_000),
-            }
-          : { gte: dayStart, lte: dayEnd };
-
-      const routeSpeeds = await sf.do(cacheKey + ":live", () =>
-        prisma.busPositionLog.groupBy({
-          by: ["route"],
-          where: {
-            recordedAt: liveTimeFilter,
-            speed: { gt: 0 },
-            route: route ? route : { not: null },
-          },
-          _avg: { speed: true },
-          _count: { speed: true },
-        })
-      );
-
-      const routeSpeedMap = new Map(
-        routeSpeeds
-          .filter((r) => r.route !== null)
-          .map((r) => [
-            r.route!,
-            {
-              avgSpeed: r._avg.speed ? Math.round(r._avg.speed * 10) / 10 : null,
-              count: r._count.speed,
-            },
-          ])
-      );
-
-      const liveData = {
+      // No pre-aggregated data yet — return segments with null speeds
+      const emptyData = {
         period: periodLabel,
-        source: "live",
-        segments: segments.map((seg) => {
-          const rs = routeSpeedMap.get(seg.route);
-          return {
-            id: seg.id,
-            route: seg.route,
-            directionId: seg.directionId,
-            geometry: seg.geometry,
-            lengthM: seg.lengthM,
-            avgSpeed: rs?.avgSpeed ?? null,
-            medianSpeed: null,
-            sampleCount: rs?.count ?? 0,
-          };
-        }),
+        source: "pending",
+        segments: segments.map((seg) => ({
+          id: seg.id,
+          route: seg.route,
+          directionId: seg.directionId,
+          geometry: seg.geometry,
+          lengthM: seg.lengthM,
+          avgSpeed: null,
+          medianSpeed: null,
+          sampleCount: 0,
+        })),
       };
-      memCache.set(cacheKey, liveData);
-      return NextResponse.json(liveData, {
+      memCache.set(cacheKey, emptyData);
+      return NextResponse.json(emptyData, {
         headers: filter.mode === "today" ? cacheFor(300) : CACHE,
       });
     }
