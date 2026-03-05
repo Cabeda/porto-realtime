@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Aggregate per route (combine directions)
+    // canceledTrips derived from scheduled - observed (upper bound)
     const routeAgg = new Map<
       string,
       {
@@ -56,7 +57,6 @@ export async function GET(request: NextRequest) {
         speeds: number[];
         bunchings: number[];
         gappings: number[];
-        canceledPcts: number[];
         canceledTrips: number;
         tripsScheduled: number;
       }
@@ -71,7 +71,6 @@ export async function GET(request: NextRequest) {
           speeds: [],
           bunchings: [],
           gappings: [],
-          canceledPcts: [],
           canceledTrips: 0,
           tripsScheduled: 0,
         });
@@ -83,9 +82,10 @@ export async function GET(request: NextRequest) {
       if (r.avgCommercialSpeed !== null) agg.speeds.push(r.avgCommercialSpeed);
       if (r.bunchingPct !== null) agg.bunchings.push(r.bunchingPct);
       if (r.gappingPct !== null) agg.gappings.push(r.gappingPct);
-      if (r.canceledPct !== null) agg.canceledPcts.push(r.canceledPct);
-      if (r.canceledTrips !== null) agg.canceledTrips += r.canceledTrips;
-      if (r.tripsScheduled !== null) agg.tripsScheduled += r.tripsScheduled;
+      if (r.tripsScheduled !== null) {
+        agg.tripsScheduled += r.tripsScheduled;
+        agg.canceledTrips += Math.max(0, r.tripsScheduled - r.tripsObserved);
+      }
     }
 
     const avg = (arr: number[]) =>

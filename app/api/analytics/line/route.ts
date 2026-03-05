@@ -111,7 +111,12 @@ export async function GET(request: NextRequest) {
               ) / 10
             : null,
         avgCanceledPct: (() => {
-          const vals = perf.filter((p) => p.canceledPct !== null).map((p) => p.canceledPct!);
+          const vals = perf
+            .filter((p) => p.tripsScheduled !== null && p.tripsScheduled! > 0)
+            .map((p) => {
+              const canceled = Math.max(0, (p.tripsScheduled ?? 0) - p.tripsObserved);
+              return Math.round((canceled / p.tripsScheduled!) * 1000) / 10;
+            });
           return vals.length > 0
             ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
             : null;
@@ -124,7 +129,12 @@ export async function GET(request: NextRequest) {
           speed: p.avgCommercialSpeed,
           bunching: p.bunchingPct,
           gapping: p.gappingPct,
-          canceledPct: p.canceledPct ?? null,
+          canceledPct:
+            p.tripsScheduled != null && p.tripsScheduled > 0
+              ? Math.round(
+                  (Math.max(0, p.tripsScheduled - p.tripsObserved) / p.tripsScheduled) * 1000
+                ) / 10
+              : null,
         })),
       };
       memCache.set(cacheKey, summaryData);
