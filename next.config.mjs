@@ -5,6 +5,7 @@ const { version } = require("./package.json");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactCompiler: true,
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
   },
