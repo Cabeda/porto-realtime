@@ -1,5 +1,40 @@
 # Changelog
 
+## [2.3.0](https://github.com/Cabeda/porto-realtime/compare/porto-app-v2.2.0...porto-app-v2.3.0) (2026-03-05)
+
+
+### Features
+
+* add shared PageHeader with UserMenu and settings across all pages ([cdc0cdb](https://github.com/Cabeda/porto-realtime/commit/cdc0cdb1d66d9cae426a83425857bdba0df5fb8f))
+* enforce Rules of React with compiler-powered linting via react-hooks recommended-latest ([3225490](https://github.com/Cabeda/porto-realtime/commit/32254908b11b70405d9847222fad766d61f28860))
+* migrate Tailwind CSS 3→4 with @tailwindcss/postcss, remove autoprefixer, update class syntax across 42 files ([789b450](https://github.com/Cabeda/porto-realtime/commit/789b45090ccd6798f1a91f87cbcdc26d97055934))
+* remove app store scrapers and ExternalReview ([20be016](https://github.com/Cabeda/porto-realtime/commit/20be01688ef15b50ebbaf7af1a38a8af5e9ad0b8))
+* replace BusPositionLog Postgres writes with R2 snapshots ([605c135](https://github.com/Cabeda/porto-realtime/commit/605c1359bf29bb4ab72c0e657fd9d41872697b16))
+* replace BusPositionLog Postgres writes with R2 snapshots ([3c746f4](https://github.com/Cabeda/porto-realtime/commit/3c746f460742f2377255d67f261089135f63c465))
+* upgrade React 18→19, enable React Compiler, update @types/node to v25 ([eb558c9](https://github.com/Cabeda/porto-realtime/commit/eb558c97a69a3f4e6b9eec9d50402b518b03b46b))
+
+
+### Bug Fixes
+
+* add routePerformanceDaily and tripLog to mock Prisma client for test type safety ([03b5920](https://github.com/Cabeda/porto-realtime/commit/03b59207f6b57a41c245b0e1d09e48645e070a5b))
+* **deploy:** add root fly.toml for Fly.io GitHub integration ([4a68cf3](https://github.com/Cabeda/porto-realtime/commit/4a68cf32890f14f3817afe1e412b4a31e57cc4bc))
+* **deploy:** bump Dockerfile to Go 1.24 (matches go.mod requirement) ([bc49bba](https://github.com/Cabeda/porto-realtime/commit/bc49bba39e1f0dfeaf40a26df20268a68d066f5c))
+* derive canceledPct from tripsScheduled-tripsObserved in line and reliability routes ([f99a200](https://github.com/Cabeda/porto-realtime/commit/f99a20078dc9d1b6d9ad6e5edfe2df5f4a55eeb8))
+* derive canceledTrips from scheduled-observed instead of missing schema fields ([464dd58](https://github.com/Cabeda/porto-realtime/commit/464dd5833648e6b2bd3f4d87674b9ab47f2c7535))
+* fleet-activity handles 7d/30d periods, speed-timeseries uses SQL aggregation to avoid timeout ([7a25a0e](https://github.com/Cabeda/porto-realtime/commit/7a25a0e7d2c1ed3cc4db9d9df3b6f1a06c11110d))
+* override form-data to &gt;=2.5.4 to resolve critical CVE in app-store-scraper transitive dep ([caba618](https://github.com/Cabeda/porto-realtime/commit/caba618d18950e11778b3ae8109482628e7a7d9d))
+* override qs and minimatch to patch high CVEs, raise audit level to high ([8366d56](https://github.com/Cabeda/porto-realtime/commit/8366d56c9f59fd11bef6e315590c0b75e81ddf78))
+* resolve dependency vulnerabilities via updates and pnpm overrides ([aeefca9](https://github.com/Cabeda/porto-realtime/commit/aeefca940ea187898dfebb00168840478d956bca))
+* search line results now navigate to analytics line page ([8e8c52c](https://github.com/Cabeda/porto-realtime/commit/8e8c52c77ddfd2b4e6be0f6c97b1552736c1cb98))
+* **security:** bump rollup override to &gt;=4.59.0 (GHSA-mw96-cpmx-2vgc) ([560e9e0](https://github.com/Cabeda/porto-realtime/commit/560e9e0924b8994054e53715218513f6d89892ab))
+* **tests:** mock KeyedStaleCache to prevent cross-test cache pollution ([94a400a](https://github.com/Cabeda/porto-realtime/commit/94a400a38649af662ec08d2f02ee34efd4794e75))
+* use gtfsId as key in route select to avoid duplicate key warnings ([70f49b5](https://github.com/Cabeda/porto-realtime/commit/70f49b51179a1ad1fc604586f8b3f17d0f3f5d11))
+
+
+### Performance Improvements
+
+* add k6 load tests for all API routes and fix analytics caching ([474621f](https://github.com/Cabeda/porto-realtime/commit/474621f9e1d15c635285daf8cb77eaedba4d9ae1))
+
 ## [2.1.1](https://github.com/Cabeda/porto-realtime/compare/porto-app-v2.1.0...porto-app-v2.1.1) (2026-02-23)
 
 ### Bug Fixes
