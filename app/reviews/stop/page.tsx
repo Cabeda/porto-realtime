@@ -84,7 +84,7 @@ function StopReviewsContent() {
               <UserMenu />
               <button
                 onClick={() => setShowSettings(true)}
-                className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
                 title={t.nav.settings}
                 aria-label={t.nav.settings}
               >
@@ -106,7 +106,7 @@ function StopReviewsContent() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-surface-sunken rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-surface-sunken rounded-full flex items-center justify-center shrink-0">
               <div className="w-4 h-4 bg-red-500 dark:bg-red-400 rounded-full border-2 border-surface-raised" />
             </div>
             <div className="flex-1 min-w-0">
@@ -129,7 +129,7 @@ function StopReviewsContent() {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setShowFeedbackSheet(true)}
                 className="flex items-center gap-1.5 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors text-sm font-medium"

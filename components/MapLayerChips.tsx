@@ -86,7 +86,7 @@ export function MapLayerChips({
       {/* Route filter chip */}
       <button
         onClick={onOpenRouteFilter}
-        className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium shadow-md border transition-all ${
+        className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium shadow-md border transition-all ${
           selectedRoutesCount > 0
             ? "bg-accent text-content-inverse border-accent"
             : "bg-surface-raised text-content-secondary border-border hover:bg-surface-sunken"
@@ -107,7 +107,7 @@ export function MapLayerChips({
         </svg>
         <span className="hidden sm:inline">{t.map.filterRoutes}</span>
         {selectedRoutesCount > 0 && (
-          <span className="bg-white/30 rounded-full px-1 min-w-[1rem] text-center text-[10px]">
+          <span className="bg-white/30 rounded-full px-1 min-w-4 text-center text-[10px]">
             {selectedRoutesCount}
           </span>
         )}
@@ -119,7 +119,7 @@ export function MapLayerChips({
           key={layer.id}
           onClick={layer.onToggle}
           disabled={layer.disabled}
-          className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium shadow-md border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+          className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium shadow-md border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
             layer.active
               ? "bg-accent text-content-inverse border-accent"
               : "bg-surface-raised text-content-secondary border-border hover:bg-surface-sunken"

@@ -104,7 +104,7 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 z-[2000]">
+    <div className="fixed inset-0 z-2000">
       {/* Backdrop */}
       <div
         ref={backdropRef}

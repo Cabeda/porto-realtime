@@ -246,7 +246,7 @@ export default function HistoryPage() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+    <div className="min-h-screen bg-(--color-surface-sunken) text-(--color-content)">
       <PageHeader title="History Replay" backHref="/analytics" />
 
       <div className="max-w-7xl mx-auto px-4 py-6">
@@ -260,13 +260,13 @@ export default function HistoryPage() {
               setDate(e.target.value);
               setPlaying(false);
             }}
-            className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm"
+            className="px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-surface) text-sm"
           />
 
           <button
             onClick={() => setPlaying((p) => !p)}
             disabled={!replayData || replayLoading}
-            className="px-4 py-2 rounded-lg bg-[var(--color-accent)] text-white text-sm disabled:opacity-40"
+            className="px-4 py-2 rounded-lg bg-(--color-accent) text-white text-sm disabled:opacity-40"
           >
             {playing ? "⏸ Pause" : "▶ Play"}
           </button>
@@ -277,7 +277,7 @@ export default function HistoryPage() {
               setCurrentMs(replayData?.dayStartMs ?? 0);
             }}
             disabled={!replayData}
-            className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm disabled:opacity-40"
+            className="px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-surface) text-sm disabled:opacity-40"
           >
             ↺ Reset
           </button>
@@ -287,7 +287,7 @@ export default function HistoryPage() {
             <select
               value={speed}
               onChange={(e) => setSpeed(Number(e.target.value))}
-              className="px-2 py-1 rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-sm"
+              className="px-2 py-1 rounded border border-(--color-border) bg-(--color-surface) text-sm"
             >
               <option value={30}>30×</option>
               <option value={60}>60×</option>
@@ -296,7 +296,7 @@ export default function HistoryPage() {
             </select>
           </label>
 
-          <span className="text-sm text-[var(--color-content-secondary)] ml-auto">
+          <span className="text-sm text-(--color-content-secondary) ml-auto">
             {replayData ? `${activeCount} vehicles active` : replayLoading ? "Loading…" : ""}
           </span>
         </div>
@@ -313,9 +313,9 @@ export default function HistoryPage() {
               setCurrentMs(Number(e.target.value));
             }}
             disabled={!replayData}
-            className="w-full accent-[var(--color-accent)]"
+            className="w-full accent-(--color-accent)"
           />
-          <div className="flex justify-between text-xs text-[var(--color-content-secondary)] mt-1">
+          <div className="flex justify-between text-xs text-(--color-content-secondary) mt-1">
             <span>{replayData ? formatTime(replayData.dayStartMs) : "--:--"}</span>
             <span className="font-mono">{formatTime(currentMs)}</span>
             <span>{replayData ? formatTime(replayData.dayEndMs) : "--:--"}</span>
@@ -323,21 +323,21 @@ export default function HistoryPage() {
         </div>
 
         {/* Map */}
-        <div className="relative rounded-xl border border-[var(--color-border)] overflow-hidden">
+        <div className="relative rounded-xl border border-(--color-border) overflow-hidden">
           <div ref={containerRef} className="w-full h-[580px]" />
           {!replayData && !replayLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)]/80 text-sm text-[var(--color-content-secondary)]">
+            <div className="absolute inset-0 flex items-center justify-center bg-(--color-surface)/80 text-sm text-(--color-content-secondary)">
               Select a date to load replay data
             </div>
           )}
           {replayLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)]/80 text-sm text-[var(--color-content-secondary)]">
+            <div className="absolute inset-0 flex items-center justify-center bg-(--color-surface)/80 text-sm text-(--color-content-secondary)">
               Loading trip data…
             </div>
           )}
         </div>
 
-        <p className="mt-3 text-sm text-[var(--color-content-secondary)]">
+        <p className="mt-3 text-sm text-(--color-content-secondary)">
           Vehicles are interpolated along known route shapes. Position is estimated — not GPS-exact.
           Data available from the day aggregation runs (yesterday and earlier).
         </p>

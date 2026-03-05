@@ -23,7 +23,7 @@ export function PageHeader({ title, backHref, maxWidth = "max-w-7xl" }: PageHead
     <>
       <header className="bg-surface-raised shadow-sm border-b border-border sticky top-0 z-10">
         <div className={`${maxWidth} mx-auto px-4 py-3 flex items-center justify-between gap-2`}>
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             {backHref && (
               <Link href={backHref} className="text-sm text-accent hover:text-accent-hover">
                 &larr;
@@ -36,7 +36,7 @@ export function PageHeader({ title, backHref, maxWidth = "max-w-7xl" }: PageHead
             <UserMenu />
             <button
               onClick={() => setShowSettings(true)}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
+              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
               title={t.nav.settings}
               aria-label={t.nav.settings}
             >

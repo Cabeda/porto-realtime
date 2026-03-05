@@ -49,15 +49,15 @@ export function MetricTooltip({ text }: { text: string }) {
               left: pos.left,
               transform: pos.placement === "top" ? "translate(-50%, -100%)" : "translate(-50%, 0)",
             }}
-            className="pointer-events-none z-[9999] w-56 rounded-lg px-3 py-2 text-xs leading-relaxed
-        bg-[var(--color-surface-raised)] border border-[var(--color-border)] shadow-lg
-        text-[var(--color-content)]"
+            className="pointer-events-none z-9999 w-56 rounded-lg px-3 py-2 text-xs leading-relaxed
+        bg-(--color-surface-raised) border border-(--color-border) shadow-lg
+        text-(--color-content)"
           >
             {text}
             {pos.placement === "top" ? (
-              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--color-border)]" />
+              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-(--color-border)" />
             ) : (
-              <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-[var(--color-border)]" />
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-(--color-border)" />
             )}
           </span>,
           document.body
@@ -76,9 +76,9 @@ export function MetricTooltip({ text }: { text: string }) {
         onBlur={hide}
         className="ml-1 w-4 h-4 rounded-full text-[10px] font-bold leading-none
           flex items-center justify-center
-          bg-[var(--color-border)] text-[var(--color-content-secondary)]
-          hover:bg-[var(--color-accent)] hover:text-white
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]
+          bg-(--color-border) text-(--color-content-secondary)
+          hover:bg-(--color-accent) hover:text-white
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent)
           transition-colors cursor-default"
         tabIndex={0}
       >

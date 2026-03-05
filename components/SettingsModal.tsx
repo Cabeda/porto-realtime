@@ -74,7 +74,7 @@ export function SettingsModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 z-[2000] flex items-end sm:items-center justify-center"
+      className="fixed inset-0 bg-black/50 z-2000 flex items-end sm:items-center justify-center"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -231,7 +231,7 @@ export function SettingsModal({
               <>
                 <div className="flex items-center justify-between bg-surface-sunken rounded-lg px-3 py-2.5">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-content-inverse text-sm font-bold flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-content-inverse text-sm font-bold shrink-0">
                       {initial}
                     </div>
                     <div className="min-w-0">
@@ -248,7 +248,7 @@ export function SettingsModal({
                       setIsLoggingOut(false);
                     }}
                     disabled={isLoggingOut}
-                    className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium flex-shrink-0 ml-2 disabled:opacity-50"
+                    className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium shrink-0 ml-2 disabled:opacity-50"
                   >
                     {isLoggingOut ? t.auth.loggingOut : t.auth.logout}
                   </button>
@@ -437,7 +437,7 @@ export function SettingsModal({
         )}
       {toast &&
         createPortal(
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[3000] bg-surface-raised text-content text-sm font-medium px-4 py-2 rounded-xl shadow-lg border border-border animate-fade-in">
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-3000 bg-surface-raised text-content text-sm font-medium px-4 py-2 rounded-xl shadow-lg border border-border animate-fade-in">
             {toast}
           </div>,
           document.body

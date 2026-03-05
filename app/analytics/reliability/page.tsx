@@ -72,7 +72,7 @@ function StopHeadwayTooltip({
   if (!active || !payload?.length) return null;
   const d = payload[0]!.payload;
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs shadow-lg">
+    <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-3 text-xs shadow-lg">
       <div className="font-semibold mb-1">{d.stopName ?? d.stopId}</div>
       <div>
         Avg headway:{" "}
@@ -116,11 +116,11 @@ export default function ReliabilityPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+    <div className="min-h-screen bg-(--color-surface-sunken) text-(--color-content)">
       <PageHeader title="Service Reliability" backHref="/analytics" />
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
-          <p className="text-sm text-[var(--color-content-secondary)]">
+          <p className="text-sm text-(--color-content-secondary)">
             Route rankings by headway adherence and excess wait time
           </p>
           <PeriodSelector value={period} onChange={setPeriod} presets={["7d", "30d"]} />
@@ -129,8 +129,8 @@ export default function ReliabilityPage() {
         {/* Network KPIs */}
         {data && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-content-secondary)] uppercase flex items-center">
+            <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+              <div className="text-xs text-(--color-content-secondary) uppercase flex items-center">
                 Network EWT
                 <MetricTooltip text={tips.ewt} />
               </div>
@@ -140,8 +140,8 @@ export default function ReliabilityPage() {
                   : "—"}
               </div>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-content-secondary)] uppercase flex items-center">
+            <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+              <div className="text-xs text-(--color-content-secondary) uppercase flex items-center">
                 Headway Adherence
                 <MetricTooltip text={tips.headwayAdherence} />
               </div>
@@ -149,8 +149,8 @@ export default function ReliabilityPage() {
                 {data.networkAdherence !== null ? `${data.networkAdherence}%` : "—"}
               </div>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-content-secondary)] uppercase flex items-center">
+            <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+              <div className="text-xs text-(--color-content-secondary) uppercase flex items-center">
                 Bunching Rate
                 <MetricTooltip text={tips.bunching} />
               </div>
@@ -158,8 +158,8 @@ export default function ReliabilityPage() {
                 {data.networkBunching !== null ? `${data.networkBunching}%` : "—"}
               </div>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="text-xs text-[var(--color-content-secondary)] uppercase">
+            <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+              <div className="text-xs text-(--color-content-secondary) uppercase">
                 Routes Tracked
               </div>
               <div className="text-2xl font-bold mt-1">{data.totalRoutes ?? "—"}</div>
@@ -168,11 +168,11 @@ export default function ReliabilityPage() {
         )}
 
         {/* Rankings Table */}
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden mb-8">
+        <div className="rounded-xl border border-(--color-border) bg-(--color-surface) overflow-hidden mb-8">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-sunken)]">
+                <tr className="border-b border-(--color-border) bg-(--color-surface-sunken)">
                   <th className="text-left px-4 py-3 font-medium">Route</th>
                   <th className="text-left px-4 py-3 font-medium">
                     <span className="inline-flex items-center gap-1">
@@ -225,12 +225,12 @@ export default function ReliabilityPage() {
                   }) => (
                     <tr
                       key={r.route}
-                      className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
+                      className="border-b border-(--color-border) hover:bg-(--color-surface-sunken) transition-colors cursor-pointer"
                     >
                       <td className="px-4 py-3">
                         <Link
                           href={`/analytics/line?route=${r.route}`}
-                          className="font-semibold text-[var(--color-accent)] hover:underline"
+                          className="font-semibold text-(--color-accent) hover:underline"
                         >
                           {r.route}
                         </Link>
@@ -261,7 +261,7 @@ export default function ReliabilityPage() {
                   <tr>
                     <td
                       colSpan={8}
-                      className="px-4 py-8 text-center text-[var(--color-content-secondary)]"
+                      className="px-4 py-8 text-center text-(--color-content-secondary)"
                     >
                       Loading...
                     </td>
@@ -271,7 +271,7 @@ export default function ReliabilityPage() {
                   <tr>
                     <td
                       colSpan={8}
-                      className="px-4 py-8 text-center text-[var(--color-content-secondary)]"
+                      className="px-4 py-8 text-center text-(--color-content-secondary)"
                     >
                       No data available yet. Reliability metrics will appear after the first day of
                       aggregation.
@@ -284,7 +284,7 @@ export default function ReliabilityPage() {
         </div>
 
         {/* Stop Analysis */}
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+        <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
             <h2 className="text-base font-semibold flex-1">Stop Analysis — Headway Irregularity</h2>
             <div className="flex items-center gap-2">
@@ -293,12 +293,12 @@ export default function ReliabilityPage() {
                 placeholder="Route (e.g. 205)"
                 value={stopRoute}
                 onChange={(e) => setStopRoute(e.target.value.toUpperCase())}
-                className="w-28 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                className="w-28 rounded-lg border border-(--color-border) bg-(--color-surface-sunken) px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-accent)"
               />
               <select
                 value={stopDirection}
                 onChange={(e) => setStopDirection(e.target.value)}
-                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                className="rounded-lg border border-(--color-border) bg-(--color-surface-sunken) px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-accent)"
               >
                 <option value="0">Direction 0</option>
                 <option value="1">Direction 1</option>
@@ -307,7 +307,7 @@ export default function ReliabilityPage() {
           </div>
 
           {/* Legend */}
-          <div className="flex items-center gap-4 mb-4 text-xs text-[var(--color-content-secondary)]">
+          <div className="flex items-center gap-4 mb-4 text-xs text-(--color-content-secondary)">
             <span className="flex items-center gap-1">
               <span className="inline-block w-3 h-3 rounded-sm bg-green-500" /> &lt;2 min
             </span>
@@ -321,19 +321,17 @@ export default function ReliabilityPage() {
           </div>
 
           {!stopRoute && (
-            <p className="text-sm text-[var(--color-content-secondary)] py-8 text-center">
+            <p className="text-sm text-(--color-content-secondary) py-8 text-center">
               Enter a route number above to see where service breaks down along the route.
             </p>
           )}
 
           {stopRoute && !stopData && (
-            <p className="text-sm text-[var(--color-content-secondary)] py-8 text-center">
-              Loading...
-            </p>
+            <p className="text-sm text-(--color-content-secondary) py-8 text-center">Loading...</p>
           )}
 
           {stopData && stopData.stops?.length === 0 && (
-            <p className="text-sm text-[var(--color-content-secondary)] py-8 text-center">
+            <p className="text-sm text-(--color-content-secondary) py-8 text-center">
               No stop data yet for route {stopRoute}. Data will appear the day after the worker runs
               with the updated schema.
             </p>

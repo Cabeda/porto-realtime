@@ -158,7 +158,7 @@ function SearchStation() {
             </Link>
             <button
               onClick={() => setShowSettings(true)}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
+              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
               title={t.nav.settings}
               aria-label={t.nav.settings}
             >
@@ -260,8 +260,8 @@ function SearchStation() {
                   }`}
                 >
                   <div className="flex items-center justify-between gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                    <div className="shrink-0">
+                      <div className="w-16 h-16 bg-linear-to-br from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 rounded-xl flex items-center justify-center shadow-md">
                         <span className="text-white text-xl font-bold">
                           {item.trip.route.shortName}
                         </span>
@@ -287,7 +287,7 @@ function SearchStation() {
                           {item.trip.route.longName}
                         </h3>
                         {isRealtime && (
-                          <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium rounded-full">
+                          <span className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium rounded-full">
                             <span className="w-2 h-2 bg-green-500 dark:bg-green-400 rounded-full animate-pulse"></span>
                             {t.station.realtime}
                           </span>
@@ -301,7 +301,7 @@ function SearchStation() {
                       )}
                     </div>
 
-                    <div className="flex-shrink-0 text-right">
+                    <div className="shrink-0 text-right">
                       <div className={`text-3xl font-bold ${departure.color}`}>
                         {diff > 10
                           ? convertToTime(item.serviceDay, item.realtimeDeparture)

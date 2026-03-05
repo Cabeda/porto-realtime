@@ -484,7 +484,7 @@ export function CheckInFAB({
       <button
         onClick={handleFABClick}
         disabled={isLoading}
-        className={`absolute right-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:opacity-50 ${
+        className={`absolute right-4 z-1001 w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:opacity-50 ${
           activeCheckIn
             ? "bg-green-500 border-green-600 text-white animate-pulse"
             : "bg-accent border-accent text-white hover:brightness-110"
@@ -523,7 +523,7 @@ export function CheckInFAB({
       {/* Active check-in badge — shows remaining time for both auth and anon */}
       {activeCheckIn && minutesLeft > 0 && (
         <div
-          className="absolute right-[3.75rem] z-[1001] bg-green-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow whitespace-nowrap"
+          className="absolute right-15 z-1001 bg-green-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow whitespace-nowrap"
           style={{
             bottom:
               "calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + env(safe-area-inset-bottom, 0px) + 4.375rem)",
@@ -537,7 +537,7 @@ export function CheckInFAB({
       {showPicker &&
         createPortal(
           <div
-            className="fixed inset-0 z-[2000]"
+            className="fixed inset-0 z-2000"
             onClick={() => {
               setShowPicker(false);
               setNearbyCandidates([]);
@@ -624,7 +624,7 @@ export function CheckInFAB({
       {/* Toast */}
       {toast &&
         createPortal(
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[3000] bg-surface-raised text-content text-sm font-medium px-4 py-2 rounded-xl shadow-lg border border-border animate-fade-in">
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-3000 bg-surface-raised text-content text-sm font-medium px-4 py-2 rounded-xl shadow-lg border border-border animate-fade-in">
             {toast}
           </div>,
           document.body

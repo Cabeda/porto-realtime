@@ -81,7 +81,7 @@ export function EscalationPrompt({
           </span>
         </div>
         <svg
-          className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isTier3 ? "text-orange-500" : "text-blue-500"} ${expanded ? "rotate-180" : ""}`}
+          className={`w-3.5 h-3.5 shrink-0 transition-transform ${isTier3 ? "text-orange-500" : "text-blue-500"} ${expanded ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -101,16 +101,16 @@ export function EscalationPrompt({
 
           {/* Pre-filled context */}
           <div>
-            <p className="font-medium mb-1 text-[var(--color-content-secondary)]">
+            <p className="font-medium mb-1 text-(--color-content-secondary)">
               Copy this context to paste into the form:
             </p>
             <div className="relative">
-              <pre className="bg-[var(--color-surface-sunken)] rounded p-2 text-[10px] text-[var(--color-content-secondary)] whitespace-pre-wrap break-words leading-relaxed">
+              <pre className="bg-(--color-surface-sunken) rounded p-2 text-[10px] text-(--color-content-secondary) whitespace-pre-wrap wrap-break-word leading-relaxed">
                 {context}
               </pre>
               <button
                 onClick={handleCopy}
-                className="absolute top-1.5 right-1.5 px-2 py-1 rounded text-[10px] font-medium bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-raised)] transition-colors"
+                className="absolute top-1.5 right-1.5 px-2 py-1 rounded text-[10px] font-medium bg-(--color-surface) border border-(--color-border) hover:bg-(--color-surface-raised) transition-colors"
               >
                 {copied ? "Copied!" : "Copy"}
               </button>

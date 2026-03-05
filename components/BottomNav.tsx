@@ -32,7 +32,7 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[1000] bg-surface dark:bg-surface-raised border-t border-border sm:hidden safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-1000 bg-surface dark:bg-surface-raised border-t border-border sm:hidden safe-area-bottom">
       <div className="flex items-stretch">
         {links.map((link) => {
           const active = link.match(pathname || "");

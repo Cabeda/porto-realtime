@@ -101,13 +101,13 @@ function RankingCard({
       className={`bg-surface-raised rounded-lg shadow-md hover:shadow-lg transition-all p-4 border-l-4 ${bgColor}`}
     >
       <div className="flex items-center gap-3">
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-sunken flex items-center justify-center text-sm font-bold text-content-secondary">
+        <div className="shrink-0 w-8 h-8 rounded-full bg-surface-sunken flex items-center justify-center text-sm font-bold text-content-secondary">
           {rank}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-content truncate">{label}</h3>
-            <span className="flex-shrink-0 text-sm font-bold text-content-secondary">
+            <span className="shrink-0 text-sm font-bold text-content-secondary">
               {item.avg.toFixed(1)}
             </span>
             <StarRating rating={item.avg} />
@@ -121,7 +121,7 @@ function RankingCard({
         <div className="mt-3 pt-3 border-t border-border-strong space-y-2">
           {item.recentComments.slice(0, 2).map((c, i) => (
             <div key={i} className="flex items-start gap-2">
-              <span className="text-yellow-400 text-xs mt-0.5 flex-shrink-0">
+              <span className="text-yellow-400 text-xs mt-0.5 shrink-0">
                 {"★".repeat(c.rating)}
               </span>
               <p className="text-xs text-content-secondary line-clamp-2">{c.comment}</p>
@@ -314,7 +314,7 @@ function ProposalsTab() {
         className="w-full mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
       >
         <svg
-          className="w-4 h-4 flex-shrink-0"
+          className="w-4 h-4 shrink-0"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -565,32 +565,28 @@ function TrendingTargetCard({
 
   const content = (
     <div
-      className={`bg-[var(--color-surface)] rounded-lg shadow-sm hover:shadow-md transition-all p-3 border-l-4 ${borderColor}`}
+      className={`bg-(--color-surface) rounded-lg shadow-sm hover:shadow-md transition-all p-3 border-l-4 ${borderColor}`}
     >
       <div className="flex items-center gap-2.5">
-        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--color-surface-sunken)] flex items-center justify-center text-xs font-bold text-[var(--color-content-secondary)]">
+        <div className="shrink-0 w-7 h-7 rounded-full bg-(--color-surface-sunken) flex items-center justify-center text-xs font-bold text-(--color-content-secondary)">
           {rank}
         </div>
         <span className="text-sm">{typeIcon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm text-[var(--color-content)] truncate">
-              {label}
-            </span>
-            <span className="flex-shrink-0 text-xs font-bold text-[var(--color-content-secondary)]">
+            <span className="font-medium text-sm text-(--color-content) truncate">{label}</span>
+            <span className="shrink-0 text-xs font-bold text-(--color-content-secondary)">
               {item.avg.toFixed(1)}
             </span>
             <StarRating rating={item.avg} />
           </div>
-          <p className="text-xs text-[var(--color-content-muted)]">
-            {t.feedback.ratings(item.count)}
-          </p>
+          <p className="text-xs text-(--color-content-muted)">{t.feedback.ratings(item.count)}</p>
         </div>
-        {detailHref && <span className="text-[var(--color-content-muted)] text-sm">→</span>}
+        {detailHref && <span className="text-(--color-content-muted) text-sm">→</span>}
       </div>
       {item.recentComment && (
-        <div className="mt-2 pt-2 border-t border-[var(--color-border)]">
-          <p className="text-xs text-[var(--color-content-secondary)] line-clamp-2 italic">
+        <div className="mt-2 pt-2 border-t border-(--color-border)">
+          <p className="text-xs text-(--color-content-secondary) line-clamp-2 italic">
             &ldquo;{item.recentComment.comment}&rdquo;
           </p>
         </div>
@@ -620,15 +616,15 @@ function TrendingTab() {
   return (
     <>
       {/* Period selector */}
-      <div className="flex gap-1 bg-[var(--color-surface-sunken)] rounded-lg p-1 mb-4">
+      <div className="flex gap-1 bg-(--color-surface-sunken) rounded-lg p-1 mb-4">
         {(["week", "month", "all"] as const).map((p) => (
           <button
             key={p}
             onClick={() => setPeriod(p)}
             className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
               period === p
-                ? "bg-white dark:bg-gray-600 text-[var(--color-content)] shadow-sm"
-                : "text-[var(--color-content-secondary)] hover:text-[var(--color-content)]"
+                ? "bg-white dark:bg-gray-600 text-(--color-content) shadow-sm"
+                : "text-(--color-content-secondary) hover:text-(--color-content)"
             }`}
           >
             {p === "week" ? tt.thisWeek : p === "month" ? tt.thisMonth : tt.allTime}
@@ -641,19 +637,19 @@ function TrendingTab() {
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="bg-[var(--color-surface)] rounded-lg shadow p-4 h-20 animate-pulse"
+              className="bg-(--color-surface) rounded-lg shadow p-4 h-20 animate-pulse"
             />
           ))}
         </div>
       ) : !hasData ? (
-        <div className="bg-[var(--color-surface)] rounded-lg shadow-md p-8 text-center">
+        <div className="bg-(--color-surface) rounded-lg shadow-md p-8 text-center">
           <div className="text-5xl mb-4">📊</div>
-          <h3 className="text-lg font-semibold text-[var(--color-content)] mb-2">{tt.noData}</h3>
-          <p className="text-[var(--color-content-muted)] text-sm mb-4">{tt.noDataDesc}</p>
+          <h3 className="text-lg font-semibold text-(--color-content) mb-2">{tt.noData}</h3>
+          <p className="text-(--color-content-muted) text-sm mb-4">{tt.noDataDesc}</p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Link
               href="/"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-(--color-accent) text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
             >
               🗺️ {t.reviews.viewMap}
             </Link>
@@ -664,27 +660,27 @@ function TrendingTab() {
           {/* Stats row */}
           {data.stats && (
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-[var(--color-surface)] rounded-lg p-3 text-center shadow-sm">
-                <div className="text-xl font-bold text-[var(--color-content)]">
+              <div className="bg-(--color-surface) rounded-lg p-3 text-center shadow-sm">
+                <div className="text-xl font-bold text-(--color-content)">
                   {data.stats.totalReviews}
                 </div>
-                <div className="text-xs text-[var(--color-content-muted)]">
+                <div className="text-xs text-(--color-content-muted)">
                   {tt.stats === "Resumo" ? "Avaliações" : "Reviews"}
                 </div>
               </div>
-              <div className="bg-[var(--color-surface)] rounded-lg p-3 text-center shadow-sm">
-                <div className="text-xl font-bold text-[var(--color-content)]">
+              <div className="bg-(--color-surface) rounded-lg p-3 text-center shadow-sm">
+                <div className="text-xl font-bold text-(--color-content)">
                   {data.stats.totalVotes}
                 </div>
-                <div className="text-xs text-[var(--color-content-muted)]">
+                <div className="text-xs text-(--color-content-muted)">
                   {tt.stats === "Resumo" ? "Votos" : "Votes"}
                 </div>
               </div>
-              <div className="bg-[var(--color-surface)] rounded-lg p-3 text-center shadow-sm">
-                <div className="text-xl font-bold text-[var(--color-content)]">
+              <div className="bg-(--color-surface) rounded-lg p-3 text-center shadow-sm">
+                <div className="text-xl font-bold text-(--color-content)">
                   {data.stats.activeReviewers}
                 </div>
-                <div className="text-xs text-[var(--color-content-muted)]">
+                <div className="text-xs text-(--color-content-muted)">
                   {tt.stats === "Resumo" ? "Avaliadores" : "Reviewers"}
                 </div>
               </div>
@@ -694,17 +690,15 @@ function TrendingTab() {
           {/* Top tags */}
           {data.topTags.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-[var(--color-content)] mb-2">
-                {tt.topTags}
-              </h3>
+              <h3 className="text-sm font-semibold text-(--color-content) mb-2">{tt.topTags}</h3>
               <div className="flex flex-wrap gap-2">
                 {data.topTags.map((t) => (
                   <span
                     key={t.tag}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-content-secondary)]"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-(--color-surface-sunken) text-(--color-content-secondary)"
                   >
                     {TAG_LABELS[t.tag]?.[lang] || t.tag}
-                    <span className="text-[var(--color-content-muted)]">({t.count})</span>
+                    <span className="text-(--color-content-muted)">({t.count})</span>
                   </span>
                 ))}
               </div>
@@ -714,10 +708,8 @@ function TrendingTab() {
           {/* Top Issues (#38) */}
           {data.topIssues.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-[var(--color-content)] mb-1">
-                {tt.topIssues}
-              </h3>
-              <p className="text-xs text-[var(--color-content-muted)] mb-3">{tt.topIssuesDesc}</p>
+              <h3 className="text-sm font-semibold text-(--color-content) mb-1">{tt.topIssues}</h3>
+              <p className="text-xs text-(--color-content-muted) mb-3">{tt.topIssuesDesc}</p>
               <div className="space-y-2">
                 {data.topIssues.map((item, i) => (
                   <TrendingTargetCard
@@ -734,10 +726,8 @@ function TrendingTab() {
           {/* Highlights (#37) */}
           {data.highlights.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-[var(--color-content)] mb-1">
-                {tt.highlights}
-              </h3>
-              <p className="text-xs text-[var(--color-content-muted)] mb-3">{tt.highlightsDesc}</p>
+              <h3 className="text-sm font-semibold text-(--color-content) mb-1">{tt.highlights}</h3>
+              <p className="text-xs text-(--color-content-muted) mb-3">{tt.highlightsDesc}</p>
               <div className="space-y-2">
                 {data.highlights.map((item, i) => (
                   <TrendingTargetCard
@@ -754,12 +744,10 @@ function TrendingTab() {
           {/* Trending reviews */}
           {data.trending.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-[var(--color-content)] mb-1">
+              <h3 className="text-sm font-semibold text-(--color-content) mb-1">
                 {tt.trendingReviews}
               </h3>
-              <p className="text-xs text-[var(--color-content-muted)] mb-3">
-                {tt.trendingReviewsDesc}
-              </p>
+              <p className="text-xs text-(--color-content-muted) mb-3">{tt.trendingReviewsDesc}</p>
               <div className="space-y-2">
                 {data.trending.map((r) => {
                   const typeIcon =
@@ -773,21 +761,21 @@ function TrendingTab() {
                             ? "🚲"
                             : "🛤️";
                   return (
-                    <div key={r.id} className="bg-[var(--color-surface)] rounded-lg shadow-sm p-3">
+                    <div key={r.id} className="bg-(--color-surface) rounded-lg shadow-sm p-3">
                       <div className="flex items-start gap-2">
                         <span className="text-sm">{typeIcon}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium text-[var(--color-content-secondary)]">
+                            <span className="text-xs font-medium text-(--color-content-secondary)">
                               {r.targetId}
                             </span>
                             <StarRating rating={r.rating} />
-                            <span className="ml-auto text-xs text-[var(--color-accent)] font-medium">
+                            <span className="ml-auto text-xs text-(--color-accent) font-medium">
                               ▲ {tt.votes(r.voteCount)}
                             </span>
                           </div>
                           {r.comment && (
-                            <p className="text-sm text-[var(--color-content)] line-clamp-3">
+                            <p className="text-sm text-(--color-content) line-clamp-3">
                               {r.comment}
                             </p>
                           )}
@@ -796,7 +784,7 @@ function TrendingTab() {
                               {r.tags.map((tag) => (
                                 <span
                                   key={tag}
-                                  className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-surface-sunken)] text-[var(--color-content-muted)]"
+                                  className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-(--color-surface-sunken) text-(--color-content-muted)"
                                 >
                                   {TAG_LABELS[tag]?.[lang] || tag}
                                 </span>
@@ -867,7 +855,7 @@ function CommunityContent() {
               <UserMenu />
               <button
                 onClick={() => setShowSettings(true)}
-                className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
                 title={t.nav.settings}
                 aria-label={t.nav.settings}
               >
@@ -903,7 +891,7 @@ function CommunityContent() {
             {activeSection === "proposals" && (
               <Link
                 href="/proposals/new"
-                className="flex items-center gap-1.5 px-4 py-2 bg-accent text-content-inverse rounded-lg hover:bg-accent-hover transition-colors text-sm font-medium flex-shrink-0"
+                className="flex items-center gap-1.5 px-4 py-2 bg-accent text-content-inverse rounded-lg hover:bg-accent-hover transition-colors text-sm font-medium shrink-0"
               >
                 <svg
                   className="w-4 h-4"
@@ -954,7 +942,7 @@ function CommunityContent() {
               <span>💡</span>
               {t.community.proposals}
               {proposalCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-accent/15 text-accent min-w-[1.25rem] text-center">
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-accent/15 text-accent min-w-5 text-center">
                   {proposalCount}
                 </span>
               )}
@@ -974,14 +962,14 @@ function CommunityContent() {
         <div className="mt-8 flex items-center justify-center gap-4">
           <Link
             href="/contributors"
-            className="text-xs text-[var(--color-content-secondary)] hover:text-[var(--color-accent)] transition-colors"
+            className="text-xs text-(--color-content-secondary) hover:text-(--color-accent) transition-colors"
           >
             🏆 Contributors
           </Link>
-          <span className="text-[var(--color-border)]">·</span>
+          <span className="text-(--color-border)">·</span>
           <Link
             href="/digest"
-            className="text-xs text-[var(--color-content-secondary)] hover:text-[var(--color-accent)] transition-colors"
+            className="text-xs text-(--color-content-secondary) hover:text-(--color-accent) transition-colors"
           >
             📰 Weekly Digest
           </Link>

@@ -245,7 +245,7 @@ export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
         {p.status === "UNDER_REVIEW" && (
           <div className="mb-3 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-medium flex items-center gap-2">
             <svg
-              className="w-4 h-4 flex-shrink-0"
+              className="w-4 h-4 shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -387,7 +387,7 @@ export function ProposalCard({ proposal: p, onVoteChange }: ProposalCardProps) {
       {showReportModal &&
         createPortal(
           <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50"
+            className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50"
             onClick={() => setShowReportModal(false)}
           >
             <div

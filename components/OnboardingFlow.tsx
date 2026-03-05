@@ -68,7 +68,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-gradient-to-br from-accent-subtle to-surface-sunken flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-10000 bg-linear-to-br from-accent-subtle to-surface-sunken flex items-center justify-center p-4">
       <div className="max-w-lg w-full">
         {/* Step 0: Welcome */}
         {step === 0 && (
@@ -130,7 +130,7 @@ export function OnboardingFlow({ availableRoutes, onComplete, onSkip }: Onboardi
 
             <div className="bg-surface-overlay backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden">
               {/* Scroll hint */}
-              <div className="px-6 pt-4 pb-2 bg-gradient-to-b from-white/95 to-transparent dark:from-gray-800/95 sticky top-0 z-10">
+              <div className="px-6 pt-4 pb-2 bg-linear-to-b from-white/95 to-transparent dark:from-gray-800/95 sticky top-0 z-10">
                 <p className="text-xs text-content-muted text-center">
                   ↓ Role para ver todas as linhas ↓
                 </p>

@@ -40,7 +40,7 @@ function periodParam(period: PeriodValue) {
 }
 
 function AdherenceBadge({ pct }: { pct: number | null }) {
-  if (pct === null) return <span className="text-[var(--color-content-muted)]">—</span>;
+  if (pct === null) return <span className="text-(--color-content-muted)">—</span>;
   const color = pct <= 105 ? "#22c55e" : pct <= 115 ? "#eab308" : "#ef4444";
   return (
     <span style={{ color }} className="font-semibold">
@@ -53,7 +53,7 @@ export default function VehicleAnalyticsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[var(--color-surface-sunken)] flex items-center justify-center text-[var(--color-content-secondary)]">
+        <div className="min-h-screen bg-(--color-surface-sunken) flex items-center justify-center text-(--color-content-secondary)">
           Loading...
         </div>
       }
@@ -108,12 +108,12 @@ function VehicleAnalyticsContent() {
   );
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+    <div className="min-h-screen bg-(--color-surface-sunken) text-(--color-content)">
       <PageHeader title="Vehicle Analytics" backHref="/analytics" />
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <p className="text-sm text-[var(--color-content-secondary)]">
+          <p className="text-sm text-(--color-content-secondary)">
             {fleetData ? `${fleetData.totalVehicles} vehicles active` : "Loading fleet…"}
           </p>
           <PeriodSelector
@@ -127,21 +127,21 @@ function VehicleAnalyticsContent() {
         </div>
 
         {/* Fleet table */}
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden mb-8">
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)]">
+        <div className="rounded-xl border border-(--color-border) bg-(--color-surface) overflow-hidden mb-8">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-(--color-border)">
             <h2 className="font-semibold flex-1">Fleet Overview</h2>
             <input
               type="text"
               placeholder="Filter by number…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-40 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+              className="w-40 rounded-lg border border-(--color-border) bg-(--color-surface-sunken) px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-accent)"
             />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-[var(--color-content-secondary)]">
+                <tr className="border-b border-(--color-border) bg-(--color-surface-sunken) text-(--color-content-secondary)">
                   <th className="text-left px-4 py-3 font-medium">Vehicle</th>
                   <th className="text-right px-4 py-3 font-medium">Trips</th>
                   <th className="text-right px-4 py-3 font-medium">Avg Speed</th>
@@ -154,7 +154,7 @@ function VehicleAnalyticsContent() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-8 text-center text-[var(--color-content-secondary)]"
+                      className="px-4 py-8 text-center text-(--color-content-secondary)"
                     >
                       Loading…
                     </td>
@@ -164,7 +164,7 @@ function VehicleAnalyticsContent() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-8 text-center text-[var(--color-content-secondary)]"
+                      className="px-4 py-8 text-center text-(--color-content-secondary)"
                     >
                       No vehicles found.
                     </td>
@@ -181,9 +181,9 @@ function VehicleAnalyticsContent() {
                     <tr
                       key={v.vehicleNum}
                       onClick={() => selectVehicle(v.vehicleNum)}
-                      className={`border-b border-[var(--color-border)] cursor-pointer transition-colors hover:bg-[var(--color-surface-sunken)] ${vehicle === v.vehicleNum ? "bg-[var(--color-surface-sunken)] font-semibold" : ""}`}
+                      className={`border-b border-(--color-border) cursor-pointer transition-colors hover:bg-(--color-surface-sunken) ${vehicle === v.vehicleNum ? "bg-(--color-surface-sunken) font-semibold" : ""}`}
                     >
-                      <td className="px-4 py-2.5 font-mono text-[var(--color-accent)]">
+                      <td className="px-4 py-2.5 font-mono text-(--color-accent)">
                         {v.vehicleNum}
                       </td>
                       <td className="px-4 py-2.5 text-right">{v.trips}</td>
@@ -193,7 +193,7 @@ function VehicleAnalyticsContent() {
                       <td className="px-4 py-2.5 text-right">
                         <AdherenceBadge pct={v.avgAdherence} />
                       </td>
-                      <td className="px-4 py-2.5 text-[var(--color-content-secondary)] text-xs">
+                      <td className="px-4 py-2.5 text-(--color-content-secondary) text-xs">
                         {v.routes.join(", ")}
                       </td>
                     </tr>
@@ -214,49 +214,47 @@ function VehicleAnalyticsContent() {
                   setVehicle("");
                   router.replace("/analytics/vehicle", { scroll: false });
                 }}
-                className="text-xs text-[var(--color-content-secondary)] hover:text-[var(--color-content)] transition-colors"
+                className="text-xs text-(--color-content-secondary) hover:text-(--color-content) transition-colors"
               >
                 ✕ clear
               </button>
             </div>
 
             {!summary && (
-              <div className="text-center py-10 text-[var(--color-content-secondary)]">
-                Loading…
-              </div>
+              <div className="text-center py-10 text-(--color-content-secondary)">Loading…</div>
             )}
 
             {summary && (
               <>
                 {/* KPI row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                    <div className="text-xs text-[var(--color-content-secondary)] uppercase tracking-wide">
+                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+                    <div className="text-xs text-(--color-content-secondary) uppercase tracking-wide">
                       Trips
                     </div>
                     <div className="text-2xl font-bold mt-1">{summary.totalTrips ?? "—"}</div>
                   </div>
-                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                    <div className="text-xs text-[var(--color-content-secondary)] uppercase tracking-wide">
+                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+                    <div className="text-xs text-(--color-content-secondary) uppercase tracking-wide">
                       Avg Speed
                     </div>
                     <div className="text-2xl font-bold mt-1">
                       {summary.avgSpeed != null ? `${summary.avgSpeed} km/h` : "—"}
                     </div>
                   </div>
-                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                    <div className="text-xs text-[var(--color-content-secondary)] uppercase tracking-wide">
+                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+                    <div className="text-xs text-(--color-content-secondary) uppercase tracking-wide">
                       Runtime Adherence
                     </div>
                     <div className="text-2xl font-bold mt-1">
                       <AdherenceBadge pct={summary.avgRuntimeAdherence} />
                     </div>
-                    <div className="text-xs text-[var(--color-content-muted)] mt-0.5">
+                    <div className="text-xs text-(--color-content-muted) mt-0.5">
                       actual / scheduled
                     </div>
                   </div>
-                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                    <div className="text-xs text-[var(--color-content-secondary)] uppercase tracking-wide">
+                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+                    <div className="text-xs text-(--color-content-secondary) uppercase tracking-wide">
                       Routes
                     </div>
                     <div className="text-sm font-semibold mt-1 flex flex-wrap gap-1">
@@ -265,7 +263,7 @@ function VehicleAnalyticsContent() {
                             <Link
                               key={r}
                               href={`/analytics/line?route=${encodeURIComponent(r)}`}
-                              className="px-2 py-0.5 rounded bg-[var(--color-surface-sunken)] border border-[var(--color-border)] text-xs hover:text-accent transition-colors"
+                              className="px-2 py-0.5 rounded bg-(--color-surface-sunken) border border-(--color-border) text-xs hover:text-accent transition-colors"
                             >
                               {r}
                             </Link>
@@ -276,7 +274,7 @@ function VehicleAnalyticsContent() {
                 </div>
 
                 {summary.dailyPerformance?.length > 0 && (
-                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
+                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 mb-6">
                     <h3 className="text-base font-semibold mb-4">Daily Performance</h3>
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart data={summary.dailyPerformance}>
@@ -344,9 +342,9 @@ function VehicleAnalyticsContent() {
                 )}
 
                 {adherenceDist.length > 0 && (
-                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
+                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 mb-6">
                     <h3 className="text-base font-semibold mb-4">Runtime Adherence Distribution</h3>
-                    <p className="text-xs text-[var(--color-content-secondary)] mb-3">
+                    <p className="text-xs text-(--color-content-secondary) mb-3">
                       100% = on schedule · &lt;100% = faster · &gt;100% = slower
                     </p>
                     <ResponsiveContainer width="100%" height={220}>
@@ -371,12 +369,12 @@ function VehicleAnalyticsContent() {
                 )}
 
                 {tripsData?.trips?.length > 0 && (
-                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
                     <h3 className="text-base font-semibold mb-4">Recent Trips</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="text-left text-[var(--color-content-secondary)] border-b border-[var(--color-border)]">
+                          <tr className="text-left text-(--color-content-secondary) border-b border-(--color-border)">
                             <th className="pb-2 pr-4">Date</th>
                             <th className="pb-2 pr-4">Route</th>
                             <th className="pb-2 pr-4">Start</th>
@@ -402,9 +400,9 @@ function VehicleAnalyticsContent() {
                             ) => (
                               <tr
                                 key={i}
-                                className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-sunken)] transition-colors"
+                                className="border-b border-(--color-border) last:border-0 hover:bg-(--color-surface-sunken) transition-colors"
                               >
-                                <td className="py-2 pr-4 text-[var(--color-content-secondary)]">
+                                <td className="py-2 pr-4 text-(--color-content-secondary)">
                                   {t.date}
                                 </td>
                                 <td className="py-2 pr-4">
@@ -415,7 +413,7 @@ function VehicleAnalyticsContent() {
                                     {t.route}
                                   </Link>
                                 </td>
-                                <td className="py-2 pr-4 text-[var(--color-content-secondary)]">
+                                <td className="py-2 pr-4 text-(--color-content-secondary)">
                                   {t.startedAt
                                     ? new Date(t.startedAt).toLocaleTimeString("pt-PT", {
                                         hour: "2-digit",
@@ -426,7 +424,7 @@ function VehicleAnalyticsContent() {
                                 <td className="py-2 pr-4">
                                   {t.runtimeMins != null ? `${t.runtimeMins} min` : "—"}
                                 </td>
-                                <td className="py-2 pr-4 text-[var(--color-content-secondary)]">
+                                <td className="py-2 pr-4 text-(--color-content-secondary)">
                                   {t.scheduledRuntimeMins != null
                                     ? `${t.scheduledRuntimeMins} min`
                                     : "—"}
@@ -447,7 +445,7 @@ function VehicleAnalyticsContent() {
                 )}
 
                 {summary.totalTrips === 0 && (
-                  <div className="text-center py-12 text-[var(--color-content-secondary)]">
+                  <div className="text-center py-12 text-(--color-content-secondary)">
                     No trip data found for vehicle {vehicle} in this period.
                   </div>
                 )}

@@ -122,13 +122,13 @@ export default function DataPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+    <div className="min-h-screen bg-(--color-surface-sunken) text-(--color-content)">
       <PageHeader title="Download Data" backHref="/analytics" maxWidth="max-w-3xl" />
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <p className="text-sm text-[var(--color-content-secondary)] mb-6">
+        <p className="text-sm text-(--color-content-secondary) mb-6">
           All transit analytics data is open and available for download. Use it for research,
           journalism, civic projects, or peer review. See the{" "}
-          <Link href="/analytics/about" className="text-[var(--color-accent)] hover:underline">
+          <Link href="/analytics/about" className="text-(--color-accent) hover:underline">
             methodology page
           </Link>{" "}
           for details on how metrics are computed.
@@ -142,20 +142,18 @@ export default function DataPage() {
               onClick={() => handleTypeChange(t.value)}
               className={`w-full text-left rounded-xl border p-4 transition-colors ${
                 type === t.value
-                  ? "border-[var(--color-accent)] bg-[var(--color-accent)]/5"
-                  : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-content-secondary)]"
+                  ? "border-(--color-accent) bg-(--color-accent)/5"
+                  : "border-(--color-border) bg-(--color-surface) hover:border-(--color-content-secondary)"
               }`}
             >
               <div className="font-semibold">{t.label}</div>
-              <div className="text-sm text-[var(--color-content-secondary)] mt-1">
-                {t.description}
-              </div>
+              <div className="text-sm text-(--color-content-secondary) mt-1">{t.description}</div>
             </button>
           ))}
         </div>
 
         {/* Options */}
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6 space-y-4">
+        <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 mb-6 space-y-4">
           {/* Format */}
           <div>
             <label className="text-sm font-medium block mb-1">Format</label>
@@ -166,8 +164,8 @@ export default function DataPage() {
                   onClick={() => setFormat(f)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     format === f
-                      ? "bg-[var(--color-accent)] text-white"
-                      : "bg-[var(--color-surface-sunken)] text-[var(--color-content-secondary)]"
+                      ? "bg-(--color-accent) text-white"
+                      : "bg-(--color-surface-sunken) text-(--color-content-secondary)"
                   }`}
                 >
                   {f.toUpperCase()}
@@ -184,7 +182,7 @@ export default function DataPage() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-sm"
+                className="px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-surface-sunken) text-sm"
               />
             </div>
           )}
@@ -197,7 +195,7 @@ export default function DataPage() {
                   type="date"
                   value={from}
                   onChange={(e) => setFrom(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-sm"
+                  className="px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-surface-sunken) text-sm"
                 />
               </div>
               <div>
@@ -206,7 +204,7 @@ export default function DataPage() {
                   type="date"
                   value={to}
                   onChange={(e) => setTo(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-sm"
+                  className="px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-surface-sunken) text-sm"
                 />
               </div>
             </div>
@@ -221,7 +219,7 @@ export default function DataPage() {
                 value={route}
                 onChange={(e) => setRoute(e.target.value)}
                 placeholder="e.g. 200, 502, M1"
-                className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-sm w-40"
+                className="px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-surface-sunken) text-sm w-40"
               />
             </div>
           )}
@@ -231,16 +229,16 @@ export default function DataPage() {
         <button
           onClick={handleDownload}
           disabled={downloading}
-          className="w-full py-3 rounded-xl bg-[var(--color-accent)] text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full py-3 rounded-xl bg-(--color-accent) text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {downloading ? "Downloading..." : "Download"}
         </button>
 
         {/* R2 Archives */}
         {archives && archives.dates && archives.dates.length > 0 && (
-          <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+          <div className="mt-6 rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
             <div className="text-sm font-medium mb-1">Position Archives</div>
-            <p className="text-sm text-[var(--color-content-secondary)] mb-3">
+            <p className="text-sm text-(--color-content-secondary) mb-3">
               Historical bus positions archived as Parquet files. Zero egress cost via Cloudflare
               R2.
             </p>
@@ -251,7 +249,7 @@ export default function DataPage() {
                   href={`/api/analytics/export?type=positions&date=${d}&format=parquet`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-content-secondary)] hover:text-[var(--color-accent)] transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-(--color-surface-sunken) text-(--color-content-secondary) hover:text-(--color-accent) transition-colors"
                 >
                   {d}
                 </a>
@@ -261,12 +259,12 @@ export default function DataPage() {
         )}
 
         {/* API hint */}
-        <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+        <div className="mt-6 rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
           <div className="text-sm font-medium mb-2">API Access</div>
-          <p className="text-sm text-[var(--color-content-secondary)] mb-2">
+          <p className="text-sm text-(--color-content-secondary) mb-2">
             You can also access the data programmatically:
           </p>
-          <code className="block text-xs bg-[var(--color-surface-sunken)] p-3 rounded-lg overflow-x-auto break-all">
+          <code className="block text-xs bg-(--color-surface-sunken) p-3 rounded-lg overflow-x-auto break-all">
             {`GET ${buildUrl()}`}
           </code>
         </div>

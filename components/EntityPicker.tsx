@@ -223,11 +223,11 @@ export function EntityPicker({
                   : "text-content hover:bg-surface-sunken"
               }`}
             >
-              <span className="flex-shrink-0">{item.icon}</span>
+              <span className="shrink-0">{item.icon}</span>
               <span className="truncate">{item.label}</span>
               {selectedTargetId === item.id && (
                 <svg
-                  className="w-4 h-4 ml-auto flex-shrink-0 text-accent"
+                  className="w-4 h-4 ml-auto shrink-0 text-accent"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

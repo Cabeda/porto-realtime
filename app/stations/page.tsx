@@ -70,7 +70,7 @@ function StationCard({
           </p>
         )}
       </Link>
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         <Link
           href={`/?station=${encodeURIComponent(station.gtfsId)}`}
           className="w-9 h-9 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-sm"

@@ -52,7 +52,7 @@ export function RouteFilterPanel({
                 {route.shortName}
                 {isLive && (
                   <span
-                    className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0"
+                    className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0"
                     title={t.map.live}
                   />
                 )}

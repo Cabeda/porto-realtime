@@ -397,10 +397,10 @@ function MapPageContent() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-surface-sunken transition-colors">
-      <header className="bg-surface dark:bg-surface-raised shadow-sm z-[1000] relative transition-colors">
+      <header className="bg-surface dark:bg-surface-raised shadow-sm z-1000 relative transition-colors">
         <div className="px-3 sm:px-6 lg:px-8 py-2 sm:py-3">
           <div className="flex justify-between items-center gap-2">
-            <div className="flex-shrink-0 min-w-0">
+            <div className="shrink-0 min-w-0">
               <button
                 className="flex items-center gap-2 text-base sm:text-xl font-bold text-content hover:text-accent transition-colors focus:outline-none"
                 onClick={handleRefresh}
@@ -410,7 +410,7 @@ function MapPageContent() {
                 <span className="hidden sm:inline">{t.map.busMap}</span>
                 <span className="sm:hidden">{t.map.appName}</span>
                 <svg
-                  className={`w-4 h-4 flex-shrink-0 transition-colors ${isRefreshing ? "animate-spin text-accent" : "text-content-muted"}`}
+                  className={`w-4 h-4 shrink-0 transition-colors ${isRefreshing ? "animate-spin text-accent" : "text-content-muted"}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -439,7 +439,7 @@ function MapPageContent() {
             <div className="hidden sm:block">
               <button
                 onClick={() => setShowSettings(true)}
-                className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
                 title={t.nav.settings}
                 aria-label={t.nav.settings}
               >
@@ -477,7 +477,7 @@ function MapPageContent() {
         <button
           onClick={handleLocateMe}
           disabled={isLocating}
-          className={`absolute right-4 z-[1001] w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:cursor-not-allowed ${
+          className={`absolute right-4 z-1001 w-12 h-12 rounded-full shadow-lg border-2 flex items-center justify-center transition-all disabled:cursor-not-allowed ${
             isLocating
               ? "bg-blue-500 border-blue-600 animate-pulse"
               : userLocation
@@ -504,7 +504,7 @@ function MapPageContent() {
         </button>
 
         {/* Map layer chips — Google Maps style */}
-        <div className="absolute top-3 left-3 right-3 z-[1000]">
+        <div className="absolute top-3 left-3 right-3 z-1000">
           <MapLayerChips
             showStops={showStops}
             onToggleStops={() => setShowStops(!showStops)}
@@ -525,7 +525,7 @@ function MapPageContent() {
 
         {/* Route filter panel (shown when filter chip is tapped) */}
         {showRouteFilter && (
-          <div className="absolute top-14 left-3 right-3 z-[1000] max-w-md">
+          <div className="absolute top-14 left-3 right-3 z-1000 max-w-md">
             <RouteFilterPanel
               allRoutes={allRoutes}
               liveRoutes={liveRoutes}
@@ -542,13 +542,13 @@ function MapPageContent() {
 
         {/* Notification banners */}
         {error && (
-          <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-lg max-w-md">
+          <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-1000 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-lg max-w-md">
             <p className="text-red-800 dark:text-red-200 text-sm">{t.map.errorLoadingBuses}</p>
           </div>
         )}
 
         {stopsError && (
-          <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
+          <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-1000 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
             <p className="text-yellow-800 dark:text-yellow-200 text-sm">
               {t.map.stopsUnavailableError}
             </p>
@@ -557,15 +557,15 @@ function MapPageContent() {
 
         {/* Degraded-state banner: shown when bus data loaded but is stale, or stops failed */}
         {!degradedDismissed && data && (error || stopsError) && (
-          <div className="absolute bottom-[calc(var(--bottom-nav-height)+var(--bottom-nav-gap)+env(safe-area-inset-bottom,0px)+3.5rem)] left-1/2 transform -translate-x-1/2 z-[1000] bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 shadow-lg max-w-xs">
+          <div className="absolute bottom-[calc(var(--bottom-nav-height)+var(--bottom-nav-gap)+env(safe-area-inset-bottom,0px)+3.5rem)] left-1/2 transform -translate-x-1/2 z-1000 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 shadow-lg max-w-xs">
             <div className="flex items-center gap-2">
-              <span className="text-amber-600 dark:text-amber-400 text-xs flex-shrink-0">⚠</span>
+              <span className="text-amber-600 dark:text-amber-400 text-xs shrink-0">⚠</span>
               <p className="text-amber-800 dark:text-amber-200 text-xs flex-1">
                 {t.map.dataOutdated}
               </p>
               <button
                 onClick={() => setDegradedDismissed(true)}
-                className="text-amber-600 dark:text-amber-400 text-xs font-medium hover:underline flex-shrink-0"
+                className="text-amber-600 dark:text-amber-400 text-xs font-medium hover:underline shrink-0"
               >
                 {t.map.dismiss}
               </button>
@@ -574,13 +574,13 @@ function MapPageContent() {
         )}
 
         {locationError && (
-          <div className="absolute top-36 left-1/2 transform -translate-x-1/2 z-[1000] bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
+          <div className="absolute top-36 left-1/2 transform -translate-x-1/2 z-1000 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 shadow-lg max-w-md">
             <p className="text-yellow-800 dark:text-yellow-200 text-sm">{locationError}</p>
           </div>
         )}
 
         {showLocationSuccess && (
-          <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-[1001] bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 shadow-lg max-w-md animate-fade-in">
+          <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-1001 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 shadow-lg max-w-md animate-fade-in">
             <div className="flex items-center gap-2">
               <span className="text-lg">✓</span>
               <p className="text-green-800 dark:text-green-200 text-sm font-medium">
@@ -591,7 +591,7 @@ function MapPageContent() {
         )}
 
         {highlightedStationId && stopsData?.data?.stops && (
-          <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 shadow-lg max-w-md">
+          <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-1000 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 shadow-lg max-w-md">
             <div className="flex items-center gap-2">
               <span className="text-lg">📍</span>
               <div>
@@ -606,7 +606,7 @@ function MapPageContent() {
         )}
 
         {isLoading && !data && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-surface-raised rounded-lg shadow-lg p-6">
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-1000 bg-surface-raised rounded-lg shadow-lg p-6">
             <p className="text-content-secondary">{t.map.loadingBusLocations}</p>
           </div>
         )}
@@ -643,7 +643,7 @@ function MapPageContent() {
         )}
 
         {data && data.buses.length === 0 && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-surface-raised rounded-lg shadow-lg p-6">
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-1000 bg-surface-raised rounded-lg shadow-lg p-6">
             <p className="text-content-secondary">{t.map.noBusesTracked}</p>
           </div>
         )}

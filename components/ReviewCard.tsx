@@ -111,9 +111,9 @@ export function ReviewCard({ feedback: f, badge, targetName }: ReviewCardProps) 
 
       {/* Operator response */}
       {f.operatorResponse && (
-        <div className="mt-2 mb-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] p-3">
+        <div className="mt-2 mb-2 rounded-lg border border-(--color-border) bg-(--color-surface-sunken) p-3">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-xs font-semibold text-[var(--color-content)]">
+            <span className="text-xs font-semibold text-(--color-content)">
               🏢 Official response
             </span>
             {f.operatorResponse.status !== "OPEN" && (
@@ -123,7 +123,7 @@ export function ReviewCard({ feedback: f, badge, targetName }: ReviewCardProps) 
                 {STATUS_LABEL[f.operatorResponse.status]}
               </span>
             )}
-            <span className="ml-auto text-[10px] text-[var(--color-content-muted)]">
+            <span className="ml-auto text-[10px] text-(--color-content-muted)">
               {new Date(f.operatorResponse.updatedAt).toLocaleDateString("pt-PT", {
                 day: "numeric",
                 month: "short",
@@ -131,9 +131,7 @@ export function ReviewCard({ feedback: f, badge, targetName }: ReviewCardProps) 
               })}
             </span>
           </div>
-          <p className="text-xs text-[var(--color-content-secondary)]">
-            {f.operatorResponse.message}
-          </p>
+          <p className="text-xs text-(--color-content-secondary)">{f.operatorResponse.message}</p>
         </div>
       )}
 

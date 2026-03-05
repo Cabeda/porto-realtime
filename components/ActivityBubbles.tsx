@@ -361,7 +361,7 @@ export function ActivityBubbles({
             width: 60%;
             height: 60%;
             fill: white;
-            flex-shrink: 0;
+            shrink: 0;
           }
           .activity-bike-dot::after {
             content: '';
@@ -400,7 +400,7 @@ export function ActivityBubbles({
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0;
+            shrink: 0;
           }
           .activity-bike-badge-dot svg {
             width: var(--bike-badge-icon);
@@ -438,7 +438,7 @@ export function ActivityBubbles({
             width: 60%;
             height: 60%;
             fill: white;
-            flex-shrink: 0;
+            shrink: 0;
           }
           .activity-mode-badge-count {
             position: absolute;
@@ -478,7 +478,7 @@ export function ActivityBubbles({
             width: 55%;
             height: 55%;
             fill: #10b981;
-            flex-shrink: 0;
+            shrink: 0;
           }
         `;
         document.head.appendChild(style);

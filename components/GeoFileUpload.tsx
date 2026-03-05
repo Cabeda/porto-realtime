@@ -245,7 +245,7 @@ export function GeoFileUpload({ onParsed, onClear, hasGeometry }: GeoFileUploadP
       {hasGeometry && fileName ? (
         <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg bg-surface text-sm">
           <svg
-            className="w-4 h-4 text-green-500 flex-shrink-0"
+            className="w-4 h-4 text-green-500 shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -257,7 +257,7 @@ export function GeoFileUpload({ onParsed, onClear, hasGeometry }: GeoFileUploadP
           <button
             type="button"
             onClick={handleClear}
-            className="text-content-muted hover:text-red-500 transition-colors flex-shrink-0"
+            className="text-content-muted hover:text-red-500 transition-colors shrink-0"
           >
             <svg
               className="w-4 h-4"

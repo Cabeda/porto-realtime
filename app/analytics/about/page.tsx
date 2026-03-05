@@ -7,7 +7,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section className="mb-8">
       <h2 className="text-lg font-semibold mb-3">{title}</h2>
-      <div className="text-sm text-[var(--color-content-secondary)] space-y-2 leading-relaxed">
+      <div className="text-sm text-(--color-content-secondary) space-y-2 leading-relaxed">
         {children}
       </div>
     </section>
@@ -16,10 +16,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+    <div className="min-h-screen bg-(--color-surface-sunken) text-(--color-content)">
       <PageHeader title="Methodology" backHref="/analytics" maxWidth="max-w-3xl" />
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <p className="text-sm text-[var(--color-content-secondary)] mb-8">
+        <p className="text-sm text-(--color-content-secondary) mb-8">
           How PortoMove collects, processes, and presents transit performance data for Porto&apos;s
           STCP network.
         </p>
@@ -46,7 +46,7 @@ export default function AboutPage() {
                 href="https://opendata.porto.digital"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[var(--color-accent)] hover:underline"
+                className="text-(--color-accent) hover:underline"
               >
                 Porto Open Data portal
               </a>
@@ -133,14 +133,14 @@ export default function AboutPage() {
           <div className="overflow-x-auto">
             <table className="text-sm border-collapse mt-2">
               <thead>
-                <tr className="border-b border-[var(--color-border)]">
+                <tr className="border-b border-(--color-border)">
                   <th className="text-left pr-6 py-1 font-medium">Grade</th>
                   <th className="text-left pr-6 py-1 font-medium">EWT</th>
                   <th className="text-left py-1 font-medium">Adherence</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-[var(--color-border)]">
+                <tr className="border-b border-(--color-border)">
                   <td className="pr-6 py-1">
                     <span className="inline-block w-6 h-6 rounded-full bg-green-500 text-white text-center text-xs leading-6 font-bold">
                       A
@@ -149,7 +149,7 @@ export default function AboutPage() {
                   <td className="pr-6 py-1">&lt; 60 seconds</td>
                   <td className="py-1">&gt; 90%</td>
                 </tr>
-                <tr className="border-b border-[var(--color-border)]">
+                <tr className="border-b border-(--color-border)">
                   <td className="pr-6 py-1">
                     <span className="inline-block w-6 h-6 rounded-full bg-green-400 text-white text-center text-xs leading-6 font-bold">
                       B
@@ -158,7 +158,7 @@ export default function AboutPage() {
                   <td className="pr-6 py-1">&lt; 120 seconds</td>
                   <td className="py-1">&gt; 80%</td>
                 </tr>
-                <tr className="border-b border-[var(--color-border)]">
+                <tr className="border-b border-(--color-border)">
                   <td className="pr-6 py-1">
                     <span className="inline-block w-6 h-6 rounded-full bg-yellow-400 text-white text-center text-xs leading-6 font-bold">
                       C
@@ -167,7 +167,7 @@ export default function AboutPage() {
                   <td className="pr-6 py-1">&lt; 180 seconds</td>
                   <td className="py-1">&gt; 70%</td>
                 </tr>
-                <tr className="border-b border-[var(--color-border)]">
+                <tr className="border-b border-(--color-border)">
                   <td className="pr-6 py-1">
                     <span className="inline-block w-6 h-6 rounded-full bg-orange-400 text-white text-center text-xs leading-6 font-bold">
                       D
@@ -241,7 +241,7 @@ export default function AboutPage() {
         <Section title="Open Data">
           <p>
             All aggregated data is available for download on the{" "}
-            <Link href="/analytics/data" className="text-[var(--color-accent)] hover:underline">
+            <Link href="/analytics/data" className="text-(--color-accent) hover:underline">
               data page
             </Link>
             . Formats include JSON, CSV, and GeoJSON. We encourage researchers, journalists, and
@@ -251,7 +251,7 @@ export default function AboutPage() {
             If you find errors or have suggestions, please open an issue on our{" "}
             <a
               href="https://github.com/anomalyco/opencode"
-              className="text-[var(--color-accent)] hover:underline"
+              className="text-(--color-accent) hover:underline"
               target="_blank"
               rel="noopener noreferrer"
             >

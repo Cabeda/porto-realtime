@@ -82,7 +82,7 @@ function StopSpacingSection({ lineId }: StopSpacingSectionProps) {
 
   if (!lineInfo) {
     return (
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 h-48 animate-pulse" />
+      <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 h-48 animate-pulse" />
     );
   }
 
@@ -103,7 +103,7 @@ function StopSpacingSection({ lineId }: StopSpacingSectionProps) {
   const pctBelowEU = Math.round((belowEU / segments.length) * 100);
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
+    <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 mb-6">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-lg font-semibold">Stop Spacing</h2>
         {directions.length > 1 && (
@@ -114,8 +114,8 @@ function StopSpacingSection({ lineId }: StopSpacingSectionProps) {
                 onClick={() => setDirIdx(i)}
                 className={`px-2 py-1 text-xs rounded-md transition-colors ${
                   i === dirIdx
-                    ? "bg-[var(--color-accent)] text-white"
-                    : "bg-[var(--color-surface-sunken)] text-[var(--color-content-secondary)]"
+                    ? "bg-(--color-accent) text-white"
+                    : "bg-(--color-surface-sunken) text-(--color-content-secondary)"
                 }`}
               >
                 Dir {d.directionId}
@@ -124,7 +124,7 @@ function StopSpacingSection({ lineId }: StopSpacingSectionProps) {
           </div>
         )}
       </div>
-      <p className="text-xs text-[var(--color-content-secondary)] mb-4">
+      <p className="text-xs text-(--color-content-secondary) mb-4">
         Distance between consecutive stops. EU benchmark ≈ 400 m · US average ≈ 313 m.
       </p>
 
@@ -146,12 +146,12 @@ function StopSpacingSection({ lineId }: StopSpacingSectionProps) {
             ok: pctBelowEU < 30,
           },
         ].map((kpi) => (
-          <div key={kpi.label} className="rounded-lg border border-[var(--color-border)] p-3">
-            <div className="text-xs text-[var(--color-content-secondary)]">{kpi.label}</div>
+          <div key={kpi.label} className="rounded-lg border border-(--color-border) p-3">
+            <div className="text-xs text-(--color-content-secondary)">{kpi.label}</div>
             <div className={`text-xl font-bold ${kpi.ok ? "text-green-500" : "text-amber-500"}`}>
               {kpi.value}
             </div>
-            <div className="text-xs text-[var(--color-content-secondary)]">{kpi.sub}</div>
+            <div className="text-xs text-(--color-content-secondary)">{kpi.sub}</div>
           </div>
         ))}
       </div>
@@ -237,7 +237,7 @@ export default function LineAnalyticsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[var(--color-surface-sunken)] flex items-center justify-center text-[var(--color-content-secondary)]">
+        <div className="min-h-screen bg-(--color-surface-sunken) flex items-center justify-center text-(--color-content-secondary)">
           Loading...
         </div>
       }
@@ -269,7 +269,7 @@ function LineAnalyticsContent() {
   const { data: routes } = useSWR("/api/routes", fetcher);
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+    <div className="min-h-screen bg-(--color-surface-sunken) text-(--color-content)">
       <PageHeader title="Line Analytics" backHref="/analytics" />
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Route selector */}
@@ -278,7 +278,7 @@ function LineAnalyticsContent() {
           <select
             value={route}
             onChange={(e) => setRoute(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-lg font-bold"
+            className="px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-surface) text-lg font-bold"
           >
             <option value="">Select a route...</option>
             {routes?.routes?.map((r: { gtfsId: string; shortName: string; longName: string }) => (
@@ -293,7 +293,7 @@ function LineAnalyticsContent() {
         </div>
 
         {!route && (
-          <div className="text-center py-20 text-[var(--color-content-secondary)]">
+          <div className="text-center py-20 text-(--color-content-secondary)">
             Select a route above to see its performance analytics.
           </div>
         )}
@@ -302,23 +302,23 @@ function LineAnalyticsContent() {
           <>
             {/* Summary KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 flex items-center gap-3">
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 flex items-center gap-3">
                 <GradeBadge grade={summary.grade} />
                 <div>
-                  <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
+                  <div className="text-xs text-(--color-content-secondary) flex items-center">
                     Grade <MetricTooltip text={tips.grade} />
                   </div>
                   <div className="font-semibold">{summary.grade}</div>
                 </div>
               </div>
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+                <div className="text-xs text-(--color-content-secondary) flex items-center">
                   Trips <MetricTooltip text={tips.trips} />
                 </div>
                 <div className="text-xl font-bold">{summary.totalTrips}</div>
               </div>
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+                <div className="text-xs text-(--color-content-secondary) flex items-center">
                   EWT <MetricTooltip text={tips.ewt} />
                 </div>
                 <div className="text-xl font-bold">
@@ -327,16 +327,16 @@ function LineAnalyticsContent() {
                     : "—"}
                 </div>
               </div>
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+                <div className="text-xs text-(--color-content-secondary) flex items-center">
                   Adherence <MetricTooltip text={tips.headwayAdherence} />
                 </div>
                 <div className="text-xl font-bold">
                   {summary.avgHeadwayAdherence !== null ? `${summary.avgHeadwayAdherence}%` : "—"}
                 </div>
               </div>
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div className="text-xs text-[var(--color-content-secondary)] flex items-center">
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+                <div className="text-xs text-(--color-content-secondary) flex items-center">
                   Speed <MetricTooltip text={tips.speed} />
                 </div>
                 <div className="text-xl font-bold">
@@ -350,7 +350,7 @@ function LineAnalyticsContent() {
 
             {/* Headway Distribution */}
             {headways?.headways?.length > 0 && (
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 mb-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center">
                   Headway Distribution <MetricTooltip text={tips.headwayDistribution} />
                 </h2>
@@ -368,7 +368,7 @@ function LineAnalyticsContent() {
                     />
                   </BarChart>
                 </ResponsiveContainer>
-                <div className="mt-2 text-sm text-[var(--color-content-secondary)]">
+                <div className="mt-2 text-sm text-(--color-content-secondary)">
                   Average headway: {headways.avgHeadwayMins ?? "—"} min | Total observations:{" "}
                   {headways.totalHeadways}
                 </div>
@@ -377,7 +377,7 @@ function LineAnalyticsContent() {
 
             {/* Runtime Distribution */}
             {runtimes?.runtimes?.length > 0 && (
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 mb-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center">
                   Runtime Distribution <MetricTooltip text={tips.runtimeDistribution} />
                 </h2>
@@ -390,7 +390,7 @@ function LineAnalyticsContent() {
                     <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Trips" />
                   </BarChart>
                 </ResponsiveContainer>
-                <div className="mt-2 text-sm text-[var(--color-content-secondary)]">
+                <div className="mt-2 text-sm text-(--color-content-secondary)">
                   Average: {runtimes.avgRuntimeMins ?? "—"} min | Median:{" "}
                   {runtimes.medianRuntimeMins ?? "—"} min
                 </div>
@@ -399,7 +399,7 @@ function LineAnalyticsContent() {
 
             {/* Daily Performance Trend */}
             {summary.dailyPerformance?.length > 0 && (
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
                 <h2 className="text-lg font-semibold mb-4">Daily Performance</h2>
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={summary.dailyPerformance}>
@@ -457,7 +457,7 @@ function LineAnalyticsContent() {
 
             {/* No data state */}
             {!summary.totalTrips && (
-              <div className="text-center py-12 text-[var(--color-content-secondary)]">
+              <div className="text-center py-12 text-(--color-content-secondary)">
                 No trip data available for route {route} in this period. Data will appear after the
                 aggregation pipeline runs.
               </div>

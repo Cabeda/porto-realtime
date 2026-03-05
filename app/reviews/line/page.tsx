@@ -251,7 +251,7 @@ function LineReviewsContent() {
               <UserMenu />
               <button
                 onClick={() => setShowSettings(true)}
-                className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
                 title={t.nav.settings}
                 aria-label={t.nav.settings}
               >
@@ -273,7 +273,7 @@ function LineReviewsContent() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+            <div className="w-14 h-14 bg-linear-to-br from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 rounded-xl flex items-center justify-center shadow-md">
               <span className="text-white text-xl font-bold">{lineId}</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -298,7 +298,7 @@ function LineReviewsContent() {
             </div>
             <Link
               href={`/analytics/line?route=${encodeURIComponent(lineId)}`}
-              className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-sm font-medium flex-shrink-0"
+              className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-sm font-medium shrink-0"
               title="Ver estatísticas da linha"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -313,7 +313,7 @@ function LineReviewsContent() {
             </Link>
             <button
               onClick={() => setShowFeedbackSheet(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors text-sm font-medium flex-shrink-0"
+              className="flex items-center gap-1.5 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors text-sm font-medium shrink-0"
             >
               ★ {t.feedback.rate}
             </button>
@@ -345,10 +345,10 @@ function LineReviewsContent() {
                 return (
                   <div key={stop.gtfsId} className="flex items-start gap-3 relative">
                     {/* Timeline */}
-                    <div className="flex flex-col items-center flex-shrink-0 w-5">
+                    <div className="flex flex-col items-center shrink-0 w-5">
                       {!isFirst && <div className="w-0.5 h-3 bg-blue-300 dark:bg-blue-600" />}
                       <div
-                        className={`rounded-full border-2 border-white dark:border-gray-800 shadow-sm flex-shrink-0 ${
+                        className={`rounded-full border-2 border-white dark:border-gray-800 shadow-sm shrink-0 ${
                           isFirst || isLast ? "w-3.5 h-3.5 bg-blue-500" : "w-2.5 h-2.5 bg-red-400"
                         }`}
                       />

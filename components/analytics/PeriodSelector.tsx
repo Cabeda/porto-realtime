@@ -54,8 +54,8 @@ export function PeriodSelector({
           }}
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
             value === p
-              ? "bg-[var(--color-accent)] text-white"
-              : "bg-[var(--color-surface)] text-[var(--color-content-secondary)] hover:bg-[var(--color-border)]"
+              ? "bg-(--color-accent) text-white"
+              : "bg-(--color-surface) text-(--color-content-secondary) hover:bg-(--color-border)"
           }`}
         >
           {PRESET_LABELS[p]}
@@ -68,8 +68,8 @@ export function PeriodSelector({
             onClick={() => setDateOpen(!dateOpen)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
               isCustomDate
-                ? "bg-[var(--color-accent)] text-white"
-                : "bg-[var(--color-surface)] text-[var(--color-content-secondary)] hover:bg-[var(--color-border)]"
+                ? "bg-(--color-accent) text-white"
+                : "bg-(--color-surface) text-(--color-content-secondary) hover:bg-(--color-border)"
             }`}
           >
             <svg
@@ -102,7 +102,7 @@ export function PeriodSelector({
                   setDateOpen(false);
                 }
               }}
-              className="px-2 py-1.5 rounded-lg text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-content)]"
+              className="px-2 py-1.5 rounded-lg text-sm border border-(--color-border) bg-(--color-surface) text-(--color-content)"
             />
           )}
         </>

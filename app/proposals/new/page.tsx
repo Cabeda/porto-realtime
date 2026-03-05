@@ -60,7 +60,7 @@ export default function NewProposalPage() {
               <UserMenu />
               <button
                 onClick={() => setShowSettings(true)}
-                className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
                 title={t.nav.settings}
                 aria-label={t.nav.settings}
               >

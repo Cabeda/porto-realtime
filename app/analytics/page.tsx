@@ -49,8 +49,8 @@ function KpiCard({
   tooltip?: string;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <div className="text-xs text-[var(--color-content-secondary)] uppercase tracking-wide flex items-center">
+    <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
+      <div className="text-xs text-(--color-content-secondary) uppercase tracking-wide flex items-center">
         {label}
         {tooltip && <MetricTooltip text={tooltip} />}
       </div>
@@ -58,11 +58,9 @@ function KpiCard({
         <span className="text-2xl font-bold" style={color ? { color } : undefined}>
           {value ?? "—"}
         </span>
-        {unit && <span className="text-sm text-[var(--color-content-secondary)]">{unit}</span>}
+        {unit && <span className="text-sm text-(--color-content-secondary)">{unit}</span>}
       </div>
-      {subtitle && (
-        <div className="mt-1 text-xs text-[var(--color-content-secondary)]">{subtitle}</div>
-      )}
+      {subtitle && <div className="mt-1 text-xs text-(--color-content-secondary)">{subtitle}</div>}
     </div>
   );
 }
@@ -121,19 +119,19 @@ export default function AnalyticsDashboard() {
   })();
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+    <div className="min-h-screen bg-(--color-surface-sunken) text-(--color-content)">
       <PageHeader title="Transit Analytics" />
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Period selector + route filter */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-          <p className="text-sm text-[var(--color-content-secondary)]">
+          <p className="text-sm text-(--color-content-secondary)">
             STCP network performance — Porto
           </p>
           <div className="flex items-center gap-2 flex-wrap">
             <select
               value={selectedRoute}
               onChange={(e) => setSelectedRoute(e.target.value)}
-              className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm"
+              className="px-3 py-1.5 rounded-lg border border-(--color-border) bg-(--color-surface) text-sm"
             >
               <option value="">All routes</option>
               {routes?.routes?.map((r: { gtfsId: string; shortName: string; longName: string }) => (
@@ -214,44 +212,44 @@ export default function AnalyticsDashboard() {
         <div className="flex flex-wrap gap-2 mb-6">
           <Link
             href="/analytics/vehicle"
-            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+            className="px-3 py-1.5 rounded-lg text-sm bg-(--color-surface) border border-(--color-border) hover:bg-(--color-border) transition-colors"
           >
             Vehicle Analytics
           </Link>
           <Link
             href="/analytics/heatmap"
-            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+            className="px-3 py-1.5 rounded-lg text-sm bg-(--color-surface) border border-(--color-border) hover:bg-(--color-border) transition-colors"
           >
             Velocity Heatmap
           </Link>
           <Link
             href="/analytics/history"
-            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+            className="px-3 py-1.5 rounded-lg text-sm bg-(--color-surface) border border-(--color-border) hover:bg-(--color-border) transition-colors"
           >
             History Replay
           </Link>
           <Link
             href="/analytics/reliability"
-            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+            className="px-3 py-1.5 rounded-lg text-sm bg-(--color-surface) border border-(--color-border) hover:bg-(--color-border) transition-colors"
           >
             Reliability Rankings
           </Link>
           <Link
             href="/analytics/data"
-            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+            className="px-3 py-1.5 rounded-lg text-sm bg-(--color-surface) border border-(--color-border) hover:bg-(--color-border) transition-colors"
           >
             Download Data
           </Link>
           <Link
             href="/analytics/about"
-            className="px-3 py-1.5 rounded-lg text-sm bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+            className="px-3 py-1.5 rounded-lg text-sm bg-(--color-surface) border border-(--color-border) hover:bg-(--color-border) transition-colors"
           >
             Methodology
           </Link>
         </div>
 
         {/* Speed Over Time Chart */}
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 mb-6">
+        <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 mb-6">
           <h2 className="text-lg font-semibold mb-4">Average Speed by Hour</h2>
           {speedTs?.timeseries ? (
             <ResponsiveContainer width="100%" height={300}>
@@ -307,7 +305,7 @@ export default function AnalyticsDashboard() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-[var(--color-content-secondary)]">
+            <div className="h-[300px] flex items-center justify-center text-(--color-content-secondary)">
               {speedTs === undefined
                 ? "Loading..."
                 : "No data available yet. Data will appear after the first day of collection."}
@@ -316,7 +314,7 @@ export default function AnalyticsDashboard() {
         </div>
 
         {/* Fleet Activity Chart */}
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+        <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
           <h2 className="text-lg font-semibold mb-4">
             {fleet?.dailySeries ? "Active Buses by Day" : "Active Buses by Hour"}
           </h2>
@@ -349,7 +347,7 @@ export default function AnalyticsDashboard() {
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-[var(--color-content-secondary)]">
+            <div className="h-[300px] flex items-center justify-center text-(--color-content-secondary)">
               {fleet === undefined ? "Loading..." : "No data available yet."}
             </div>
           )}{" "}

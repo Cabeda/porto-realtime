@@ -1,6 +1,6 @@
 export function MapSkeleton() {
   return (
-    <div className="h-screen w-screen flex flex-col bg-gradient-to-b from-accent-subtle to-surface">
+    <div className="h-screen w-screen flex flex-col bg-linear-to-b from-accent-subtle to-surface">
       {/* Header Skeleton */}
       <header className="bg-surface shadow-sm z-10">
         <div className="px-4 sm:px-6 lg:px-8 py-3">

@@ -149,14 +149,14 @@ export default function HeatmapPage() {
   const totalSegments = segmentData?.segments?.length ?? 0;
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-sunken)] text-[var(--color-content)]">
+    <div className="min-h-screen bg-(--color-surface-sunken) text-(--color-content)">
       <PageHeader title="Velocity Heatmap" backHref="/analytics" />
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex flex-wrap items-center gap-4 mb-4">
           <select
             value={route}
             onChange={(e) => setRoute(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm"
+            className="px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-surface) text-sm"
           >
             <option value="">All routes</option>
             {routes?.routes?.map((r: { shortName: string; longName: string }) => (
@@ -174,8 +174,8 @@ export default function HeatmapPage() {
                 onClick={() => setHourPreset(i)}
                 className={`px-2 py-1 rounded text-xs border transition-colors ${
                   hourPreset === i
-                    ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
-                    : "bg-[var(--color-surface)] border-[var(--color-border)] hover:bg-[var(--color-border)]"
+                    ? "bg-(--color-accent) text-white border-(--color-accent)"
+                    : "bg-(--color-surface) border-(--color-border) hover:bg-(--color-border)"
                 }`}
               >
                 {p.label}
@@ -188,7 +188,7 @@ export default function HeatmapPage() {
           </div>
         </div>
 
-        <div className="text-sm text-[var(--color-content-secondary)] mb-3">
+        <div className="text-sm text-(--color-content-secondary) mb-3">
           {segmentData
             ? totalSegments > 0
               ? `${segmentsWithData} of ${totalSegments} segments with speed data`
@@ -197,11 +197,11 @@ export default function HeatmapPage() {
         </div>
 
         {/* Map */}
-        <div className="relative rounded-xl border border-[var(--color-border)] overflow-hidden">
+        <div className="relative rounded-xl border border-(--color-border) overflow-hidden">
           <div ref={containerRef} className="w-full h-[600px]" />
 
           {/* Legend */}
-          <div className="absolute bottom-4 right-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 shadow-lg z-[1000]">
+          <div className="absolute bottom-4 right-4 bg-(--color-surface) border border-(--color-border) rounded-lg p-3 shadow-lg z-1000">
             <div className="text-xs font-semibold mb-2">Speed (km/h)</div>
             {LEGEND_ITEMS.map((item) => (
               <div key={item.label} className="flex items-center gap-2 text-xs">
@@ -215,7 +215,7 @@ export default function HeatmapPage() {
           </div>
         </div>
 
-        <p className="mt-4 text-sm text-[var(--color-content-secondary)]">
+        <p className="mt-4 text-sm text-(--color-content-secondary)">
           Segments are colored by average commercial speed. Red indicates congestion or slow
           service; green indicates free-flowing traffic. Gray segments have no data for the selected
           period. Hover over a segment for details.

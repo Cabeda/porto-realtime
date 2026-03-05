@@ -83,7 +83,7 @@ function VehicleReviewsContent() {
               <UserMenu />
               <button
                 onClick={() => setShowSettings(true)}
-                className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-surface-sunken hover:bg-border text-content-secondary transition-colors"
                 title={t.nav.settings}
                 aria-label={t.nav.settings}
               >
@@ -105,7 +105,7 @@ function VehicleReviewsContent() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500 rounded-xl flex items-center justify-center shadow-md">
+            <div className="w-14 h-14 bg-linear-to-br from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500 rounded-xl flex items-center justify-center shadow-md">
               <span className="text-white text-lg font-bold">{vehicleId}</span>
             </div>
             <div className="flex-1">
@@ -129,7 +129,7 @@ function VehicleReviewsContent() {
             </div>
             <Link
               href={`/analytics/vehicle?vehicle=${encodeURIComponent(vehicleId)}`}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-border)] transition-colors text-sm font-medium text-content-secondary"
+              className="flex items-center gap-1.5 px-3 py-2 bg-(--color-surface-sunken) border border-(--color-border) rounded-lg hover:bg-(--color-border) transition-colors text-sm font-medium text-content-secondary"
               title="View vehicle analytics"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

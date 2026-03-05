@@ -297,7 +297,7 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-3000 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !isSocialLoading) onClose();
       }}
