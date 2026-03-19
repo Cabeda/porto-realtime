@@ -59,7 +59,7 @@ func main() {
 				return runSnapshotSchedule(ctx, pool)
 			}},
 			{name: "aggregate-daily", hour: 3, dayOfWeek: nil, fn: func(ctx context.Context) error {
-				return runAggregateDaily(ctx, pool, r2, bucket)
+				return runAggregateDailyIncremental(ctx, pool, r2, bucket, time.Time{})
 			}},
 			{name: "archive-positions", hour: 3, dayOfWeek: nil, fn: func(ctx context.Context) error {
 				return runArchivePositions(ctx, r2, bucket)
@@ -99,7 +99,7 @@ func main() {
 						log.Fatalf("[run] Invalid DATE format (use YYYY-MM-DD): %v", err)
 					}
 					log.Printf("[run] Using date override: %s", dateStr)
-					if err := runAggregateDailyWithDate(ctx, pool, r2, bucket, overrideDate); err != nil {
+					if err := runAggregateDailyIncremental(ctx, pool, r2, bucket, overrideDate); err != nil {
 						log.Fatalf("[run] aggregate-daily failed: %v", err)
 					}
 					log.Printf("[run] aggregate-daily completed successfully")
