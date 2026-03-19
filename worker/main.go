@@ -90,6 +90,23 @@ func main() {
 				}
 				os.Exit(1)
 			}
+
+			// Support DATE env var for aggregate-daily to backfill historical data
+			if target.name == "aggregate-daily" {
+				if dateStr := os.Getenv("DATE"); dateStr != "" {
+					overrideDate, err := time.Parse("2006-01-02", dateStr)
+					if err != nil {
+						log.Fatalf("[run] Invalid DATE format (use YYYY-MM-DD): %v", err)
+					}
+					log.Printf("[run] Using date override: %s", dateStr)
+					if err := runAggregateDailyWithDate(ctx, pool, r2, bucket, overrideDate); err != nil {
+						log.Fatalf("[run] aggregate-daily failed: %v", err)
+					}
+					log.Printf("[run] aggregate-daily completed successfully")
+					return
+				}
+			}
+
 			log.Printf("[run] Executing %s...", target.name)
 			if err := target.fn(ctx); err != nil {
 				log.Fatalf("[run] %s failed: %v", target.name, err)
@@ -100,7 +117,7 @@ func main() {
 	} else {
 		log.Println("WARNING: DATABASE_URL not set — scheduled jobs (aggregate, archive, cleanup) disabled")
 
-		// CLI mode without DATABASE_URL - list available jobs
+		// CLI mode without DATABASE_URL
 		if len(os.Args) >= 3 && os.Args[1] == "run" {
 			log.Fatal("[run] DATABASE_URL not configured — cannot run scheduled jobs that require database")
 		}
