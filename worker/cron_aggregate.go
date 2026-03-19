@@ -46,12 +46,25 @@ func listSnapshotKeys(ctx context.Context, r2 *s3.Client, bucket, dateStr string
 }
 
 func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool, r2 *s3.Client, bucket string) error {
+	return runAggregateDailyWithDate(ctx, pool, r2, bucket, time.Time{})
+}
+
+func runAggregateDailyWithDate(ctx context.Context, pool *pgxpool.Pool, r2 *s3.Client, bucket string, overrideDate time.Time) error {
 	startTime := time.Now()
 
 	now := time.Now().UTC()
-	yesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, time.UTC)
-	today := yesterday.AddDate(0, 0, 1)
-	dateStr := yesterday.Format("2006-01-02")
+	var yesterday, today time.Time
+	var dateStr string
+
+	if !overrideDate.IsZero() {
+		yesterday = time.Date(overrideDate.Year(), overrideDate.Month(), overrideDate.Day(), 0, 0, 0, 0, time.UTC)
+		today = yesterday.AddDate(0, 0, 1)
+		dateStr = yesterday.Format("2006-01-02")
+	} else {
+		yesterday = time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, time.UTC)
+		today = yesterday.AddDate(0, 0, 1)
+		dateStr = yesterday.Format("2006-01-02")
+	}
 
 	log.Printf("[aggregate] Starting for %s", dateStr)
 

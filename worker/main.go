@@ -71,34 +71,39 @@ func main() {
 				return runRefreshSegments(ctx, pool)
 			}},
 		}
+
+		// --- CLI mode: run a specific job and exit ---
+		if len(os.Args) >= 3 && os.Args[1] == "run" {
+			jobName := os.Args[2]
+			var target *scheduledJob
+			for i := range jobs {
+				if jobs[i].name == jobName {
+					target = &jobs[i]
+					break
+				}
+			}
+			if target == nil {
+				log.Printf("Unknown job: %s", jobName)
+				log.Printf("Available jobs:")
+				for _, j := range jobs {
+					log.Printf("  - %s", j.name)
+				}
+				os.Exit(1)
+			}
+			log.Printf("[run] Executing %s...", target.name)
+			if err := target.fn(ctx); err != nil {
+				log.Fatalf("[run] %s failed: %v", target.name, err)
+			}
+			log.Printf("[run] %s completed successfully", target.name)
+			return
+		}
 	} else {
 		log.Println("WARNING: DATABASE_URL not set — scheduled jobs (aggregate, archive, cleanup) disabled")
-	}
 
-	// --- CLI mode: run a specific job and exit ---
-	if len(os.Args) >= 3 && os.Args[1] == "run" {
-		jobName := os.Args[2]
-		var target *scheduledJob
-		for i := range jobs {
-			if jobs[i].name == jobName {
-				target = &jobs[i]
-				break
-			}
+		// CLI mode without DATABASE_URL - list available jobs
+		if len(os.Args) >= 3 && os.Args[1] == "run" {
+			log.Fatal("[run] DATABASE_URL not configured — cannot run scheduled jobs that require database")
 		}
-		if target == nil {
-			log.Printf("Unknown job: %s", jobName)
-			log.Printf("Available jobs:")
-			for _, j := range jobs {
-				log.Printf("  - %s", j.name)
-			}
-			os.Exit(1)
-		}
-		log.Printf("[run] Executing %s...", target.name)
-		if err := target.fn(ctx); err != nil {
-			log.Fatalf("[run] %s failed: %v", target.name, err)
-		}
-		log.Printf("[run] %s completed successfully", target.name)
-		return
 	}
 
 	maskedURL := maskDatabaseURL(dbURL)
