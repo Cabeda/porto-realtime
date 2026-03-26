@@ -25,7 +25,8 @@
       "@/*": ["./*"]
     },
     "target": "ES2023",
-    "types": ["node"]
+    "types": ["node"],
+    "noUncheckedSideEffectImports": false
   },
   "include": [
     "next-env.d.ts",
