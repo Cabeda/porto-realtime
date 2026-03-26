@@ -24,7 +24,8 @@
     "paths": {
       "@/*": ["./*"]
     },
-    "target": "ES2023"
+    "target": "ES2023",
+    "types": ["node"]
   },
   "include": [
     "next-env.d.ts",
