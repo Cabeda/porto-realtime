@@ -59,7 +59,7 @@ func main() {
 				return runSnapshotSchedule(ctx, pool)
 			}},
 			{name: "aggregate-daily", hour: 3, dayOfWeek: nil, fn: func(ctx context.Context) error {
-				return runAggregateDaily(ctx, pool, r2, bucket)
+				return runAggregateDailyIncremental(ctx, pool, r2, bucket, time.Time{})
 			}},
 			{name: "archive-positions", hour: 3, dayOfWeek: nil, fn: func(ctx context.Context) error {
 				return runArchivePositions(ctx, r2, bucket)
@@ -71,34 +71,56 @@ func main() {
 				return runRefreshSegments(ctx, pool)
 			}},
 		}
+
+		// --- CLI mode: run a specific job and exit ---
+		if len(os.Args) >= 3 && os.Args[1] == "run" {
+			jobName := os.Args[2]
+			var target *scheduledJob
+			for i := range jobs {
+				if jobs[i].name == jobName {
+					target = &jobs[i]
+					break
+				}
+			}
+			if target == nil {
+				log.Printf("Unknown job: %s", jobName)
+				log.Printf("Available jobs:")
+				for _, j := range jobs {
+					log.Printf("  - %s", j.name)
+				}
+				os.Exit(1)
+			}
+
+			// Support DATE env var for aggregate-daily to backfill historical data
+			if target.name == "aggregate-daily" {
+				if dateStr := os.Getenv("DATE"); dateStr != "" {
+					overrideDate, err := time.Parse("2006-01-02", dateStr)
+					if err != nil {
+						log.Fatalf("[run] Invalid DATE format (use YYYY-MM-DD): %v", err)
+					}
+					log.Printf("[run] Using date override: %s", dateStr)
+					if err := runAggregateDailyIncremental(ctx, pool, r2, bucket, overrideDate); err != nil {
+						log.Fatalf("[run] aggregate-daily failed: %v", err)
+					}
+					log.Printf("[run] aggregate-daily completed successfully")
+					return
+				}
+			}
+
+			log.Printf("[run] Executing %s...", target.name)
+			if err := target.fn(ctx); err != nil {
+				log.Fatalf("[run] %s failed: %v", target.name, err)
+			}
+			log.Printf("[run] %s completed successfully", target.name)
+			return
+		}
 	} else {
 		log.Println("WARNING: DATABASE_URL not set — scheduled jobs (aggregate, archive, cleanup) disabled")
-	}
 
-	// --- CLI mode: run a specific job and exit ---
-	if len(os.Args) >= 3 && os.Args[1] == "run" {
-		jobName := os.Args[2]
-		var target *scheduledJob
-		for i := range jobs {
-			if jobs[i].name == jobName {
-				target = &jobs[i]
-				break
-			}
+		// CLI mode without DATABASE_URL
+		if len(os.Args) >= 3 && os.Args[1] == "run" {
+			log.Fatal("[run] DATABASE_URL not configured — cannot run scheduled jobs that require database")
 		}
-		if target == nil {
-			log.Printf("Unknown job: %s", jobName)
-			log.Printf("Available jobs:")
-			for _, j := range jobs {
-				log.Printf("  - %s", j.name)
-			}
-			os.Exit(1)
-		}
-		log.Printf("[run] Executing %s...", target.name)
-		if err := target.fn(ctx); err != nil {
-			log.Fatalf("[run] %s failed: %v", target.name, err)
-		}
-		log.Printf("[run] %s completed successfully", target.name)
-		return
 	}
 
 	maskedURL := maskDatabaseURL(dbURL)

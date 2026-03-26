@@ -15,41 +15,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const aggregateChunkSize = 5000
+const snapshotBatchSize = 500
 
-// listSnapshotKeys returns all snapshot keys for a given date from R2.
-func listSnapshotKeys(ctx context.Context, r2 *s3.Client, bucket, dateStr string) ([]string, error) {
-	prefix := fmt.Sprintf("snapshots/%s/", strings.ReplaceAll(dateStr, "-", "/"))
-	var keys []string
-	var continuationToken *string
-
-	for {
-		out, err := r2.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
-			Bucket:            &bucket,
-			Prefix:            &prefix,
-			ContinuationToken: continuationToken,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("list R2 objects: %w", err)
-		}
-		for _, obj := range out.Contents {
-			if obj.Key != nil {
-				keys = append(keys, *obj.Key)
-			}
-		}
-		if out.IsTruncated == nil || !*out.IsTruncated {
-			break
-		}
-		continuationToken = out.NextContinuationToken
-	}
-	return keys, nil
-}
-
-func runAggregateDaily(ctx context.Context, pool *pgxpool.Pool, r2 *s3.Client, bucket string) error {
-	return runAggregateDailyWithDate(ctx, pool, r2, bucket, time.Time{})
-}
-
-func runAggregateDailyWithDate(ctx context.Context, pool *pgxpool.Pool, r2 *s3.Client, bucket string, overrideDate time.Time) error {
+func runAggregateDailyIncremental(ctx context.Context, pool *pgxpool.Pool, r2 *s3.Client, bucket string, overrideDate time.Time) error {
 	startTime := time.Now()
 
 	now := time.Now().UTC()
@@ -66,9 +34,35 @@ func runAggregateDailyWithDate(ctx context.Context, pool *pgxpool.Pool, r2 *s3.C
 		dateStr = yesterday.Format("2006-01-02")
 	}
 
-	log.Printf("[aggregate] Starting for %s", dateStr)
+	log.Printf("[aggregate] Starting incremental aggregation for %s", dateStr)
 
-	// List snapshot files for yesterday from R2
+	// Create temporary staging table for positions
+	_, err := pool.Exec(ctx, `
+		CREATE UNLOGGED TABLE IF NOT EXISTS "PositionStagingTemp" (
+			id BIGSERIAL PRIMARY KEY,
+			"recordedAt" TIMESTAMPTZ NOT NULL,
+			"vehicleId" TEXT NOT NULL,
+			"vehicleNum" TEXT,
+			route TEXT NOT NULL,
+			"directionId" SMALLINT,
+			lat DOUBLE PRECISION NOT NULL,
+			lon DOUBLE PRECISION NOT NULL,
+			speed REAL,
+			"tripId" TEXT
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("create staging table: %w", err)
+	}
+	defer pool.Exec(ctx, `DROP TABLE IF EXISTS "PositionStagingTemp"`)
+
+	// Clear staging table
+	_, err = pool.Exec(ctx, `TRUNCATE TABLE "PositionStagingTemp"`)
+	if err != nil {
+		return fmt.Errorf("truncate staging: %w", err)
+	}
+
+	// List snapshot files
 	keys, err := listSnapshotKeys(ctx, r2, bucket, dateStr)
 	if err != nil {
 		return fmt.Errorf("list snapshots: %w", err)
@@ -77,7 +71,7 @@ func runAggregateDailyWithDate(ctx context.Context, pool *pgxpool.Pool, r2 *s3.C
 		log.Printf("[aggregate] No snapshots found for %s", dateStr)
 		return nil
 	}
-	log.Printf("[aggregate] Found %d snapshot files for %s", len(keys), dateStr)
+	log.Printf("[aggregate] Found %d snapshot files", len(keys))
 
 	// Pre-load segments
 	segRows, err := pool.Query(ctx, `SELECT id, route, "directionId", "segmentIndex", "startLat", "startLon", "endLat", "endLon", "midLat", "midLon", "lengthM", geometry FROM "RouteSegment"`)
@@ -125,116 +119,230 @@ func runAggregateDailyWithDate(ctx context.Context, pool *pgxpool.Pool, r2 *s3.C
 	}
 	rsRows.Close()
 
-	// Process snapshots in streaming fashion to avoid OOM
+	// Process snapshots in batches
 	var totalPositions int64
-	vehicleGroups := make(map[string][]PositionPoint)
 	hourlySegmentSpeeds := make(map[string][]float64)
 	stopArrivals := make(map[string][]int64)
 	lastSeenAt := make(map[string]int64)
 
-	for _, key := range keys {
-		out, err := r2.GetObject(ctx, &s3.GetObjectInput{Bucket: &bucket, Key: &key})
-		if err != nil {
-			log.Printf("[aggregate] WARNING: failed to fetch %s: %v", key, err)
-			continue
+	batchNum := 0
+	for batchStart := 0; batchStart < len(keys); batchStart += snapshotBatchSize {
+		batchEnd := batchStart + snapshotBatchSize
+		if batchEnd > len(keys) {
+			batchEnd = len(keys)
 		}
-		body, err := io.ReadAll(out.Body)
-		out.Body.Close()
-		if err != nil {
-			log.Printf("[aggregate] WARNING: failed to read %s: %v", key, err)
-			continue
-		}
+		batchNum++
 
-		var snap SnapshotFile
-		if err := json.Unmarshal(body, &snap); err != nil {
-			log.Printf("[aggregate] WARNING: failed to parse %s: %v", key, err)
-			continue
-		}
-
-		recordedAt, err := time.Parse(time.RFC3339, snap.RecordedAt)
-		if err != nil {
-			continue
-		}
-
-		for _, p := range snap.Positions {
-			if p.Route == "" {
+		// Process each snapshot in this batch
+		var batchPositions []PositionPoint
+		for _, key := range keys[batchStart:batchEnd] {
+			out, err := r2.GetObject(ctx, &s3.GetObjectInput{Bucket: &bucket, Key: &key})
+			if err != nil {
+				log.Printf("[aggregate] WARNING: failed to fetch %s: %v", key, err)
 				continue
 			}
-			pp := PositionPoint{
-				RecordedAt: recordedAt,
-				VehicleID:  p.VehicleID,
-				Route:      p.Route,
-				Lat:        p.Lat,
-				Lon:        p.Lon,
-				Speed:      p.Speed,
-			}
-			if p.VehicleNum != "" {
-				pp.VehicleNum = &p.VehicleNum
-			}
-			if p.TripID != "" {
-				pp.TripID = &p.TripID
-			}
-			pp.DirectionID = p.DirectionID
-
-			r := pp.Route
-			dirStr := "x"
-			if pp.DirectionID != nil {
-				dirStr = fmt.Sprintf("%d", *pp.DirectionID)
-			}
-			vKey := pp.VehicleID + ":" + r + ":" + dirStr
-			vehicleGroups[vKey] = append(vehicleGroups[vKey], pp)
-
-			if pp.Speed != nil && *pp.Speed > 0 && len(segDefs) > 0 {
-				segID := snapToSegment(pp.Lat, pp.Lon, r, pp.DirectionID, segDefs, 150)
-				if segID != "" {
-					hour := time.Date(pp.RecordedAt.Year(), pp.RecordedAt.Month(), pp.RecordedAt.Day(), pp.RecordedAt.Hour(), 0, 0, 0, time.UTC)
-					key := segID + ":" + hour.Format(time.RFC3339)
-					hourlySegmentSpeeds[key] = append(hourlySegmentSpeeds[key], float64(*pp.Speed))
-				}
+			body, err := io.ReadAll(out.Body)
+			out.Body.Close()
+			if err != nil {
+				log.Printf("[aggregate] WARNING: failed to read %s: %v", key, err)
+				continue
 			}
 
-			stopsForRoute := stopsByRoute[r]
-			if len(stopsForRoute) > 0 {
-				var bestStop *routeStop
-				bestDist := math.Inf(1)
-				for i := range stopsForRoute {
-					rs := &stopsForRoute[i]
-					if pp.DirectionID != nil && rs.DirectionID != int(*pp.DirectionID) {
-						continue
-					}
-					dist := haversineM(pp.Lat, pp.Lon, rs.Lat, rs.Lon)
-					if dist < bestDist && dist <= 80 {
-						bestDist = dist
-						bestStop = rs
-					}
-				}
-				if bestStop != nil {
-					stopKey := r + ":" + dirStr + ":" + bestStop.StopID
-					dedupeKey := pp.VehicleID + ":" + stopKey
-					ts := pp.RecordedAt.UnixMilli()
-					last, exists := lastSeenAt[dedupeKey]
-					if !exists || ts-last >= 3*60*1000 {
-						lastSeenAt[dedupeKey] = ts
-						stopArrivals[stopKey] = append(stopArrivals[stopKey], ts)
-					}
-				}
+			var snap SnapshotFile
+			if err := json.Unmarshal(body, &snap); err != nil {
+				log.Printf("[aggregate] WARNING: failed to parse %s: %v", key, err)
+				continue
 			}
-			totalPositions++
+
+			recordedAt, err := time.Parse(time.RFC3339, snap.RecordedAt)
+			if err != nil {
+				continue
+			}
+
+			for _, p := range snap.Positions {
+				if p.Route == "" {
+					continue
+				}
+				pp := PositionPoint{
+					RecordedAt: recordedAt,
+					VehicleID:  p.VehicleID,
+					Route:      p.Route,
+					Lat:        p.Lat,
+					Lon:        p.Lon,
+					Speed:      p.Speed,
+				}
+				if p.VehicleNum != "" {
+					pp.VehicleNum = &p.VehicleNum
+				}
+				if p.TripID != "" {
+					pp.TripID = &p.TripID
+				}
+				pp.DirectionID = p.DirectionID
+
+				batchPositions = append(batchPositions, pp)
+
+				// Segment speeds (keep in memory - small)
+				if pp.Speed != nil && *pp.Speed > 0 && len(segDefs) > 0 {
+					segID := snapToSegment(pp.Lat, pp.Lon, pp.Route, pp.DirectionID, segDefs, 150)
+					if segID != "" {
+						hour := time.Date(pp.RecordedAt.Year(), pp.RecordedAt.Month(), pp.RecordedAt.Day(), pp.RecordedAt.Hour(), 0, 0, 0, time.UTC)
+						key := segID + ":" + hour.Format(time.RFC3339)
+						hourlySegmentSpeeds[key] = append(hourlySegmentSpeeds[key], float64(*pp.Speed))
+					}
+				}
+
+				// Stop arrivals (keep in memory - small)
+				stopsForRoute := stopsByRoute[pp.Route]
+				if len(stopsForRoute) > 0 {
+					var bestStop *routeStop
+					bestDist := math.Inf(1)
+					for i := range stopsForRoute {
+						rs := &stopsForRoute[i]
+						if pp.DirectionID != nil && rs.DirectionID != int(*pp.DirectionID) {
+							continue
+						}
+						dist := haversineM(pp.Lat, pp.Lon, rs.Lat, rs.Lon)
+						if dist < bestDist && dist <= 80 {
+							bestDist = dist
+							bestStop = rs
+						}
+					}
+					if bestStop != nil {
+						dirStr := "x"
+						if pp.DirectionID != nil {
+							dirStr = fmt.Sprintf("%d", *pp.DirectionID)
+						}
+						stopKey := pp.Route + ":" + dirStr + ":" + bestStop.StopID
+						dedupeKey := pp.VehicleID + ":" + stopKey
+						ts := pp.RecordedAt.UnixMilli()
+						last, exists := lastSeenAt[dedupeKey]
+						if !exists || ts-last >= 3*60*1000 {
+							lastSeenAt[dedupeKey] = ts
+							stopArrivals[stopKey] = append(stopArrivals[stopKey], ts)
+						}
+					}
+				}
+
+				totalPositions++
+			}
+
+			// Free memory immediately
+			body = nil
+			snap.Positions = nil
 		}
-		// Free memory immediately after processing each snapshot
-		body = nil
-		snap.Positions = nil
+
+		// Write batch positions to staging table
+		if len(batchPositions) > 0 {
+			for i := 0; i < len(batchPositions); i += 1000 {
+				end := i + 1000
+				if end > len(batchPositions) {
+					end = len(batchPositions)
+				}
+				chunk := batchPositions[i:end]
+
+				query := `INSERT INTO "PositionStagingTemp" ("recordedAt", "vehicleId", "vehicleNum", route, "directionId", lat, lon, speed, "tripId") VALUES `
+				var args []interface{}
+				var placeholders []string
+				for j, p := range chunk {
+					base := j * 9
+					placeholders = append(placeholders, fmt.Sprintf("($%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d)",
+						base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8, base+9))
+					args = append(args, p.RecordedAt, p.VehicleID, p.VehicleNum, p.Route, p.DirectionID, p.Lat, p.Lon, p.Speed, p.TripID)
+				}
+				query += strings.Join(placeholders, ",")
+				if _, err := pool.Exec(ctx, query, args...); err != nil {
+					return fmt.Errorf("insert positions batch: %w", err)
+				}
+			}
+		}
+
+		log.Printf("[aggregate] Batch %d/%d: %d positions loaded", batchNum, (len(keys)+snapshotBatchSize-1)/snapshotBatchSize, len(batchPositions))
+
+		// Clear batch positions to free memory
+		batchPositions = nil
 	}
 
-	log.Printf("[aggregate] Processed %d positions from %d files", totalPositions, len(keys))
+	log.Printf("[aggregate] Processed %d positions from %d files in %d batches", totalPositions, len(keys), batchNum)
 
-	// Trip reconstruction
+	// Trip reconstruction from staging table (stream by vehicle)
+	log.Printf("[aggregate] Reconstructing trips from staging table...")
+
+	// Get all unique vehicles
+	vehicleRows, err := pool.Query(ctx, `SELECT DISTINCT "vehicleId" FROM "PositionStagingTemp" ORDER BY "vehicleId"`)
+	if err != nil {
+		return fmt.Errorf("get vehicles: %w", err)
+	}
+	var vehicles []string
+	for vehicleRows.Next() {
+		var v string
+		if err := vehicleRows.Scan(&v); err != nil {
+			vehicleRows.Close()
+			return fmt.Errorf("scan vehicle: %w", err)
+		}
+		vehicles = append(vehicles, v)
+	}
+	vehicleRows.Close()
+
 	var allTrips []ReconstructedTrip
-	for _, groupPositions := range vehicleGroups {
-		allTrips = append(allTrips, reconstructTrips(groupPositions, 10)...)
+	processedVehicles := 0
+
+	// Process vehicles in batches of 50 to avoid loading all at once
+	for batchStart := 0; batchStart < len(vehicles); batchStart += 50 {
+		batchEnd := batchStart + 50
+		if batchEnd > len(vehicles) {
+			batchEnd = len(vehicles)
+		}
+
+		for _, vehicleID := range vehicles[batchStart:batchEnd] {
+			// Stream positions for this vehicle from staging table
+			posRows, err := pool.Query(ctx, `
+				SELECT "recordedAt", "vehicleId", "vehicleNum", route, "directionId", lat, lon, speed, "tripId"
+				FROM "PositionStagingTemp"
+				WHERE "vehicleId" = $1
+				ORDER BY "recordedAt"
+			`, vehicleID)
+			if err != nil {
+				return fmt.Errorf("get positions for vehicle %s: %w", vehicleID, err)
+			}
+
+			var positions []PositionPoint
+			for posRows.Next() {
+				var p PositionPoint
+				if err := posRows.Scan(&p.RecordedAt, &p.VehicleID, &p.VehicleNum, &p.Route, &p.DirectionID, &p.Lat, &p.Lon, &p.Speed, &p.TripID); err != nil {
+					posRows.Close()
+					return fmt.Errorf("scan position: %w", err)
+				}
+				positions = append(positions, p)
+			}
+			posRows.Close()
+
+			// Group by route+direction and reconstruct trips
+			byRouteDir := make(map[string][]PositionPoint)
+			for _, p := range positions {
+				r := p.Route
+				dirStr := "x"
+				if p.DirectionID != nil {
+					dirStr = fmt.Sprintf("%d", *p.DirectionID)
+				}
+				key := p.VehicleID + ":" + r + ":" + dirStr
+				byRouteDir[key] = append(byRouteDir[key], p)
+			}
+
+			for _, groupPositions := range byRouteDir {
+				allTrips = append(allTrips, reconstructTrips(groupPositions, 10)...)
+			}
+
+			processedVehicles++
+			if processedVehicles%100 == 0 {
+				log.Printf("[aggregate] Reconstructed trips for %d/%d vehicles", processedVehicles, len(vehicles))
+			}
+
+			// Free memory for this vehicle
+			positions = nil
+		}
 	}
-	vehicleGroups = nil
-	lastSeenAt = nil
+
+	log.Printf("[aggregate] Reconstructed %d trips from %d vehicles", len(allTrips), len(vehicles))
 
 	// Store trip logs
 	if len(allTrips) > 0 {
@@ -268,9 +376,8 @@ func runAggregateDailyWithDate(ctx context.Context, pool *pgxpool.Pool, r2 *s3.C
 			}
 		}
 	}
-	log.Printf("[aggregate] Reconstructed %d trips", len(allTrips))
 
-	// Segment speed aggregation
+	// Segment speed aggregation (from memory - small)
 	if len(segDefs) > 0 && len(hourlySegmentSpeeds) > 0 {
 		_, err := pool.Exec(ctx,
 			`DELETE FROM "SegmentSpeedHourly" WHERE "hourStart" >= $1 AND "hourStart" < $2`,
@@ -472,7 +579,7 @@ func runAggregateDailyWithDate(ctx context.Context, pool *pgxpool.Pool, r2 *s3.C
 	}
 	log.Printf("[aggregate] Computed performance for %d route-directions", len(routePerfRows))
 
-	// Stop headway irregularity
+	// Stop headway irregularity (from memory - small)
 	if len(stopArrivals) > 0 {
 		_, err := pool.Exec(ctx, `DELETE FROM "StopHeadwayDaily" WHERE date = $1`, yesterday)
 		if err != nil {
