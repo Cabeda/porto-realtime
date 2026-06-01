@@ -1,18 +1,16 @@
-# fly.toml — PortoMove Worker (Go collector)
-# Lives at repo root so the Fly.io GitHub integration can find it.
-
+# fly.toml — PortoMove Worker (Python/DuckDB)
 app = 'portomove-collector'
 primary_region = 'cdg'
 
 [build]
-  dockerfile = "worker/Dockerfile"
+  dockerfile = "worker-py/Dockerfile"
 
 [env]
   TZ = 'UTC'
 
 # No http_service — this is a background worker, not a web server
 [processes]
-  worker = "/worker"
+  worker = "python -m worker.main"
 
 [[vm]]
   size = 'shared-cpu-1x'
