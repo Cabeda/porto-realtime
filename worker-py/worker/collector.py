@@ -1,17 +1,21 @@
+"""FIWARE bus position collector — fetches positions and writes snapshots to R2."""
 import json
+import os
 import re
 from datetime import datetime, timezone
+from typing import Any
 
 import httpx
 
 from worker.r2 import get_r2, BUCKET
 
-FIWARE_URL = "https://broker.fiware.urbanplatform.portodigital.pt/v2/entities?q=vehicleType==bus&limit=1000"
+FIWARE_URL = os.getenv("FIWARE_URL", "https://broker.fiware.urbanplatform.portodigital.pt/v2/entities?q=vehicleType==bus&limit=1000")
 _STCP_RE = re.compile(r"(?i)STCP\s+(\d+)")
 _ROUTE_PART_RE = re.compile(r"^[A-Za-z0-9]{1,4}$")
+_HTTP = httpx.Client(timeout=15, transport=httpx.HTTPTransport(retries=2))
 
 # Rolling state for today.json
-_state = {
+_state: dict[str, Any] = {
     "date": "",
     "positions_collected": 0,
     "vehicles": set(),
@@ -25,7 +29,7 @@ _state = {
 }
 
 
-def _reset_state(date: str):
+def _reset_state(date: str) -> None:
     _state["date"] = date
     _state["positions_collected"] = 0
     _state["vehicles"] = set()
@@ -38,7 +42,8 @@ def _reset_state(date: str):
     _state["hourly_routes"] = [set() for _ in range(24)]
 
 
-def _unwrap_str(raw) -> str:
+def _unwrap_str(raw: Any) -> str:
+    """Extract string from FIWARE attribute (value object or raw)."""
     if raw is None:
         return ""
     if isinstance(raw, dict) and "value" in raw:
@@ -49,7 +54,8 @@ def _unwrap_str(raw) -> str:
     return ""
 
 
-def _unwrap_float(raw):
+def _unwrap_float(raw: Any) -> float | None:
+    """Extract float from FIWARE attribute."""
     if raw is None:
         return None
     if isinstance(raw, dict) and "value" in raw:
@@ -60,7 +66,8 @@ def _unwrap_float(raw):
     return None
 
 
-def _unwrap_location(raw):
+def _unwrap_location(raw: Any) -> tuple[float | None, float | None]:
+    """Extract (lon, lat) from FIWARE location attribute."""
     if raw is None:
         return None, None
     coords = None
@@ -70,11 +77,12 @@ def _unwrap_location(raw):
         elif "coordinates" in raw:
             coords = raw["coordinates"]
     if coords and len(coords) >= 2 and (coords[0] != 0 or coords[1] != 0):
-        return coords[0], coords[1]  # lon, lat
+        return coords[0], coords[1]
     return None, None
 
 
-def _parse_entity(e: dict) -> dict | None:
+def _parse_entity(e: dict[str, Any]) -> dict[str, Any] | None:
+    """Parse a FIWARE entity into a position dict. Returns None if invalid."""
     lon, lat = _unwrap_location(e.get("location"))
     if lon is None:
         return None
@@ -100,8 +108,8 @@ def _parse_entity(e: dict) -> dict | None:
                     break
 
     # Direction and trip from annotations
-    direction_id = None
-    trip_id = None
+    direction_id: int | None = None
+    trip_id: str | None = None
     annotations = e.get("annotations")
     if isinstance(annotations, dict):
         annotations = annotations.get("value", [])
@@ -146,23 +154,18 @@ def _parse_entity(e: dict) -> dict | None:
 
 
 def collect_positions() -> int:
+    """Fetch positions from FIWARE and write snapshot to R2. Returns count."""
     now = datetime.now(timezone.utc)
     r2 = get_r2()
 
-    resp = httpx.get(FIWARE_URL, headers={"User-Agent": "PortoMove-Collector/2.0", "Cache-Control": "no-cache"}, timeout=15)
+    resp = _HTTP.get(FIWARE_URL, headers={"User-Agent": "PortoMove-Collector/2.0", "Cache-Control": "no-cache"})
     resp.raise_for_status()
     entities = resp.json()
 
     if not entities:
         raise RuntimeError("FIWARE returned empty response")
 
-    positions = []
-    for e in entities:
-        if not e.get("id"):
-            continue
-        p = _parse_entity(e)
-        if p:
-            positions.append(p)
+    positions = [p for e in entities if e.get("id") and (p := _parse_entity(e)) is not None]
 
     if not positions:
         return 0
@@ -170,11 +173,10 @@ def collect_positions() -> int:
     snapshot = {"recordedAt": now.isoformat(), "positions": positions}
     snapshot_json = json.dumps(snapshot, separators=(",", ":")).encode()
 
-    # Write snapshot to R2
     key = f"snapshots/{now:%Y/%m/%d}/{now:%H%M%S}.json"
     r2.put_object(Bucket=BUCKET, Key=key, Body=snapshot_json, ContentType="application/json")
 
-    # Update rolling state and write today.json
+    # Update rolling state
     today = now.strftime("%Y-%m-%d")
     if _state["date"] != today:
         _reset_state(today)

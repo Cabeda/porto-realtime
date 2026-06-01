@@ -1,3 +1,4 @@
+"""PortoMove Worker — collects bus positions and runs daily aggregation jobs."""
 import os
 import sys
 import signal
@@ -6,18 +7,18 @@ import logging
 from datetime import datetime, timezone
 
 from worker.collector import collect_positions
-from worker.jobs import JOBS
+from worker.jobs import JOBS, Job
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("worker")
 
-INTERVAL_S = 30
+INTERVAL_S = int(os.getenv("COLLECT_INTERVAL_S", "30"))
 
 
-def check_scheduled_jobs(last_run: dict):
+def check_scheduled_jobs(last_run: dict[str, str]) -> None:
     now = datetime.now(timezone.utc)
     hour = now.hour
-    weekday = now.weekday()  # 0=Monday
+    weekday = now.weekday()
     today_key = now.strftime("%Y-%m-%d")
 
     for job in JOBS:
@@ -30,46 +31,45 @@ def check_scheduled_jobs(last_run: dict):
             continue
         last_run[job["name"]] = run_key
 
-        log.info(f"[scheduler] Starting {job['name']}...")
+        log.info("[scheduler] Starting %s...", job["name"])
         try:
             job["fn"]()
-            log.info(f"[scheduler] {job['name']} completed")
-        except Exception as e:
-            log.error(f"[scheduler] {job['name']} failed: {e}")
+            log.info("[scheduler] %s completed", job["name"])
+        except Exception:
+            log.exception("[scheduler] %s failed", job["name"])
 
 
-def main():
+def main() -> None:
     # CLI mode: run a specific job
     if len(sys.argv) >= 3 and sys.argv[1] == "run":
         job_name = sys.argv[2]
         job = next((j for j in JOBS if j["name"] == job_name), None)
         if not job:
-            log.error(f"Unknown job: {job_name}")
-            log.info(f"Available: {', '.join(j['name'] for j in JOBS)}")
+            log.error("Unknown job: %s. Available: %s", job_name, ", ".join(j["name"] for j in JOBS))
             sys.exit(1)
-        log.info(f"[run] Executing {job_name}...")
+        log.info("[run] Executing %s...", job_name)
         job["fn"]()
-        log.info(f"[run] {job_name} completed")
+        log.info("[run] %s completed", job_name)
         return
 
     log.info("=== PortoMove Worker (Python/DuckDB) ===")
-    log.info(f"Collection interval: {INTERVAL_S}s")
+    log.info("Collection interval: %ds", INTERVAL_S)
     log.info("Scheduled jobs:")
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     for job in JOBS:
         day = days[job["day_of_week"]] if job.get("day_of_week") is not None else "daily"
-        log.info(f"  - {job['name']}: {job['hour']:02d}:00 UTC ({day})")
+        log.info("  - %s: %02d:00 UTC (%s)", job["name"], job["hour"], day)
 
     running = True
 
-    def shutdown(*_):
+    def shutdown(*_: object) -> None:
         nonlocal running
         running = False
 
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
 
-    last_run: dict = {}
+    last_run: dict[str, str] = {}
     total_collected = 0
     total_cycles = 0
     total_errors = 0
@@ -80,22 +80,21 @@ def main():
             total_collected += n
             total_cycles += 1
             if total_cycles % 10 == 0:
-                log.info(f"[collect] cycle {total_cycles}: {n} positions | total: {total_collected}, errors: {total_errors}")
+                log.info("[collect] cycle %d: %d positions | total: %d, errors: %d", total_cycles, n, total_collected, total_errors)
             else:
-                log.info(f"[collect] {n} positions")
-        except Exception as e:
+                log.info("[collect] %d positions", n)
+        except Exception:
             total_errors += 1
-            log.error(f"[collect] Failed: {e}")
+            log.exception("[collect] Failed")
 
         check_scheduled_jobs(last_run)
 
-        # Sleep in small increments to allow signal handling
         for _ in range(INTERVAL_S):
             if not running:
                 break
             time.sleep(1)
 
-    log.info(f"Shutdown. Total: {total_collected} positions in {total_cycles} cycles, {total_errors} errors.")
+    log.info("Shutdown. Total: %d positions in %d cycles, %d errors.", total_collected, total_cycles, total_errors)
 
 
 if __name__ == "__main__":

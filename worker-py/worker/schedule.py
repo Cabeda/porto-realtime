@@ -1,6 +1,6 @@
 """Remaining scheduled jobs: snapshot-schedule, cleanup-positions, refresh-segments."""
-import json
 import logging
+import os
 import time
 from datetime import datetime, timezone, timedelta
 
@@ -11,8 +11,9 @@ from worker.r2 import get_r2, BUCKET
 
 log = logging.getLogger("worker")
 
-OTP_URL = "https://otp.portodigital.pt/otp/routers/default/index/graphql"
+OTP_URL = os.getenv("OTP_URL", "https://otp.portodigital.pt/otp/routers/default/index/graphql")
 OTP_HEADERS = {"Content-Type": "application/json", "Origin": "https://explore.porto.pt"}
+_HTTP = httpx.Client(timeout=60, transport=httpx.HTTPTransport(retries=3))
 
 
 def run_snapshot_schedule():
@@ -37,7 +38,7 @@ def run_snapshot_schedule():
         }
     }"""
 
-    resp = httpx.post(OTP_URL, json={"query": query}, headers=OTP_HEADERS, timeout=60)
+    resp = _HTTP.post(OTP_URL, json={"query": query}, headers=OTP_HEADERS)
     resp.raise_for_status()
     data = resp.json().get("data", {})
     routes = data.get("routes", [])
@@ -122,7 +123,7 @@ def run_refresh_segments():
         }
     }"""
 
-    resp = httpx.post(OTP_URL, json={"query": query}, headers=OTP_HEADERS, timeout=60)
+    resp = _HTTP.post(OTP_URL, json={"query": query}, headers=OTP_HEADERS)
     resp.raise_for_status()
     routes = resp.json().get("data", {}).get("routes", [])
 
