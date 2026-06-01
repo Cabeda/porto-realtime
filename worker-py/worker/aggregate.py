@@ -128,33 +128,37 @@ def run_aggregate_daily():
     # Write to Neon in a single transaction
     log.info("[aggregate] Writing to Neon...")
     db.execute(f"CALL postgres_execute('neon', 'BEGIN')")
-    db.execute(f"CALL postgres_execute('neon', 'DELETE FROM \"TripLog\" WHERE date = ''{date_str}''')")
-    db.execute(f"""
-        INSERT INTO neon."TripLog" (date, "vehicleId", "vehicleNum", route, "tripId", "directionId", "startedAt", "endedAt", "runtimeSecs", positions, "avgSpeed")
-        SELECT '{date_str}'::DATE, vehicle_id, vehicle_num, route, trip_id, direction_id, started_at, ended_at, runtime_secs, positions, avg_speed
-        FROM trips
-    """)
+    try:
+        db.execute(f"CALL postgres_execute('neon', 'DELETE FROM \"TripLog\" WHERE date = ''{date_str}''')")
+        db.execute(f"""
+            INSERT INTO neon."TripLog" (date, "vehicleId", "vehicleNum", route, "tripId", "directionId", "startedAt", "endedAt", "runtimeSecs", positions, "avgSpeed")
+            SELECT '{date_str}'::DATE, vehicle_id, vehicle_num, route, trip_id, direction_id, started_at, ended_at, runtime_secs, positions, avg_speed
+            FROM trips
+        """)
 
-    db.execute(f"CALL postgres_execute('neon', 'DELETE FROM \"RoutePerformanceDaily\" WHERE date = ''{date_str}''')")
-    db.execute(f"""
-        INSERT INTO neon."RoutePerformanceDaily" (date, route, "directionId", "tripsObserved", "avgRuntimeSecs", "avgCommercialSpeed")
-        SELECT '{date_str}'::DATE, route, direction_id, trips_observed, avg_runtime_secs, avg_commercial_speed
-        FROM route_perf
-    """)
+        db.execute(f"CALL postgres_execute('neon', 'DELETE FROM \"RoutePerformanceDaily\" WHERE date = ''{date_str}''')")
+        db.execute(f"""
+            INSERT INTO neon."RoutePerformanceDaily" (date, route, "directionId", "tripsObserved", "avgRuntimeSecs", "avgCommercialSpeed")
+            SELECT '{date_str}'::DATE, route, direction_id, trips_observed, avg_runtime_secs, avg_commercial_speed
+            FROM route_perf
+        """)
 
-    # Network summary upsert via postgres_execute
-    ns = db.execute("SELECT * FROM network_summary").fetchone()
-    db.execute(f"""CALL postgres_execute('neon', '
-        INSERT INTO "NetworkSummaryDaily" (date, "activeVehicles", "totalTrips", "avgCommercialSpeed", "positionsCollected")
-        VALUES (''{date_str}'', {ns[0]}, {ns[1]}, {ns[2] or 'NULL'}, {total})
-        ON CONFLICT (date) DO UPDATE SET
-            "activeVehicles" = EXCLUDED."activeVehicles",
-            "totalTrips" = EXCLUDED."totalTrips",
-            "avgCommercialSpeed" = EXCLUDED."avgCommercialSpeed",
-            "positionsCollected" = EXCLUDED."positionsCollected"
-    ')""")
+        # Network summary upsert via postgres_execute
+        ns = db.execute("SELECT * FROM network_summary").fetchone()
+        db.execute(f"""CALL postgres_execute('neon', '
+            INSERT INTO "NetworkSummaryDaily" (date, "activeVehicles", "totalTrips", "avgCommercialSpeed", "positionsCollected")
+            VALUES (''{date_str}'', {ns[0]}, {ns[1]}, {ns[2] or "NULL"}, {total})
+            ON CONFLICT (date) DO UPDATE SET
+                "activeVehicles" = EXCLUDED."activeVehicles",
+                "totalTrips" = EXCLUDED."totalTrips",
+                "avgCommercialSpeed" = EXCLUDED."avgCommercialSpeed",
+                "positionsCollected" = EXCLUDED."positionsCollected"
+        ')""")
 
-    db.execute(f"CALL postgres_execute('neon', 'COMMIT')")
+        db.execute(f"CALL postgres_execute('neon', 'COMMIT')")
+    except Exception:
+        db.execute(f"CALL postgres_execute('neon', 'ROLLBACK')")
+        raise
 
     elapsed = time.time() - start
     log.info(f"[aggregate] Complete for {date_str}: {total} positions, {trip_count} trips in {elapsed:.1f}s")

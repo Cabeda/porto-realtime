@@ -133,6 +133,9 @@ def run_refresh_segments():
     db = get_duck()
     attach_neon(db)
 
+    # Collect all stops into a local table, then bulk insert to Neon
+    db.execute("CREATE TABLE local_stops (id VARCHAR, route VARCHAR, direction_id INTEGER, stop_seq INTEGER, stop_id VARCHAR, stop_name VARCHAR, lat DOUBLE, lon DOUBLE)")
+
     total_stops = 0
     for route in routes:
         short_name = route.get("shortName", "")
@@ -145,17 +148,26 @@ def run_refresh_segments():
                 if not stop.get("gtfsId"):
                     continue
                 stop_id_key = f"{short_name}:{dir_id}:{seq}"
-                stop_name = stop.get("name") or None
-                # Upsert via postgres_execute
-                name_sql = f"''{stop_name}''" if stop_name else "NULL"
-                db.execute(f"""CALL postgres_execute('neon', '
-                    INSERT INTO "RouteStop" (id, route, "directionId", "stopSequence", "stopId", "stopName", lat, lon)
-                    VALUES (''{stop_id_key}'', ''{short_name}'', {dir_id}, {seq}, ''{stop["gtfsId"]}'', {name_sql}, {stop["lat"]}, {stop["lon"]})
-                    ON CONFLICT (id) DO UPDATE SET
-                        "stopId" = EXCLUDED."stopId", "stopName" = EXCLUDED."stopName",
-                        lat = EXCLUDED.lat, lon = EXCLUDED.lon
-                ')""")
+                db.execute(
+                    "INSERT INTO local_stops VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    [stop_id_key, short_name, dir_id, seq, stop["gtfsId"], stop.get("name"), stop["lat"], stop["lon"]],
+                )
                 total_stops += 1
+
+    if total_stops > 0:
+        db.execute("""CALL postgres_execute('neon', '
+            CREATE TABLE IF NOT EXISTS "_tmp_stops" (id VARCHAR, route VARCHAR, "directionId" INTEGER, "stopSequence" INTEGER, "stopId" VARCHAR, "stopName" VARCHAR, lat DOUBLE PRECISION, lon DOUBLE PRECISION)
+        ')""")
+        db.execute("""CALL postgres_execute('neon', 'TRUNCATE "_tmp_stops"')""")
+        db.execute("""INSERT INTO neon."_tmp_stops" SELECT * FROM local_stops""")
+        db.execute("""CALL postgres_execute('neon', '
+            INSERT INTO "RouteStop" (id, route, "directionId", "stopSequence", "stopId", "stopName", lat, lon)
+            SELECT id, route, "directionId", "stopSequence", "stopId", "stopName", lat, lon FROM "_tmp_stops"
+            ON CONFLICT (id) DO UPDATE SET
+                "stopId" = EXCLUDED."stopId", "stopName" = EXCLUDED."stopName",
+                lat = EXCLUDED.lat, lon = EXCLUDED.lon
+        ')""")
+        db.execute("""CALL postgres_execute('neon', 'DROP TABLE "_tmp_stops"')""")
 
     elapsed = time.time() - start
     log.info(f"[segments] Refreshed {total_stops} stops from {len(routes)} routes in {elapsed:.1f}s")
