@@ -1,0 +1,12 @@
+[project]
+name = "portomove-worker"
+version = "2.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb==1.5.3",
+    "httpx>=0.28",
+    "boto3>=1.35",
+]
+
+[project.scripts]
+worker = "worker.main:main"

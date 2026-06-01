@@ -18,4 +18,3 @@ primary_region = 'cdg'
   size = 'shared-cpu-1x'
   memory = '512mb'
   cpus = 1
-  memory_mb = 512
