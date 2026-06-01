@@ -1,4 +1,4 @@
-"""Aggregate daily job: reads R2 snapshots via DuckDB httpfs, processes, writes to Neon."""
+"""Aggregate daily job: reads Parquet/JSON from R2, processes in DuckDB, writes results to R2 Parquet + Neon."""
 import logging
 import os
 import time
@@ -10,10 +10,9 @@ from worker.r2 import get_r2, BUCKET
 log = logging.getLogger("worker")
 
 
-def run_aggregate_daily():
+def run_aggregate_daily() -> None:
     start = time.time()
 
-    # Support DATE env var for backfills
     date_str = os.getenv("DATE")
     if date_str:
         yesterday = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -22,65 +21,70 @@ def run_aggregate_daily():
 
     date_str = yesterday.isoformat()
     date_path = yesterday.strftime("%Y/%m/%d")
-    log.info(f"[aggregate] Starting for {date_str}")
-
-    # Check if snapshots exist
-    r2 = get_r2()
-    prefix = f"snapshots/{date_path}/"
-    resp = r2.list_objects_v2(Bucket=BUCKET, Prefix=prefix, MaxKeys=1)
-    if not resp.get("Contents"):
-        log.info(f"[aggregate] No snapshots for {date_str}")
-        return
+    log.info("[aggregate] Starting for %s", date_str)
 
     db = get_duck()
-    attach_neon(db)
-
     bucket_url = r2_bucket_url()
-    s3_path = f"{bucket_url}/{prefix}*.json"
 
-    # Load all snapshots into a local table via httpfs
-    log.info(f"[aggregate] Reading snapshots from {s3_path}")
-    db.execute(f"""
-        CREATE TABLE positions AS
-        SELECT
-            unnest(positions) AS p,
-            recordedAt::TIMESTAMP AS recorded_at
-        FROM read_json('{s3_path}', format='auto', union_by_name=true)
-    """)
-    db.execute("""
-        CREATE TABLE pos AS
-        SELECT
-            recorded_at,
-            p.vehicleId AS vehicle_id,
-            p.vehicleNum AS vehicle_num,
-            p.route AS route,
-            p.tripId AS trip_id,
-            p.directionId::SMALLINT AS direction_id,
-            p.lat::DOUBLE AS lat,
-            p.lon::DOUBLE AS lon,
-            p.speed::FLOAT AS speed
-        FROM positions
-        WHERE p.route IS NOT NULL AND p.route != ''
-    """)
-    db.execute("DROP TABLE positions")
+    # Prefer Parquet (written by archive job at 02:00) over raw JSON
+    parquet_path = f"{bucket_url}/positions/{date_path}.parquet"
+    json_path = f"{bucket_url}/snapshots/{date_path}/*.json"
+
+    try:
+        db.execute(f"""
+            CREATE TABLE pos AS
+            SELECT recorded_at::TIMESTAMP AS recorded_at, vehicle_id, vehicle_num,
+                   route, trip_id, direction_id, lat, lon, speed
+            FROM read_parquet('{parquet_path}')
+            WHERE route IS NOT NULL AND route != ''
+            ORDER BY vehicle_id, route, direction_id, recorded_at
+        """)
+        log.info("[aggregate] Reading from Parquet archive")
+    except Exception:
+        # Fallback to JSON if Parquet not yet available
+        log.info("[aggregate] Parquet not found, reading JSON snapshots")
+        r2 = get_r2()
+        prefix = f"snapshots/{date_path}/"
+        resp = r2.list_objects_v2(Bucket=BUCKET, Prefix=prefix, MaxKeys=1)
+        if not resp.get("Contents"):
+            log.info("[aggregate] No snapshots for %s", date_str)
+            return
+        db.execute(f"""
+            CREATE TABLE pos AS
+            SELECT recorded_at, vehicle_id, vehicle_num, route, trip_id, direction_id, lat, lon, speed
+            FROM (
+                SELECT p.vehicleId AS vehicle_id, p.vehicleNum AS vehicle_num,
+                       p.route AS route, p.tripId AS trip_id,
+                       p.directionId::SMALLINT AS direction_id,
+                       p.lat::DOUBLE AS lat, p.lon::DOUBLE AS lon,
+                       p.speed::FLOAT AS speed,
+                       recordedAt::TIMESTAMP AS recorded_at
+                FROM (
+                    SELECT unnest(positions) AS p, recordedAt
+                    FROM read_json('{json_path}', format='auto', union_by_name=true)
+                )
+            )
+            WHERE route IS NOT NULL AND route != ''
+            ORDER BY vehicle_id, route, direction_id, recorded_at
+        """)
 
     total = db.execute("SELECT count(*) FROM pos").fetchone()[0]
-    log.info(f"[aggregate] Loaded {total} positions")
+    log.info("[aggregate] Loaded %d positions", total)
 
-    # Trip reconstruction: group by vehicle+route+direction, split on >10min gaps
+    if total == 0:
+        return
+
+    # Trip reconstruction (pre-sorted data = streaming window pass)
     db.execute("""
         CREATE TABLE trips AS
-        WITH ordered AS (
+        WITH trip_boundaries AS (
             SELECT *,
-                ROW_NUMBER() OVER (PARTITION BY vehicle_id, route, direction_id ORDER BY recorded_at) AS rn,
-                LAG(recorded_at) OVER (PARTITION BY vehicle_id, route, direction_id ORDER BY recorded_at) AS prev_at
+                SUM(CASE WHEN
+                    LAG(recorded_at) OVER w IS NULL OR
+                    EPOCH(recorded_at - LAG(recorded_at) OVER w) > 600
+                THEN 1 ELSE 0 END) OVER w AS trip_num
             FROM pos
-        ),
-        trip_boundaries AS (
-            SELECT *,
-                SUM(CASE WHEN prev_at IS NULL OR EPOCH(recorded_at - prev_at) > 600 THEN 1 ELSE 0 END)
-                    OVER (PARTITION BY vehicle_id, route, direction_id ORDER BY recorded_at) AS trip_num
-            FROM ordered
+            WINDOW w AS (PARTITION BY vehicle_id, route, direction_id ORDER BY recorded_at)
         )
         SELECT
             vehicle_id,
@@ -99,9 +103,9 @@ def run_aggregate_daily():
     """)
 
     trip_count = db.execute("SELECT count(*) FROM trips").fetchone()[0]
-    log.info(f"[aggregate] Reconstructed {trip_count} trips")
+    log.info("[aggregate] Reconstructed %d trips", trip_count)
 
-    # Route performance daily
+    # Route performance
     db.execute("""
         CREATE TABLE route_perf AS
         SELECT
@@ -125,9 +129,20 @@ def run_aggregate_daily():
         FROM trips
     """)
 
-    # Write to Neon in a single transaction
-    log.info("[aggregate] Writing to Neon...")
-    db.execute(f"CALL postgres_execute('neon', 'BEGIN')")
+    # Write analytics to R2 as Parquet (zero Neon compute for reads)
+    log.info("[aggregate] Writing analytics Parquet to R2...")
+    db.execute(f"""
+        COPY (SELECT '{date_str}'::DATE AS date, * FROM trips)
+        TO '{bucket_url}/analytics/trips/{date_str}.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)
+    """)
+    db.execute(f"""
+        COPY (SELECT '{date_str}'::DATE AS date, * FROM route_perf)
+        TO '{bucket_url}/analytics/route_perf/{date_str}.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)
+    """)
+
+    # Also write to Neon for backward compatibility (minimal compute)
+    attach_neon(db)
+    db.execute("CALL postgres_execute('neon', 'BEGIN')")
     try:
         db.execute(f"CALL postgres_execute('neon', 'DELETE FROM \"TripLog\" WHERE date = ''{date_str}''')")
         db.execute(f"""
@@ -143,11 +158,11 @@ def run_aggregate_daily():
             FROM route_perf
         """)
 
-        # Network summary upsert via postgres_execute
         ns = db.execute("SELECT * FROM network_summary").fetchone()
+        avg_speed_val = ns[2] if ns[2] is not None else "NULL"
         db.execute(f"""CALL postgres_execute('neon', '
             INSERT INTO "NetworkSummaryDaily" (date, "activeVehicles", "totalTrips", "avgCommercialSpeed", "positionsCollected")
-            VALUES (''{date_str}'', {ns[0]}, {ns[1]}, {ns[2] or "NULL"}, {total})
+            VALUES (''{date_str}'', {ns[0]}, {ns[1]}, {avg_speed_val}, {total})
             ON CONFLICT (date) DO UPDATE SET
                 "activeVehicles" = EXCLUDED."activeVehicles",
                 "totalTrips" = EXCLUDED."totalTrips",
@@ -155,10 +170,10 @@ def run_aggregate_daily():
                 "positionsCollected" = EXCLUDED."positionsCollected"
         ')""")
 
-        db.execute(f"CALL postgres_execute('neon', 'COMMIT')")
+        db.execute("CALL postgres_execute('neon', 'COMMIT')")
     except Exception:
-        db.execute(f"CALL postgres_execute('neon', 'ROLLBACK')")
+        db.execute("CALL postgres_execute('neon', 'ROLLBACK')")
         raise
 
     elapsed = time.time() - start
-    log.info(f"[aggregate] Complete for {date_str}: {total} positions, {trip_count} trips in {elapsed:.1f}s")
+    log.info("[aggregate] Complete for %s: %d positions, %d trips in %.1fs", date_str, total, trip_count, elapsed)

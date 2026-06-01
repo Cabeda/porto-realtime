@@ -9,18 +9,18 @@ from worker.r2 import get_r2, BUCKET
 log = logging.getLogger("worker")
 
 
-def run_archive_positions():
+def run_archive_positions() -> None:
     start = time.time()
     yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).date()
     date_path = yesterday.strftime("%Y/%m/%d")
-    parquet_key = f"positions/{yesterday:%Y/%m/%d}.parquet"
+    parquet_key = f"positions/{date_path}.parquet"
 
     r2 = get_r2()
 
     # Check if already archived
     try:
         r2.head_object(Bucket=BUCKET, Key=parquet_key)
-        log.info(f"[archive] {parquet_key} already exists — skipping")
+        log.info("[archive] %s already exists — skipping", parquet_key)
         return
     except r2.exceptions.ClientError:
         pass
@@ -29,20 +29,21 @@ def run_archive_positions():
     prefix = f"snapshots/{date_path}/"
     resp = r2.list_objects_v2(Bucket=BUCKET, Prefix=prefix, MaxKeys=1)
     if not resp.get("Contents"):
-        log.info(f"[archive] No snapshots for {yesterday}")
+        log.info("[archive] No snapshots for %s", yesterday)
         return
 
     db = get_duck()
     bucket_url = r2_bucket_url()
     r2_src = f"{bucket_url}/{prefix}*.json"
 
-    log.info(f"[archive] Reading {r2_src}")
+    log.info("[archive] Reading %s", r2_src)
 
     # Read all snapshots and write as Parquet directly to R2
+    # Column names match what aggregate.py expects for direct Parquet read
     db.execute(f"""
         COPY (
             SELECT
-                recordedAt AS recorded_at,
+                recordedAt::TIMESTAMP AS recorded_at,
                 p.vehicleId AS vehicle_id,
                 p.vehicleNum AS vehicle_num,
                 p.route AS route,
@@ -60,4 +61,4 @@ def run_archive_positions():
     """)
 
     elapsed = time.time() - start
-    log.info(f"[archive] Wrote {parquet_key} in {elapsed:.1f}s")
+    log.info("[archive] Wrote %s in %.1fs", parquet_key, elapsed)
